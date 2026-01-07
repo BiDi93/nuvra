@@ -1,178 +1,213 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function CoachDashboard() {
-    const [players, setPlayers] = useState([]);
-    
-    // Modals State
-    const [showPlayerForm, setShowPlayerForm] = useState(false);
-    const [showMatchForm, setShowMatchForm] = useState(false);
-    const [selectedPlayer, setSelectedPlayer] = useState(null); // Who are we adding stats for?
+    const navigate = useNavigate();
+    const [coach, setCoach] = useState(null);
+    const [team, setTeam] = useState([]);
+    const [showAddModal, setShowAddModal] = useState(false);
 
-    // Forms Data
-    const [playerData, setPlayerData] = useState({
-        name: '', position: 'Striker', jersey_number: '', strong_foot: 'right', height_cm: ''
+    // New Player Form State
+    const [newPlayer, setNewPlayer] = useState({
+        name: '', email: '', position: 'Forward', 
+        jersey_number: '', height_cm: '', strong_foot: 'right'
     });
 
-    const [matchData, setMatchData] = useState({
-        match_date: '', opponent_name: '', minutes_played: 90, goals: 0, assists: 0, rating: 7.0
-    });
-
-    // 1. Fetch Players
     useEffect(() => {
-        fetch('/api/players').then(res => res.json()).then(data => setPlayers(data));
+        // 1. Get Coach Data from LocalStorage
+        const storedCoach = localStorage.getItem('currentCoach');
+        if (!storedCoach) { navigate('/coach'); return; }
+        
+        const parsedCoach = JSON.parse(storedCoach);
+        setCoach(parsedCoach);
+
+        // 2. Fetch YOUR Team (Only players linked to this coach)
+        fetch(`/api/coach/${parsedCoach.id}/players`)
+            .then(res => res.json())
+            .then(data => setTeam(data))
+            .catch(err => console.error(err));
     }, []);
 
-    // 2. Handle New Player
-    const handlePlayerSubmit = (e) => {
+    const handleAddPlayer = (e) => {
         e.preventDefault();
-        fetch('/api/players', {
+        fetch(`/api/coach/${coach.id}/players`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(playerData)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newPlayer)
         })
         .then(res => res.json())
-        .then(newPlayer => {
-            setPlayers([...players, { ...playerData, id: newPlayer.id }]);
-            setShowPlayerForm(false);
-        });
+        .then(data => {
+            alert(data.message);
+            setShowAddModal(false);
+            // Reload team to see the new player
+            window.location.reload(); 
+        })
+        .catch(err => alert("Error adding player"));
     };
 
-    // 3. Handle Match Stats (THE NEW PART)
-    const handleMatchSubmit = (e) => {
-        e.preventDefault();
-        
-        const payload = { ...matchData, player_id: selectedPlayer.id };
-
-        fetch('/api/performances', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(async res => {
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text);
-            }
-            return res.json();
-        })
-        .then(() => {
-            alert(`Stats saved for ${selectedPlayer.name}!`);
-            setShowMatchForm(false);
-            setMatchData({ match_date: '', opponent_name: '', minutes_played: 90, goals: 0, assists: 0, rating: 7.0 });
-        })
-        .catch(err => alert("Error: " + err.message));
+    const handleLogout = () => {
+        localStorage.removeItem('currentCoach');
+        navigate('/coach');
     };
 
-    const openMatchModal = (player) => {
-        setSelectedPlayer(player);
-        setShowMatchForm(true);
-    };
+    if (!coach) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold text-gray-400">Loading Staff Portal...</div>;
 
     return (
-        <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
-            {/* Header */}
-            <nav className="bg-white shadow px-8 py-4 flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-purple-700">NUVRA <span className="text-gray-400 font-normal text-sm">| Manager Mode</span></h1>
-                <button onClick={() => setShowPlayerForm(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg font-bold shadow">
-                    + Scout New Talent
-                </button>
-            </nav>
-
-            {/* List */}
-            <div className="p-8 max-w-7xl mx-auto">
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b">
-                            <tr>
-                                <th className="p-4 text-sm font-bold text-gray-500">Jersey</th>
-                                <th className="p-4 text-sm font-bold text-gray-500">Name</th>
-                                <th className="p-4 text-sm font-bold text-gray-500">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {players.map(player => (
-                                <tr key={player.id} className="hover:bg-purple-50 transition">
-                                    <td className="p-4 font-bold text-gray-700">#{player.jersey_number}</td>
-                                    <td className="p-4 font-medium">{player.name}</td>
-                                    <td className="p-4">
-                                        <button 
-                                            onClick={() => openMatchModal(player)}
-                                            className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded text-sm font-bold border border-green-200"
-                                        >
-                                            + Log Match Stats
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+        <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
+            
+            {/* 1. SIDEBAR (Dark Theme for Coaches to differentiate from Players) */}
+            <aside className="w-64 bg-gray-900 text-white flex flex-col hidden md:flex shadow-2xl z-20">
+                <div className="p-8">
+                    <h1 className="text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">NUVRA</h1>
+                    <p className="text-xs text-gray-500 uppercase tracking-widest mt-2 font-bold">Staff Portal</p>
                 </div>
-            </div>
 
-            {/* --- PLAYER FORM MODAL (Keep your existing one, simplified here) --- */}
-            {showPlayerForm && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-bold mb-4">Add New Player</h2>
-                        <form onSubmit={handlePlayerSubmit} className="space-y-4">
-                            <input className="w-full border p-2 rounded" placeholder="Name" value={playerData.name} onChange={e=>setPlayerData({...playerData, name:e.target.value})} />
-                            <input className="w-full border p-2 rounded" placeholder="Jersey" value={playerData.jersey_number} onChange={e=>setPlayerData({...playerData, jersey_number:e.target.value})} />
-                            <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowPlayerForm(false)} className="px-4 py-2">Cancel</button>
-                                <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded">Save</button>
-                            </div>
-                        </form>
+                <nav className="flex-1 px-4 space-y-2">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-purple-600 rounded-xl font-bold text-white cursor-pointer shadow-lg shadow-purple-900/20">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <span>Squad Management</span>
                     </div>
-                </div>
-            )}
+                    <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 rounded-xl font-medium cursor-pointer transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        <span>Team Analytics</span>
+                    </div>
+                    <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 rounded-xl font-medium cursor-pointer transition-colors">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span>Schedule</span>
+                    </div>
+                </nav>
 
-            {/* --- MATCH STATS MODAL (NEW) --- */}
-            {showMatchForm && selectedPlayer && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-bold mb-2">Log Match: {selectedPlayer.name}</h2>
-                        <p className="text-sm text-gray-500 mb-4">Enter stats for the latest game.</p>
+                <div className="p-4 border-t border-gray-800">
+                    <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:bg-red-900/20 rounded-xl transition-colors font-bold text-sm">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                        Sign Out
+                    </button>
+                </div>
+            </aside>
+
+            {/* 2. MAIN CONTENT */}
+            <main className="flex-1 overflow-y-auto relative flex flex-col">
+                
+                {/* Header */}
+                <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">{coach.team_name}</h2>
+                        <p className="text-sm text-gray-500 font-medium">Head Coach: <span className="text-gray-900">{coach.name}</span></p>
+                    </div>
+                    <button 
+                        onClick={() => setShowAddModal(true)}
+                        className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 transform hover:-translate-y-0.5"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        Scout New Player
+                    </button>
+                </header>
+
+                {/* Dashboard Content */}
+                <div className="p-8 max-w-7xl mx-auto w-full">
+                    
+                    {/* Squad Overview Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {team.map(player => (
+                            <div key={player.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-gray-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                                
+                                <div className="relative z-10 flex items-start justify-between mb-4">
+                                    <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white shadow-md overflow-hidden">
+                                        <img src={player.profile_image || "/avatar-placeholder.png"} alt={player.name} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs font-bold uppercase">{player.position}</span>
+                                        <div className="mt-2 text-4xl font-black text-gray-200">#{player.jersey_number}</div>
+                                    </div>
+                                </div>
+                                
+                                <h3 className="text-xl font-bold text-gray-900 relative z-10">{player.name}</h3>
+                                <p className="text-sm text-gray-500 mb-4">{player.email}</p>
+                                
+                                <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
+                                    <button className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors">View Stats →</button>
+                                    <button className="text-gray-300 hover:text-red-500 transition-colors">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                         
-                        <form onSubmit={handleMatchSubmit} className="space-y-3">
-                            <div>
-                                <label className="text-xs font-bold text-gray-500">Opponent Team</label>
-                                <input className="w-full border p-2 rounded" value={matchData.opponent_name} onChange={e=>setMatchData({...matchData, opponent_name:e.target.value})} required />
+                        {/* Empty State if no players */}
+                        {team.length === 0 && (
+                            <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50">
+                                <p className="text-gray-400 font-bold mb-2">Your squad is empty.</p>
+                                <button onClick={() => setShowAddModal(true)} className="text-purple-600 font-bold hover:underline">Scout your first player now</button>
                             </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-500">Date</label>
-                                <input type="date" className="w-full border p-2 rounded" value={matchData.match_date} onChange={e=>setMatchData({...matchData, match_date:e.target.value})} required />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500">Goals Scored</label>
-                                    <input type="number" className="w-full border p-2 rounded font-bold text-purple-600" value={matchData.goals} onChange={e=>setMatchData({...matchData, goals:e.target.value})} />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500">Assists</label>
-                                    <input type="number" className="w-full border p-2 rounded" value={matchData.assists} onChange={e=>setMatchData({...matchData, assists:e.target.value})} />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500">Rating (1-10)</label>
-                                    <input type="number" step="0.1" className="w-full border p-2 rounded" value={matchData.rating} onChange={e=>setMatchData({...matchData, rating:e.target.value})} />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500">Minutes</label>
-                                    <input type="number" className="w-full border p-2 rounded" value={matchData.minutes_played} onChange={e=>setMatchData({...matchData, minutes_played:e.target.value})} />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button type="button" onClick={() => setShowMatchForm(false)} className="px-4 py-2 text-gray-500">Cancel</button>
-                                <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold">Save Stats</button>
-                            </div>
-                        </form>
+                        )}
                     </div>
                 </div>
-            )}
+
+                {/* 3. ADD PLAYER MODAL */}
+                {showAddModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl relative">
+                            <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-900">✕</button>
+                            
+                            <h2 className="text-2xl font-black text-gray-900 mb-1">Scout New Talent</h2>
+                            <p className="text-sm text-gray-500 mb-6">Add a player to your roster. Default password: <span className="font-mono text-purple-600">welcome123</span></p>
+                            
+                            <form onSubmit={handleAddPlayer} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                                        <input className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500" required
+                                            placeholder="e.g. Ali Hassan"
+                                            value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jersey #</label>
+                                        <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500" required
+                                            placeholder="10"
+                                            value={newPlayer.jersey_number} onChange={e => setNewPlayer({...newPlayer, jersey_number: e.target.value})} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+                                    <input type="email" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500" required
+                                        placeholder="player@email.com"
+                                        value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Position</label>
+                                        <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})}>
+                                            <option>Forward</option><option>Midfielder</option><option>Defender</option><option>Goalkeeper</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Strong Foot</label>
+                                        <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            value={newPlayer.strong_foot} onChange={e => setNewPlayer({...newPlayer, strong_foot: e.target.value})}>
+                                            <option value="right">Right</option><option value="left">Left</option><option value="both">Both</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Height (cm)</label>
+                                    <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500" required
+                                        placeholder="180"
+                                        value={newPlayer.height_cm} onChange={e => setNewPlayer({...newPlayer, height_cm: e.target.value})} />
+                                </div>
+
+                                <button type="submit" className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-xl mt-4 transition-all shadow-lg">
+                                    Add Player to Squad
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </main>
         </div>
     );
 }

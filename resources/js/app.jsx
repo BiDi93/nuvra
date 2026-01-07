@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Import Pages
 import LandingPage from './Pages/LandingPage';
+import CoachLogin from './Pages/CoachLogin'; 
 import CoachDashboard from './Pages/CoachDashboard';
 
 // Import New Layout and Modules
@@ -20,14 +21,17 @@ function App() {
             <Routes>
                 {/* 1. Public Routes */}
                 <Route path="/" element={<LandingPage />} />
-                <Route path="/coach" element={<CoachDashboard />} />
+                
+                {/* 2. Coach Routes */}
+                {/* The /coach URL now shows the Login Screen */}
+                <Route path="/coach" element={<CoachLogin />} /> 
+                
+                {/* After login, they get sent here */}
+                <Route path="/coach-dashboard" element={<CoachDashboard />} />
 
-                {/* 2. Player Dashboard (Nested Routes) */}
+                {/* 3. Player Dashboard (Nested Routes) */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
-                    {/* Default view: Stats Overview */}
                     <Route index element={<Overview />} />
-                    
-                    {/* Sub-pages */}
                     <Route path="team" element={<Team />} />
                     <Route path="announcements" element={<Announcements />} />
                     <Route path="settings" element={<Settings />} />

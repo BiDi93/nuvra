@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PerformanceController; 
+use App\Http\Controllers\CoachController;
 
 
 Route::get('/user', function (Request $request) {
@@ -24,3 +25,9 @@ Route::post('/performances', [PerformanceController::class, 'store']);
 
 //Route for player login
 Route::post('/login', [PlayerController::class, 'login']);
+
+
+//Route for coach functionalities
+Route::post('/coach/login', [CoachController::class, 'login']);
+Route::get('/coach/{id}/players', [CoachController::class, 'getMyTeam']);
+Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
