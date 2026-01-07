@@ -1,23 +1,40 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+// 1. NEW IMPORTS for Radar Chart
+import { 
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
+    Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
+} from 'recharts';
 
 export default function Overview() {
-    // Grab data directly from the parent Layout
-    const { stats, history } = useOutletContext();
+    // Grab attributes from context
+    const { stats, history, attributes } = useOutletContext();
 
-    const chartData = [...history].reverse().map(match => ({
+    // 2. DATA PREP: Performance History (Area Chart)
+    const historyData = [...history].reverse().map(match => ({
         date: new Date(match.match_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         rating: match.rating
     }));
 
+    // 3. DATA PREP: Attributes (Radar Chart)
+    // We map the database columns to readable labels
+    const radarData = [
+        { subject: 'Pace', A: attributes.pace || 50, fullMark: 100 },
+        { subject: 'Shooting', A: attributes.shooting || 50, fullMark: 100 },
+        { subject: 'Passing', A: attributes.passing || 50, fullMark: 100 },
+        { subject: 'Dribbling', A: attributes.dribbling || 50, fullMark: 100 },
+        { subject: 'Defending', A: attributes.defending || 50, fullMark: 100 },
+        { subject: 'Physical', A: attributes.physical || 50, fullMark: 100 },
+    ];
+
     const bestMatch = history.length > 0 
-            ? history.reduce((prev, current) => (prev.rating > current.rating) ? prev : current)
-            : null;
+        ? history.reduce((prev, current) => (prev.rating > current.rating) ? prev : current)
+        : null;
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 w-full">
-            {/* Stats Grid */}
+            
+            {/* Top Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative group hover:shadow-md transition-all">
                     <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Current Form</p>
@@ -26,65 +43,81 @@ export default function Overview() {
                         <div className="h-full bg-purple-500 rounded-full" style={{ width: `${stats.average_rating * 10}%` }}></div>
                     </div>
                 </div>
-                
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
                     <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Season Goals</p>
                     <div className="text-4xl font-black text-blue-600">{stats.total_goals}</div>
-                    <p className="text-xs text-green-500 font-bold mt-2">Top Scorer Contender</p>
                 </div>
-                
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
                     <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Matches Played</p>
                     <div className="text-4xl font-black text-purple-600">{stats.total_matches}</div>
-                    <p className="text-xs text-gray-400 font-bold mt-2">100% Attendance</p>
                 </div>
             </div>
 
-            {/* Chart Section */}
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-8">
-                <div className="md:w-1/3">
-
-                    <h3 className="text-2xl font-bold mb-2">Performance History</h3>
-                    <p className="text-gray-500 text-sm mb-6">Track your rating progression over the last 5 games.</p>
-                    <div className="space-y-4">
-                        <div className="p-4 bg-gray-50 rounded-xl">
-                        <div className="text-xs text-gray-400 font-bold uppercase">Highest Rating</div>
-                        <div className="text-xl font-bold text-gray-900">
-        
-                         {/* Dynamic Rating */}
-                         {bestMatch ? bestMatch.rating : '-'} 
-
-                         {/* Dynamic Opponent Name */}
-                        <span className="text-sm font-normal text-gray-400 ml-2">
-                         {bestMatch ? `vs ${bestMatch.opponent_name}` : 'No matches yet'}
-                         </span>
-        
-                </div>
-            </div>
-                     </div>
-                </div>
+            {/* CHARTS ROW: Hexagon (Left) + Performance (Right) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                <div className="md:w-2/3 h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
-                            <defs>
-                                <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
-                            <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)'}} />
-                            <Area type="monotone" dataKey="rating" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorRating)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                {/* 1. NEW HEXAGON RADAR CHART */}
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <h3 className="text-xl font-bold mb-2 self-start">Player Attributes</h3>
+                    <p className="text-gray-400 text-sm mb-4 self-start">Technical analysis breakdown.</p>
+                    
+                    <div className="w-full h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                <PolarGrid stroke="#e5e7eb" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 'bold' }} />
+                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                <Radar
+                                    name="Player"
+                                    dataKey="A"
+                                    stroke="#8b5cf6"
+                                    strokeWidth={3}
+                                    fill="#8b5cf6"
+                                    fillOpacity={0.5}
+                                />
+                                <Tooltip />
+                            </RadarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
-                
+
+                {/* 2. EXISTING AREA CHART */}
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
+                    <h3 className="text-xl font-bold mb-2">Performance Trend</h3>
+                    <p className="text-gray-400 text-sm mb-6">Rating progression over last games.</p>
+                    
+                    <div className="flex-1 h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={historyData}>
+                                <defs>
+                                    <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
+                                <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)'}} />
+                                <Area type="monotone" dataKey="rating" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRating)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* Best Match Info at bottom */}
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-400 uppercase">Best Performance</span>
+                        <span className="text-sm font-bold text-gray-900">
+                            {bestMatch ? `${bestMatch.rating} vs ${bestMatch.opponent_name}` : '-'}
+                        </span>
+                    </div>
+                </div>
             </div>
 
-            {/* Table Section */}
+            {/* Recent Matches Table (Existing) */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-50">
+                    <h3 className="font-bold text-gray-900">Recent Matches</h3>
+                </div>
                 <table className="w-full text-left">
                     <thead className="bg-gray-50/50 text-gray-400 uppercase text-xs font-bold tracking-wider">
                         <tr>

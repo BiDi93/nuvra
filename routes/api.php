@@ -22,3 +22,5 @@ Route::get('/players/{id}', [PlayerController::class, 'show']);
 // Route to store performance stats
 Route::post('/performances', [PerformanceController::class, 'store']);
 
+//Route for player login
+Route::post('/login', [PlayerController::class, 'login']);
