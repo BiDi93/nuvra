@@ -31,3 +31,6 @@ Route::post('/login', [PlayerController::class, 'login']);
 Route::post('/coach/login', [CoachController::class, 'login']);
 Route::get('/coach/{id}/players', [CoachController::class, 'getMyTeam']);
 Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
+
+// Route to get teammates of a player
+Route::get('/players/{id}/teammates', [App\Http\Controllers\PlayerController::class, 'getTeammates']);

@@ -111,4 +111,30 @@ public function store(Request $request)
             'profile_image' => $player->profile_image
         ]);
     }
+    // Get Teammates function
+    public function getTeammates($id)
+    {
+        // 1. Find the current player to get their coach_id
+        $currentPlayer = DB::table('players')->where('id', $id)->first();
+
+        if (!$currentPlayer || !$currentPlayer->coach_id) {
+            return response()->json(['error' => 'You are not assigned to a team yet.'], 404);
+        }
+
+        // 2. Find the Coach/Club details
+        $coach = DB::table('coaches')->where('id', $currentPlayer->coach_id)->first();
+
+        // 3. Find all players with the same coach_id
+        $teammates = DB::table('players')
+            ->where('coach_id', $currentPlayer->coach_id)
+            ->select('id', 'name', 'position', 'jersey_number', 'profile_image', 'height_cm')
+            ->get();
+
+        return response()->json([
+            'club_name' => $coach->team_name,
+            'coach_name' => $coach->name,
+            'teammates' => $teammates
+        ]);
+    }
 }
+
