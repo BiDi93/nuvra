@@ -34,3 +34,11 @@ Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
 
 // Route to get teammates of a player
 Route::get('/players/{id}/teammates', [App\Http\Controllers\PlayerController::class, 'getTeammates']);
+
+// Public Routes
+Route::get('/teams', [App\Http\Controllers\PlayerController::class, 'getTeams']);
+Route::post('/register', [App\Http\Controllers\PlayerController::class, 'register']);
+
+// Coach Routes
+Route::get('/coach/{id}/requests', [App\Http\Controllers\CoachController::class, 'getPendingRequests']);
+Route::post('/coach/{id}/requests/{playerId}', [App\Http\Controllers\CoachController::class, 'handleRequest']);

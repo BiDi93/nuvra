@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Hash;
 
 class CoachController extends Controller
 {
-    // 1. COACH LOGIN
+    // COACH LOGIN
     public function login(Request $request)
     {
         $request->validate([
@@ -30,7 +30,7 @@ class CoachController extends Controller
         ]);
     }
 
-    // 2. GET MY TEAM (Filter by Coach ID)
+    // GET MY TEAM (Filter by Coach ID)
     public function getMyTeam($coachId)
     {
         $players = DB::table('players')
@@ -41,7 +41,7 @@ class CoachController extends Controller
         return response()->json($players);
     }
 
-    // 3. ADD PLAYER (Automatically assign to this Coach)
+    // ADD PLAYER (Automatically assign to this Coach)
     public function addPlayer(Request $request, $coachId)
     {
         // (Use the validation logic you already know, but add coach_id)
@@ -70,5 +70,33 @@ class CoachController extends Controller
         DB::table('attributes')->insert(['player_id' => $id]);
 
         return response()->json(['message' => 'Player added to your squad!', 'id' => $id]);
+    }
+
+
+    public function getPendingRequests($coachId)
+    {
+        $requests = DB::table('players')
+            ->where('coach_id', $coachId)
+            ->where('status', 'pending')
+            ->get();
+            
+        return response()->json($requests);
+    }
+
+    //  Approve or Decline
+    public function handleRequest(Request $request, $coachId, $playerId)
+    {
+        $action = $request->input('action'); // 'approve' or 'decline'
+
+        if ($action === 'approve') {
+            DB::table('players')->where('id', $playerId)->update(['status' => 'active']);
+            return response()->json(['message' => 'Player Approved!']);
+        } else {
+            // If declined, we just delete their application
+            DB::table('players')->where('id', $playerId)->delete();
+            // Also delete their empty attributes
+            DB::table('attributes')->where('player_id', $playerId)->delete();
+            return response()->json(['message' => 'Player Declined.']);
+        }
     }
 }

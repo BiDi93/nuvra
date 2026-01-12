@@ -136,5 +136,43 @@ public function store(Request $request)
             'teammates' => $teammates
         ]);
     }
+
+    public function getTeams()
+    {
+        $teams = DB::table('coaches')->select('id', 'team_name', 'name as coach_name')->get();
+        return response()->json($teams);
+    }
+
+    // 2. PUBLIC: Handle Sign Up
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string',
+            'email' => 'required|email|unique:players',
+            'password' => 'required|string|min:6',
+            'age' => 'required|integer',
+            'address' => 'required|string',
+            'position' => 'required|string',
+            'coach_id' => 'required|integer', // The team they want to join
+            // 'profile_image' => 'image|nullable' // We will skip real file upload for now to keep it simple
+        ]);
+
+        $id = DB::table('players')->insertGetId([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'age' => $validated['age'],
+            'address' => $validated['address'],
+            'position' => $validated['position'],
+            'coach_id' => $validated['coach_id'],
+            'status' => 'pending', // <--- IMPORTANT: They cannot login yet
+            'created_at' => now(), 'updated_at' => now()
+        ]);
+
+        // Create empty attributes so the charts don't crash later
+        DB::table('attributes')->insert(['player_id' => $id]);
+
+        return response()->json(['message' => 'Application sent! Waiting for Coach approval.']);
+    }
 }
 
