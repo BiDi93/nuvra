@@ -146,6 +146,7 @@ public function store(Request $request)
     // 2. PUBLIC: Handle Sign Up
     public function register(Request $request)
     {
+        // Validate Input
         $validated = $request->validate([
             'name' => 'required|string',
             'email' => 'required|email|unique:players',
@@ -154,8 +155,19 @@ public function store(Request $request)
             'address' => 'required|string',
             'position' => 'required|string',
             'coach_id' => 'required|integer', // The team they want to join
-            // 'profile_image' => 'image|nullable' // We will skip real file upload for now to keep it simple
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // We will skip real file upload for now to keep it simple
         ]);
+
+        // Handle File Upload
+        $imagePath = null;
+        if ($request->hasFile('profile_image')) {
+            // Stores in storage/app/public/profile_images
+            $path = $request->file('profile_image')->store('profile_images', 'public');
+            // Creates the URL we can save to DB: /storage/profile_images/filename.jpg
+            $imagePath = '/storage/' . $path;
+        }
+
+        //Create PLayer
 
         $id = DB::table('players')->insertGetId([
             'name' => $validated['name'],
@@ -166,7 +178,9 @@ public function store(Request $request)
             'position' => $validated['position'],
             'coach_id' => $validated['coach_id'],
             'status' => 'pending', // <--- IMPORTANT: They cannot login yet
-            'created_at' => now(), 'updated_at' => now()
+            'created_at' => now(), 
+            'updated_at' => now(),
+            'profile_image' => $imagePath // Save image path or null
         ]);
 
         // Create empty attributes so the charts don't crash later
