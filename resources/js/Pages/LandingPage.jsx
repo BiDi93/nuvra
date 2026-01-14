@@ -60,22 +60,23 @@ export default function LandingPage() {
         .catch(err => alert(err.message));
     };
 
+    // Shared Styles for Consistency
+    const inputStyle = "w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/40 transition-all font-medium";
+    const labelStyle = "text-xs font-bold text-gray-300 uppercase pl-1 block mb-1";
+    const buttonStyle = "w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-lg rounded-xl shadow-lg shadow-purple-900/30 transform transition hover:-translate-y-1 mt-4";
+
     return (
-        <div className="relative min-h-screen w-full font-sans overflow-hidden flex items-center justify-center">
+        // 1. UPDATED Outer Container: Changed overflow handling and added padding for vertical scrolling on small screens
+        <div className="relative min-h-screen w-full font-sans overflow-x-hidden overflow-y-auto flex items-center justify-center py-10 bg-gray-900">
             
-            {/* 1. BACKGROUND LAYER (Full Screen Image) */}
-            <div className="absolute inset-0 z-0">
-                <img 
-                    src="/images/landingPage/image_landing_page.jpeg" 
-                    alt="Background" 
-                    className="w-full h-full object-cover"
-                />
-                {/* Dark Gradient Overlay for readability */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-900/90 via-gray-900/60 to-purple-900/40 backdrop-blur-[2px]"></div>
+            {/* 2. UPDATED Background Layer: Changed 'absolute' to 'fixed' so it doesn't move when scrollbar appears */}
+            <div className="fixed inset-0 z-0">
+                <img src="/images/landingPage/image_landing_page.jpeg" alt="Background" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900/95 via-gray-900/80 to-purple-900/50 backdrop-blur-[2px]"></div>
             </div>
 
-            {/* 2. CONTENT LAYER (Floating Card) */}
-            <div className="relative z-10 w-full max-w-md px-4 animate-fade-in-up">
+            {/* CONTENT LAYER */}
+            <div className="relative z-10 w-full max-w-md px-4 animate-fade-in-up my-auto">
                 
                 {/* Brand Header */}
                 <div className="text-center mb-8">
@@ -83,7 +84,7 @@ export default function LandingPage() {
                         NUVRA
                     </h1>
                     <p className="text-gray-300 font-medium tracking-widest text-sm uppercase mt-2">
-                        {isLogin ? "Player Intelligence System" : "Join the Future of Football"}
+                        {isLogin ? "Player Intelligence System" : "Join the Elite Squad"}
                     </p>
                 </div>
 
@@ -106,30 +107,16 @@ export default function LandingPage() {
                         </button>
                     </div>
 
-                    {/* Forms */}
+                    {/* LOGIN FORM */}
                     {isLogin ? (
                         <form onSubmit={handleLogin} className="space-y-5">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-300 uppercase pl-1">Email Address</label>
-                                <input 
-                                    type="email" 
-                                    value={email} 
-                                    onChange={e => setEmail(e.target.value)}
-                                    className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/40 transition-all font-medium"
-                                    placeholder="player@nuvra.com" 
-                                    required 
-                                />
+                            <div>
+                                <label className={labelStyle}>Email Address</label>
+                                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputStyle} placeholder="player@nuvra.com" required />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-300 uppercase pl-1">Password</label>
-                                <input 
-                                    type="password" 
-                                    value={password} 
-                                    onChange={e => setPassword(e.target.value)}
-                                    className="w-full px-5 py-4 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-black/40 transition-all font-medium"
-                                    placeholder="••••••••" 
-                                    required 
-                                />
+                            <div>
+                                <label className={labelStyle}>Password</label>
+                                <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputStyle} placeholder="••••••••" required />
                             </div>
 
                             {error && (
@@ -138,52 +125,57 @@ export default function LandingPage() {
                                 </div>
                             )}
 
-                            <button className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-lg rounded-xl shadow-lg shadow-purple-900/30 transform transition hover:-translate-y-1">
-                                ENTER ARENA
-                            </button>
+                            <button className={buttonStyle}>ENTER ARENA</button>
                         </form>
                     ) : (
-                        <form onSubmit={handleSignUp} className="space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
-                                <input className="p-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                                    placeholder="Full Name" required 
-                                    onChange={e => setFormData({...formData, name: e.target.value})} />
-                                <input className="p-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                                    placeholder="Age" type="number" required 
-                                    onChange={e => setFormData({...formData, age: e.target.value})} />
+                        /* SIGN UP FORM */
+                        <form onSubmit={handleSignUp} className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="col-span-2">
+                                    <label className={labelStyle}>Full Name</label>
+                                    <input className={inputStyle} placeholder="Neymar Jr" required onChange={e => setFormData({...formData, name: e.target.value})} />
+                                </div>
+                                <div>
+                                    <label className={labelStyle}>Age</label>
+                                    <input className={inputStyle} placeholder="24" type="number" required onChange={e => setFormData({...formData, age: e.target.value})} />
+                                </div>
                             </div>
                             
-                            <input className="p-3 bg-black/20 border border-white/10 rounded-xl w-full text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                                placeholder="Address" required 
-                                onChange={e => setFormData({...formData, address: e.target.value})} />
+                            <div>
+                                <label className={labelStyle}>Current Address</label>
+                                <input className={inputStyle} placeholder="City, Country" required onChange={e => setFormData({...formData, address: e.target.value})} />
+                            </div>
                             
                             <div className="grid grid-cols-2 gap-3">
-                                <select className="p-3 bg-black/20 border border-white/10 rounded-xl w-full text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer" 
-                                    required 
-                                    onChange={e => setFormData({...formData, coach_id: e.target.value})}>
-                                    <option value="" className="text-gray-900">Select Team</option>
-                                    {teams.map(t => <option key={t.id} value={t.id} className="text-gray-900">{t.team_name}</option>)}
-                                </select>
-                                <select className="p-3 bg-black/20 border border-white/10 rounded-xl w-full text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer" 
-                                    onChange={e => setFormData({...formData, position: e.target.value})}>
-                                    <option className="text-gray-900">Forward</option>
-                                    <option className="text-gray-900">Midfielder</option>
-                                    <option className="text-gray-900">Defender</option>
-                                    <option className="text-gray-900">Goalkeeper</option>
-                                </select>
+                                <div>
+                                    <label className={labelStyle}>Select Team</label>
+                                    <select className={`${inputStyle} appearance-none cursor-pointer`} required onChange={e => setFormData({...formData, coach_id: e.target.value})}>
+                                        <option value="" className="text-gray-900">Choose...</option>
+                                        {teams.map(t => <option key={t.id} value={t.id} className="text-gray-900">{t.team_name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelStyle}>Position</label>
+                                    <select className={`${inputStyle} appearance-none cursor-pointer`} onChange={e => setFormData({...formData, position: e.target.value})}>
+                                        <option className="text-gray-900">Forward</option>
+                                        <option className="text-gray-900">Midfielder</option>
+                                        <option className="text-gray-900">Defender</option>
+                                        <option className="text-gray-900">Goalkeeper</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <input className="p-3 bg-black/20 border border-white/10 rounded-xl w-full text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                                type="email" placeholder="Email" required 
-                                onChange={e => setFormData({...formData, email: e.target.value})} />
+                            <div>
+                                <label className={labelStyle}>Email</label>
+                                <input className={inputStyle} type="email" placeholder="you@email.com" required onChange={e => setFormData({...formData, email: e.target.value})} />
+                            </div>
                             
-                            <input className="p-3 bg-black/20 border border-white/10 rounded-xl w-full text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                                type="password" placeholder="Password" required 
-                                onChange={e => setFormData({...formData, password: e.target.value})} />
+                            <div>
+                                <label className={labelStyle}>Create Password</label>
+                                <input className={inputStyle} type="password" placeholder="••••••••" required onChange={e => setFormData({...formData, password: e.target.value})} />
+                            </div>
 
-                            <button className="w-full py-4 bg-white text-gray-900 font-black text-lg rounded-xl hover:bg-gray-100 mt-2 transform transition hover:-translate-y-1 shadow-lg">
-                                SUBMIT APPLICATION
-                            </button>
+                            <button className={buttonStyle}>SUBMIT APPLICATION</button>
                         </form>
                     )}
                 </div>
