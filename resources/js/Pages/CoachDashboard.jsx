@@ -149,18 +149,37 @@ export default function CoachDashboard() {
                         <h3 className="text-xl font-bold mb-4 text-gray-900">Active Roster</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {team.map(player => (
-                                <div key={player.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden">
-                                    <div className="relative z-10 flex items-start justify-between mb-4">
-                                        <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white shadow-md overflow-hidden">
-                                            <img src={player.profile_image || "/avatar-placeholder.png"} alt={player.name} className="w-full h-full object-cover" />
+                                <div key={player.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
+                                    
+                                    {/* Top Card Content */}
+                                    <div>
+                                        <div className="relative z-10 flex items-start justify-between mb-4">
+                                            <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white shadow-md overflow-hidden">
+                                                <img src={player.profile_image || "/avatar-placeholder.png"} alt={player.name} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs font-bold uppercase">{player.position}</span>
+                                                <div className="mt-2 text-4xl font-black text-gray-200">#{player.jersey_number || '-'}</div>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs font-bold uppercase">{player.position}</span>
-                                            <div className="mt-2 text-4xl font-black text-gray-200">#{player.jersey_number || '-'}</div>
-                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 relative z-10">{player.name}</h3>
+                                        <p className="text-sm text-gray-500 mb-4">{player.email}</p>
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-900 relative z-10">{player.name}</h3>
-                                    <p className="text-sm text-gray-500 mb-4">{player.email}</p>
+
+                                    {/* NEW: Bottom Action Bar */}
+                                    <div className="border-t border-gray-100 pt-4 flex justify-between items-center mt-2">
+                                        <button 
+                                            onClick={() => navigate(`/coach/player/${player.id}`)} 
+                                            className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1"
+                                        >
+                                            View Stats <span>→</span>
+                                        </button>
+                                        
+                                        <button className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+
                                 </div>
                             ))}
                             {team.length === 0 && <p className="text-gray-400">No active players found.</p>}
@@ -172,7 +191,7 @@ export default function CoachDashboard() {
                 {showAddModal && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                          <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl relative">
-                            {/* ... (Keep your modal form code exactly the same as previous step) ... */}
+                            {/* ... (Keep modal form code exactly the same as previous step) ... */}
                             <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-gray-400">✕</button>
                             <h2 className="text-2xl font-bold mb-4">Add Player Manually</h2>
                             <form onSubmit={handleAddPlayer}>
