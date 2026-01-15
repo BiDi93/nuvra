@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-// 1. NEW IMPORTS for Radar Chart
 import { 
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
+    AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
 } from 'recharts';
 
@@ -10,26 +9,29 @@ export default function Overview() {
     // Grab attributes from context
     const { stats, history, attributes } = useOutletContext();
 
-    // 2. DATA PREP: Performance History (Area Chart)
+    // 1. DATA PREP: Performance History (Area Chart)
+    // Updated to use dd/mm/yyyy format as requested
     const historyData = [...history].reverse().map(match => ({
-        date: new Date(match.match_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: new Date(match.match_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         rating: match.rating
     }));
 
-    // 3. DATA PREP: Attributes (Radar Chart)
-    // We map the database columns to readable labels
-    const radarData = [
+    // 2. DATA PREP: Attributes (Radar Chart)
+    // Using useMemo to prevent "jitter" on hover, but keeping the values from DB
+    const radarData = useMemo(() => [
         { subject: 'Pace', A: attributes.pace || 50, fullMark: 100 },
         { subject: 'Shooting', A: attributes.shooting || 50, fullMark: 100 },
         { subject: 'Passing', A: attributes.passing || 50, fullMark: 100 },
         { subject: 'Dribbling', A: attributes.dribbling || 50, fullMark: 100 },
         { subject: 'Defending', A: attributes.defending || 50, fullMark: 100 },
         { subject: 'Physical', A: attributes.physical || 50, fullMark: 100 },
-    ];
+    ], [attributes]);
 
     const bestMatch = history.length > 0 
         ? history.reduce((prev, current) => (prev.rating > current.rating) ? prev : current)
         : null;
+
+    if (!stats) return <div className="p-8 text-gray-400">Loading Stats...</div>;
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 w-full">
@@ -56,11 +58,12 @@ export default function Overview() {
             {/* CHARTS ROW: Hexagon (Left) + Performance (Right) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* 1. NEW HEXAGON RADAR CHART */}
+                {/* 1. HEXAGON RADAR CHART */}
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
                     <h3 className="text-xl font-bold mb-2 self-start">Player Attributes</h3>
                     <p className="text-gray-400 text-sm mb-4 self-start">Technical analysis breakdown.</p>
                     
+                    {/* Reverted to 'h-80' (320px) which worked perfectly for you before */}
                     <div className="w-full h-80">
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -81,11 +84,12 @@ export default function Overview() {
                     </div>
                 </div>
 
-                {/* 2. EXISTING AREA CHART */}
+                {/* 2. AREA CHART */}
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
                     <h3 className="text-xl font-bold mb-2">Performance Trend</h3>
                     <p className="text-gray-400 text-sm mb-6">Rating progression over last games.</p>
                     
+                    {/* Reverted to 'flex-1 h-64' which allows it to fit naturally */}
                     <div className="flex-1 h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={historyData}>
@@ -103,7 +107,7 @@ export default function Overview() {
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Best Match Info at bottom */}
+                    {/* Best Match Info */}
                     <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
                         <span className="text-xs font-bold text-gray-400 uppercase">Best Performance</span>
                         <span className="text-sm font-bold text-gray-900">
@@ -113,41 +117,60 @@ export default function Overview() {
                 </div>
             </div>
 
-            {/* Recent Matches Table (Existing) */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-50">
-                    <h3 className="font-bold text-gray-900">Recent Matches</h3>
+            {/* 3. NEW MATCH LOG TABLE (Integrated into the working layout) */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-gray-900">Match Log</h3>
+                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">Recent History</span>
                 </div>
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50/50 text-gray-400 uppercase text-xs font-bold tracking-wider">
-                        <tr>
-                            <th className="p-5">Date</th>
-                            <th className="p-5">Opponent</th>
-                            <th className="p-5 text-center">Mins</th>
-                            <th className="p-5 text-center">G / A</th>
-                            <th className="p-5 text-right">Rating</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 font-medium text-sm">
-                        {history.map(match => (
-                            <tr key={match.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-5 text-gray-500">{new Date(match.match_date).toLocaleDateString()}</td>
-                                <td className="p-5 font-bold text-gray-900">{match.opponent_name}</td>
-                                <td className="p-5 text-center text-gray-500">{match.minutes_played}'</td>
-                                <td className="p-5 text-center">
-                                    <span className="text-gray-900 font-bold">{match.goals}</span>
-                                    <span className="text-gray-300 mx-1">/</span>
-                                    <span className="text-gray-500">{match.assists}</span>
-                                </td>
-                                <td className="p-5 text-right">
-                                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${match.rating >= 8 ? 'bg-green-100 text-green-700' : match.rating >= 6 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                                        {match.rating}
-                                    </span>
-                                </td>
+                
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50/50 text-xs uppercase tracking-wider text-gray-400">
+                                <th className="p-5 font-bold">Date</th>
+                                <th className="p-5 font-bold">Opponent / Venue</th>
+                                <th className="p-5 font-bold">League</th>
+                                <th className="p-5 font-bold text-center">Mins</th>
+                                <th className="p-5 font-bold text-center">G / A</th>
+                                <th className="p-5 font-bold text-right">Rating</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50 text-sm">
+                            {history.map((match, index) => (
+                                <tr key={index} className="hover:bg-gray-50/80 transition-colors">
+                                    {/* Date formatted as dd/mm/yyyy */}
+                                    <td className="p-5 font-bold text-gray-500 whitespace-nowrap">
+                                        {new Date(match.match_date).toLocaleDateString('en-GB')}
+                                    </td>
+                                    <td className="p-5">
+                                        <div className="font-bold text-gray-900">{match.opponent_name}</div>
+                                        <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                                            <span>📍 {match.venue || 'Unknown Venue'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-5">
+                                        <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-100">
+                                            {match.league_type || 'League'}
+                                        </span>
+                                    </td>
+                                    <td className="p-5 text-center font-bold text-gray-400">{match.minutes_played}'</td>
+                                    <td className="p-5 text-center font-bold text-gray-900">
+                                        {match.goals} <span className="text-gray-300 mx-1">/</span> {match.assists}
+                                    </td>
+                                    <td className="p-5 text-right">
+                                        <span className={`px-3 py-1 rounded-lg font-bold text-white ${match.rating >= 8.0 ? 'bg-green-500' : (match.rating >= 6.0 ? 'bg-yellow-400' : 'bg-red-400')}`}>
+                                            {match.rating}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {history.length === 0 && (
+                    <div className="p-8 text-center text-gray-400 font-bold">No match records found.</div>
+                )}
             </div>
         </div>
     );

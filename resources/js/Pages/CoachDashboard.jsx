@@ -5,7 +5,7 @@ export default function CoachDashboard() {
     const navigate = useNavigate();
     const [coach, setCoach] = useState(null);
     const [team, setTeam] = useState([]);
-    const [requests, setRequests] = useState([]); // <--- New State for Pending Requests
+    const [requests, setRequests] = useState([]); 
     const [showAddModal, setShowAddModal] = useState(false);
 
     // New Player Form State

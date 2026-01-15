@@ -50,15 +50,10 @@ export default function CoachPlayerView() {
             
             {/* Header / Navigation */}
             <div className="max-w-7xl mx-auto mb-8 flex items-center gap-4">
-                <button 
-                    onClick={() => navigate('/coach-dashboard')}
-                    className="bg-white p-3 rounded-xl border border-gray-200 text-gray-500 hover:text-gray-900 hover:shadow-md transition-all"
-                >
-                    ← Back to Squad
-                </button>
+                <button onClick={() => navigate('/coach-dashboard')} className="bg-white p-3 rounded-xl border border-gray-200 text-gray-500 hover:text-gray-900 hover:shadow-md transition-all">← Back</button>
                 <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-xl border border-gray-200 shadow-sm flex-1">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
-                        <img src={profile.profile_image || "/avatar-placeholder.png"} className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden border border-gray-100">
+                        <img src={profile.profile_image || "/images/playerImage/beckam.jpg"} className="w-full h-full object-cover" />
                     </div>
                     <div>
                         <h1 className="text-lg font-black text-gray-900 leading-none">{profile.name}</h1>
@@ -67,60 +62,101 @@ export default function CoachPlayerView() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="max-w-7xl mx-auto space-y-8">
                 
-                {/* 1. ATTRIBUTES CHART */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
-                    <h3 className="text-xl font-bold mb-2 self-start">Player DNA</h3>
-                    <div className="w-full h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                <PolarGrid stroke="#e5e7eb" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 'bold' }} />
-                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                <Radar name="Player" dataKey="A" stroke="#8b5cf6" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.5} />
-                                <Tooltip />
-                            </RadarChart>
-                        </ResponsiveContainer>
+                {/* 1. TOP SECTION: CHARTS (Same as before) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
+                        <h3 className="text-xl font-bold mb-2 self-start">Player DNA</h3>
+                        <div className="w-full h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                    <PolarGrid stroke="#e5e7eb" />
+                                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 'bold' }} />
+                                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                    <Radar name="Player" dataKey="A" stroke="#8b5cf6" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.5} />
+                                    <Tooltip />
+                                </RadarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
+                        <h3 className="text-xl font-bold mb-2">Form History</h3>
+                        <div className="flex-1 h-64 mt-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={historyData}>
+                                    <defs>
+                                        <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
+                                    <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)'}} />
+                                    <Area type="monotone" dataKey="rating" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRating)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
 
-                {/* 2. PERFORMANCE TREND */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
-                    <h3 className="text-xl font-bold mb-2">Form History</h3>
-                    <div className="flex-1 h-64 mt-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={historyData}>
-                                <defs>
-                                    <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
-                                <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)'}} />
-                                <Area type="monotone" dataKey="rating" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRating)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                {/* 2. NEW SECTION: MATCH LOG LIST */}
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+                        <h3 className="text-xl font-bold text-gray-900">Match Log</h3>
+                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">{history.length} Matches</span>
                     </div>
+                    
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50 text-xs uppercase tracking-wider text-gray-400">
+                                    <th className="p-5 font-bold">Date</th>
+                                    <th className="p-5 font-bold">Opponent / Venue</th>
+                                    <th className="p-5 font-bold">League</th>
+                                    <th className="p-5 font-bold text-center">Mins</th>
+                                    <th className="p-5 font-bold text-center">G / A</th>
+                                    <th className="p-5 font-bold text-right">Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50 text-sm">
+                                {history.map((match, index) => (
+                                    <tr key={index} className="hover:bg-gray-50/80 transition-colors">
+                                        <td className="p-5 font-bold text-gray-500 whitespace-nowrap">
+                                            {new Date(match.match_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                        </td>
+                                        <td className="p-5">
+                                            <div className="font-bold text-gray-900">{match.opponent_name}</div>
+                                            <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                                                <span>📍 {match.venue || 'Unknown Venue'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-5">
+                                            <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-100">
+                                                {match.league_type || 'League'}
+                                            </span>
+                                        </td>
+                                        <td className="p-5 text-center font-bold text-gray-400">{match.minutes_played}'</td>
+                                        <td className="p-5 text-center font-bold text-gray-900">
+                                            {match.goals} <span className="text-gray-300 mx-1">/</span> {match.assists}
+                                        </td>
+                                        <td className="p-5 text-right">
+                                            <span className={`px-3 py-1 rounded-lg font-bold text-white ${match.rating >= 8.0 ? 'bg-green-500' : (match.rating >= 6.0 ? 'bg-yellow-400' : 'bg-red-400')}`}>
+                                                {match.rating}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {history.length === 0 && (
+                        <div className="p-8 text-center text-gray-400 font-bold">No match records found.</div>
+                    )}
                 </div>
 
-                {/* 3. KEY STATS CARDS */}
-                <div className="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p className="text-gray-400 text-xs font-bold uppercase mb-2">Matches</p>
-                        <p className="text-4xl font-black text-gray-900">{stats.total_matches}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p className="text-gray-400 text-xs font-bold uppercase mb-2">Total Goals</p>
-                        <p className="text-4xl font-black text-blue-600">{stats.total_goals}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p className="text-gray-400 text-xs font-bold uppercase mb-2">Avg Rating</p>
-                        <p className="text-4xl font-black text-purple-600">{stats.average_rating}</p>
-                    </div>
-                </div>
             </div>
         </div>
     );
