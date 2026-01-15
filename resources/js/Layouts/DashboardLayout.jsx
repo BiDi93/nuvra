@@ -178,7 +178,7 @@ export default function DashboardLayout() {
                 {/* Header */}
                 <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-gray-800">
-                        Parent / Player Dashboard
+                        Player Dashboard
                     </h2>
                     <div className="flex items-center gap-4">
                         <div className="text-right">
@@ -189,7 +189,7 @@ export default function DashboardLayout() {
                                 {profile.position}
                             </div>
                         </div>
-                        <div className="w-12 h-12 rounded-full border-2 border-white shadow-md overflow-hidden bg-gray-200">
+                        <div className="w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden bg-gray-200">
                             <img
                                 // If profile_image exists in DB, use it. Otherwise, use default placeholder.
                                 src={

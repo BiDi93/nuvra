@@ -43,51 +43,46 @@ public function store(Request $request)
 
     public function show($id)
     {
-    // Get the Playerrrr
-    $player = DB::table('players')->where('id', $id)->first();
-    if (!$player) return response()->json(['message' => 'Not found'], 404);
+        $player = DB::table('players')->where('id', $id)->first();
+        if (!$player) return response()->json(['message' => 'Not found'], 404);
 
-    // Get their History
-    $history = DB::table('performances')
-                 ->where('player_id', $id)
-                 ->orderBy('match_date', 'desc')
-                 ->get();
+        // UPDATED: Join 'performances' with 'matches' to get the details
+        $history = DB::table('performances')
+                     ->join('matches', 'performances.match_id', '=', 'matches.id')
+                     ->where('performances.player_id', $id)
+                     ->orderBy('matches.match_date', 'desc')
+                     ->select(
+                        'performances.*', 
+                        'matches.opponent_name', 
+                        'matches.match_date', 
+                        'matches.venue', 
+                        'matches.league_type'
+                     )
+                     ->get();
 
+        $attributes = DB::table('attributes')->where('player_id', $id)->first();
 
-   
+        // Default attributes if missing
+        if (!$attributes) {
+            $attributes = [
+                'pace' => 50, 'shooting' => 50, 'passing' => 50, 
+                'dribbling' => 50, 'defending' => 50, 'physical' => 50
+            ];
+        }
 
-    //Get attributes
-    $attributes = DB::table('attributes')->where('player_id', $id)->first();
+        $avgRating = $history->avg('rating') ?: 0;
 
-    if (!$attributes) {
-        // If no attributes found, set default values
-        $attributes = [
-            'pace' => 50,
-            'shooting' => 50,
-            'passing' => 50,
-            'dribbling' => 50,
-            'defending' => 50,
-            'physical' => 50,
-        ];
-    } 
-
-    //Calculate Average Rating (The "Analytics" part)
-     $avgRating = $history->avg('rating');
-
-    // 4. Send it all back
-    return response()->json([
-        'profile' => $player,
-        'stats' => [
-            'total_matches' => $history->count(),
-            'total_goals' => $history->sum('goals'),
-            'average_rating' => round($avgRating, 1)
-        ],
-        'attributes' => $attributes,
-        'history' => $history
-    ]);
-
+        return response()->json([
+            'profile' => $player,
+            'stats' => [
+                'total_matches' => $history->count(),
+                'total_goals' => $history->sum('goals'),
+                'average_rating' => round($avgRating, 1)
+            ],
+            'attributes' => $attributes,
+            'history' => $history
+        ]);
     }
-
    public function login(Request $request)
     {
         // Validate Email format instead of ID number
