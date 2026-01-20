@@ -16,7 +16,6 @@ import RecordStats from "./CoachModules/RecordStats";
 
 import DashboardLayout from "./Layouts/DashboardLayout";
 import Overview from "./Pages/Modules/Overview";
-import Team from "./Pages/Modules/Team";
 import Announcements from "./Pages/Modules/Announcements";
 import Settings from "./Pages/Modules/Settings";
 import CoachAddStats from "./Pages/CoachAddStats";
