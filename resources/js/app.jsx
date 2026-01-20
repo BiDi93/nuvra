@@ -1,20 +1,25 @@
-import './bootstrap';
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import "./bootstrap";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Import Pages
-import LandingPage from './Pages/LandingPage';
-import CoachLogin from './Pages/CoachLogin'; 
-import CoachDashboard from './Pages/CoachDashboard';
-import CoachPlayerView from './Pages/CoachPlayerView';
+import LandingPage from "./Pages/LandingPage";
+import CoachLogin from "./Pages/CoachLogin";
+import CoachDashboard from "./Pages/CoachDashboard";
+import CoachPlayerView from "./Pages/CoachPlayerView";
 
 // Import New Layout and Modules
-import DashboardLayout from './Layouts/DashboardLayout';
-import Overview from './Pages/Modules/Overview';
-import Team from './Pages/Modules/Team';
-import Announcements from './Pages/Modules/Announcements';
-import Settings from './Pages/Modules/Settings';
+import CoachLayout from "./Layouts/CoachLayouts";
+import SquadManagement from "./CoachModules/SquadManagement";
+import RecordStats from "./CoachModules/RecordStats";
+
+import DashboardLayout from "./Layouts/DashboardLayout";
+import Overview from "./Pages/Modules/Overview";
+import Team from "./Pages/Modules/Team";
+import Announcements from "./Pages/Modules/Announcements";
+import Settings from "./Pages/Modules/Settings";
+import CoachAddStats from "./Pages/CoachAddStats";
 
 function App() {
     return (
@@ -22,13 +27,18 @@ function App() {
             <Routes>
                 {/* 1. Public Routes */}
                 <Route path="/" element={<LandingPage />} />
-                
+
                 {/* 2. Coach Routes */}
                 {/* The /coach URL now shows the Login Screen */}
-                <Route path="/coach" element={<CoachLogin />} /> 
+                <Route path="/coach" element={<CoachLogin />} />
                 {/* After login, they get sent here */}
-                <Route path="/coach-dashboard" element={<CoachDashboard />} />
+                {/* COACH DASHBOARD (Nested Routes) */}
+                <Route path="/coach-dashboard" element={<CoachLayout />}>
+                    <Route index element={<SquadManagement />} />
+                    <Route path="add-stats" element={<RecordStats />} />
+                </Route>
                 <Route path="/coach/player/:id" element={<CoachPlayerView />} />
+                <Route path="/coach/add-stats" element={<CoachAddStats />} />
 
                 {/* 3. Player Dashboard (Nested Routes) */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
@@ -42,6 +52,6 @@ function App() {
     );
 }
 
-if (document.getElementById('app')) {
-    createRoot(document.getElementById('app')).render(<App />);
+if (document.getElementById("app")) {
+    createRoot(document.getElementById("app")).render(<App />);
 }

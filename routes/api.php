@@ -20,7 +20,10 @@ Route::post('/players', [PlayerController::class, 'store']);
 // To list a specific player's profile and performance history
 Route::get('/players/{id}', [PlayerController::class, 'show']);
 
-// Route to store performance stats
+// Get list of matches (For the dropdown)
+Route::get('/coach/{id}/matches', [PerformanceController::class, 'getMatches']);
+
+// Save the result
 Route::post('/performances', [PerformanceController::class, 'store']);
 
 //Route for player login
@@ -42,3 +45,4 @@ Route::post('/register', [App\Http\Controllers\PlayerController::class, 'registe
 // Coach Routes
 Route::get('/coach/{id}/requests', [App\Http\Controllers\CoachController::class, 'getPendingRequests']);
 Route::post('/coach/{id}/requests/{playerId}', [App\Http\Controllers\CoachController::class, 'handleRequest']);
+Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);

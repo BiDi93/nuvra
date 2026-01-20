@@ -183,5 +183,15 @@ public function store(Request $request)
 
         return response()->json(['message' => 'Application sent! Waiting for Coach approval.']);
     }
+
+    // Get all players for a specific coach
+    public function getCoachPlayers($coachId)
+    {
+        $players = DB::table('players')
+            ->where('coach_id', $coachId)
+            ->get();
+
+        return response()->json($players);
+    }
 }
 

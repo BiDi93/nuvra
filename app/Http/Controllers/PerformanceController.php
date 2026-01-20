@@ -7,32 +7,46 @@ use Illuminate\Support\Facades\DB;
 
 class PerformanceController extends Controller
 {
+    // Fetch Matches for the Dropdown (So coach can pick a game)
+    public function getMatches($coachId)
+    {
+        $matches = DB::table('matches')
+            ->where('coach_id', $coachId)
+            ->orderBy('match_date', 'desc')
+            ->get();
+            
+        return response()->json($matches);
+    }
+
+    // Save Stats (Using match_id instead of typing names)
     public function store(Request $request)
     {
-        // 1. Validation
         $validated = $request->validate([
             'player_id' => 'required|exists:players,id',
-            'match_date' => 'required|date',
-            'opponent_name' => 'required|string',
-            'minutes_played' => 'required|integer|min:0|max:120',
-            'goals' => 'required|integer|min:0',
-            'assists' => 'required|integer|min:0',
-            'rating' => 'required|numeric|min:1|max:10',
+            'match_id' => 'required|exists:matches,id', // <--- Links to the match we picked
+            'minutes_played' => 'required|integer',
+            'goals' => 'required|integer',
+            'assists' => 'required|integer',
+            'rating' => 'required|numeric|min:0|max:10',
         ]);
 
-        // 2. Save to Database
-        DB::table('performances')->insert([
-            'player_id' => $validated['player_id'],
-            'match_date' => $validated['match_date'],
-            'opponent_name' => $validated['opponent_name'],
-            'minutes_played' => $validated['minutes_played'],
-            'goals' => $validated['goals'],
-            'assists' => $validated['assists'],
-            'rating' => $validated['rating'],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Use updateOrInsert: If we already saved stats for this player+match, just update them.
+        DB::table('performances')->updateOrInsert(
+            [
+                'player_id' => $validated['player_id'], 
+                'match_id' => $validated['match_id']
+            ],
+            [
+                'minutes_played' => $validated['minutes_played'],
+                'goals' => $validated['goals'],
+                'assists' => $validated['assists'],
+                'rating' => $validated['rating'],
+                'updated_at' => now(),
+                // Only set created_at if it's a new record
+                'created_at' => DB::raw('IFNULL(created_at, NOW())') 
+            ]
+        );
 
-        return response()->json(['message' => 'Stats Saved!'], 201);
+        return response()->json(['message' => 'Stats saved successfully!']);
     }
 }
