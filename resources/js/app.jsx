@@ -11,14 +11,15 @@ import CoachPlayerView from "./Pages/CoachPlayerView";
 
 // Import New Layout and Modules
 import CoachLayout from "./Layouts/CoachLayouts";
-import SquadManagement from "./CoachModules/SquadManagement";
-import RecordStats from "./CoachModules/RecordStats";
+import SquadManagement from "./Pages/CoachModules/SquadManagement.jsx";
+import RecordStats from "./Pages/CoachModules/RecordStats.jsx";
 
 import DashboardLayout from "./Layouts/DashboardLayout";
 import Overview from "./Pages/Modules/Overview";
 import Announcements from "./Pages/Modules/Announcements";
 import Settings from "./Pages/Modules/Settings";
 import CoachAddStats from "./Pages/CoachAddStats";
+import CoachAnnouncements from "./Pages/CoachModules/CoachAnnouncements.jsx";
 
 function App() {
     return (
@@ -35,7 +36,9 @@ function App() {
                 <Route path="/coach-dashboard" element={<CoachLayout />}>
                     <Route index element={<SquadManagement />} />
                     <Route path="add-stats" element={<RecordStats />} />
+                    <Route path="announcements" element={<CoachAnnouncements />} />
                 </Route>
+
                 <Route path="/coach/player/:id" element={<CoachPlayerView />} />
                 <Route path="/coach/add-stats" element={<CoachAddStats />} />
 
@@ -45,6 +48,7 @@ function App() {
                     <Route path="announcements" element={<Announcements />} />
                     <Route path="settings" element={<Settings />} />
                 </Route>
+                
             </Routes>
         </BrowserRouter>
     );

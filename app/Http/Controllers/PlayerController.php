@@ -138,7 +138,7 @@ public function store(Request $request)
         return response()->json($teams);
     }
 
-    // 2. PUBLIC: Handle Sign Up
+    // PUBLIC: Handle Sign Up
     public function register(Request $request)
     {
         // Validate Input
@@ -172,7 +172,7 @@ public function store(Request $request)
             'address' => $validated['address'],
             'position' => $validated['position'],
             'coach_id' => $validated['coach_id'],
-            'status' => 'pending', // <--- IMPORTANT: They cannot login yet
+            'status' => 'pending', // 
             'created_at' => now(), 
             'updated_at' => now(),
             'profile_image' => $imagePath // Save image path or null

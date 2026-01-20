@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PerformanceController; 
 use App\Http\Controllers\CoachController;
+use App\Http\Controllers\AnnouncementController;
 
 
 Route::get('/user', function (Request $request) {
@@ -39,10 +40,14 @@ Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
 Route::get('/players/{id}/teammates', [App\Http\Controllers\PlayerController::class, 'getTeammates']);
 
 // Public Routes
-Route::get('/teams', [App\Http\Controllers\PlayerController::class, 'getTeams']);
-Route::post('/register', [App\Http\Controllers\PlayerController::class, 'register']);
+Route::get('/teams', [PlayerController::class, 'getTeams']);
+Route::post('/register', [PlayerController::class, 'register']);
 
 // Coach Routes
-Route::get('/coach/{id}/requests', [App\Http\Controllers\CoachController::class, 'getPendingRequests']);
-Route::post('/coach/{id}/requests/{playerId}', [App\Http\Controllers\CoachController::class, 'handleRequest']);
+Route::get('/coach/{id}/requests', [CoachController::class, 'getPendingRequests']);
+Route::post('/coach/{id}/requests/{playerId}', [CoachController::class, 'handleRequest']);
 Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
+
+// Announcements Routes
+Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);
+Route::post('/announcements', [AnnouncementController::class, 'store']);
