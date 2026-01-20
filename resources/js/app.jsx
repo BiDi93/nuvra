@@ -43,7 +43,6 @@ function App() {
                 {/* 3. Player Dashboard (Nested Routes) */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
                     <Route index element={<Overview />} />
-                    <Route path="team" element={<Team />} />
                     <Route path="announcements" element={<Announcements />} />
                     <Route path="settings" element={<Settings />} />
                 </Route>
