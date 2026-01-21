@@ -22,6 +22,8 @@ import Settings from "./Pages/Modules/Settings";
 import CoachAddStats from "./Pages/CoachAddStats";
 import CoachAnnouncements from "./Pages/CoachModules/CoachAnnouncements.jsx";
 
+import PlayerSchedule from "./Pages/Modules/PlayerShedule.jsx";
+
 function App() {
     return (
         <BrowserRouter>
@@ -49,6 +51,7 @@ function App() {
                     <Route index element={<Overview />} />
                     <Route path="announcements" element={<Announcements />} />
                     <Route path="settings" element={<Settings />} />
+                    <Route path="schedule" element={<PlayerSchedule />} />
                 </Route>
                 
             </Routes>
