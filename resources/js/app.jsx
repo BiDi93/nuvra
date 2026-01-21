@@ -24,6 +24,10 @@ import CoachAnnouncements from "./Pages/CoachModules/CoachAnnouncements.jsx";
 
 import PlayerSchedule from "./Pages/Modules/PlayerShedule.jsx";
 
+//Import Player Payment Module
+import PlayerPayment from "./Pages/Modules/PlayerPayment.jsx";
+import CoachPayment from "./Pages/CoachModules/CoachPayment.jsx";
+
 function App() {
     return (
         <BrowserRouter>
@@ -41,6 +45,7 @@ function App() {
                     <Route path="add-stats" element={<RecordStats />} />
                     <Route path="announcements" element={<CoachAnnouncements />} />
                     <Route path="schedule" element={<CoachSchedule />} />
+                    <Route path="payment" element={<CoachPayment />} />
                 </Route>
 
                 <Route path="/coach/player/:id" element={<CoachPlayerView />} />
@@ -52,6 +57,7 @@ function App() {
                     <Route path="announcements" element={<Announcements />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="schedule" element={<PlayerSchedule />} />
+                    <Route path="payment" element={<PlayerPayment />} />
                 </Route>
                 
             </Routes>

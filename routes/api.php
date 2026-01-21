@@ -7,6 +7,7 @@ use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\PaymentController;
 
 
 Route::get('/user', function (Request $request) {
@@ -57,3 +58,11 @@ Route::post('/announcements', [AnnouncementController::class, 'store']);
 Route::get('/coach/{id}/schedule', [ScheduleController::class, 'index']);
 Route::post('/schedule', [ScheduleController::class, 'store']);
 Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);
+
+// Payements Routes //
+// COACH ROUTES
+Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
+
+// PLAYER ROUTES
+Route::get('/player/{id}/payments', [PaymentController::class, 'getMyPayments']);
+Route::post('/payments', [PaymentController::class, 'makePayment']);
