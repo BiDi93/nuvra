@@ -15,6 +15,52 @@ class PlayerController extends Controller
     $players = DB::table('players')->get();
     return response()->json($players);
     }
+
+    public function update(Request $request, $id)
+    {
+        $player = DB::table('players')->where('id', $id)->first();
+
+        if (!$player) {
+            return response()->json(['message' => 'Player not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Max 2MB
+            'password' => 'nullable|string|min:6|confirmed', // confirmed looks for password_confirmation field
+        ]);
+
+        $updateData = [
+            'name' => $validated['name'],
+            'updated_at' => now(),
+        ];
+
+        // Handle Password Update (Only if provided)
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
+        // Handle Image Upload
+        if ($request->hasFile('profile_image')) {
+            // Delete old image if it exists and isn't a default one
+            if ($player->profile_image && file_exists(public_path($player->profile_image))) {
+                 // Optional: unlink(public_path($player->profile_image)); 
+            }
+
+            // Save new image to 'storage/app/public/players'
+            $path = $request->file('profile_image')->store('players', 'public');
+            
+            // Save the PUBLIC URL to the database
+            $updateData['profile_image'] = '/storage/' . $path;
+        }
+
+        DB::table('players')->where('id', $id)->update($updateData);
+
+        return response()->json([
+            'message' => 'Profile updated successfully!',
+            'profile_image' => $updateData['profile_image'] ?? $player->profile_image
+        ]);
+    }
 public function store(Request $request)
     {
         $validated = $request->validate([

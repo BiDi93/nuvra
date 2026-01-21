@@ -59,6 +59,9 @@ Route::get('/coach/{id}/schedule', [ScheduleController::class, 'index']);
 Route::post('/schedule', [ScheduleController::class, 'store']);
 Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);
 
+// Player Profile Update Route
+Route::post('/player/{id}/update', [PlayerController::class, 'update']);
+
 // Payements Routes //
 // COACH ROUTES
 Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
