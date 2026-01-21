@@ -9,8 +9,8 @@ export default function Announcements() {
     // 2. Extract coach_id from the profile
     const coach_id = profile?.coach_id;
 
-    // Debugging (Optional: Check your console to see exactly what 'profile' holds)
-    console.log("Player Profile:", profile);
+    // Debugging (optional, this is just to check the data in the console)
+    //console.log("Player Profile:", profile);
 
     const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);

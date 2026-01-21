@@ -6,6 +6,7 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PerformanceController; 
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\ScheduleController;
 
 
 Route::get('/user', function (Request $request) {
@@ -51,3 +52,8 @@ Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
 // Announcements Routes
 Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);
 Route::post('/announcements', [AnnouncementController::class, 'store']);
+
+//Shedule Routes
+Route::get('/coach/{id}/schedule', [ScheduleController::class, 'index']);
+Route::post('/schedule', [ScheduleController::class, 'store']);
+Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);

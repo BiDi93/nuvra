@@ -8,6 +8,7 @@ import LandingPage from "./Pages/LandingPage";
 import CoachLogin from "./Pages/CoachLogin";
 import CoachDashboard from "./Pages/CoachDashboard";
 import CoachPlayerView from "./Pages/CoachPlayerView";
+import CoachSchedule from "./Pages/CoachModules/CoachSchedule.jsx";
 
 // Import New Layout and Modules
 import CoachLayout from "./Layouts/CoachLayouts";
@@ -37,6 +38,7 @@ function App() {
                     <Route index element={<SquadManagement />} />
                     <Route path="add-stats" element={<RecordStats />} />
                     <Route path="announcements" element={<CoachAnnouncements />} />
+                    <Route path="schedule" element={<CoachSchedule />} />
                 </Route>
 
                 <Route path="/coach/player/:id" element={<CoachPlayerView />} />
