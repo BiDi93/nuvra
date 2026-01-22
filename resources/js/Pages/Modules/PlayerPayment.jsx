@@ -71,7 +71,7 @@ export default function PlayerPayment() {
 
     const isPaid = (month) => {
         const key = `${month} ${currentYear}`;
-        return history.find(h => h.month_year === key);
+        return history.find(h => h.month_year === key && h.status === 'completed');
     };
 
     return (
