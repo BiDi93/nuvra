@@ -8,6 +8,7 @@ use App\Http\Controllers\CoachController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentController;
+use App\Models\Coach;
 
 
 Route::get('/user', function (Request $request) {
@@ -47,8 +48,8 @@ Route::post('/register', [PlayerController::class, 'register']);
 
 // Coach Routes
 Route::get('/coach/{id}/requests', [CoachController::class, 'getPendingRequests']);
-Route::post('/coach/{id}/requests/{playerId}', [CoachController::class, 'handleRequest']);
-Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
+Route::post('/coach/{id}/request/{playerId}', [CoachController::class, 'handleRequest']);
+//Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
 
 // Announcements Routes
 Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);
@@ -69,3 +70,8 @@ Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPa
 // PLAYER ROUTES
 Route::get('/player/{id}/payments', [PaymentController::class, 'getMyPayments']);
 Route::post('/payments', [PaymentController::class, 'makePayment']);
+
+// Onboarding new players route from google auth
+Route::post('/player/onboarding', [PlayerController::class, 'submitApplication']);
+
+Route::middleware('auth:sanctum')->get('/player/me', [PlayerController::class, 'me']);

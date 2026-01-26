@@ -3,10 +3,20 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
+
+// Auth Page
+
+import AuthPage from "./Pages/Authentication/AuthPage.jsx";
+
+//Google callback
+import GoogleCallback from "./Pages/Authentication/GoogleCallback.jsx";
+// Import Waiting Room
+import WaitingRoom from "./Pages/WaitingRoom.jsx";
+
+
 // Import Pages
 import LandingPage from "./Pages/LandingPage";
 import CoachLogin from "./Pages/CoachLogin";
-import CoachDashboard from "./Pages/CoachDashboard";
 import CoachPlayerView from "./Pages/CoachPlayerView";
 import CoachSchedule from "./Pages/CoachModules/CoachSchedule.jsx";
 
@@ -28,12 +38,16 @@ import PlayerSchedule from "./Pages/Modules/PlayerShedule.jsx";
 import PlayerPayment from "./Pages/Modules/PlayerPayment.jsx";
 import CoachPayment from "./Pages/CoachModules/CoachPayment.jsx";
 
+import Login from "./Pages/Login";
+import Onboarding from "./Pages/Onboarding";
+
+
 function App() {
     return (
         <BrowserRouter>
             <Routes>
                 {/* 1. Public Routes */}
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<AuthPage />} />
 
                 {/* 2. Coach Routes */}
                 {/* The /coach URL now shows the Login Screen */}
@@ -59,6 +73,12 @@ function App() {
                     <Route path="schedule" element={<PlayerSchedule />} />
                     <Route path="payment" element={<PlayerPayment />} />
                 </Route>
+
+                <Route path="/login" element={<AuthPage />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/waiting-room" element={<WaitingRoom />} />
+                {/* Google Callback route */}
+                <Route path="/auth/callback" element={<GoogleCallback />} />
                 
             </Routes>
         </BrowserRouter>

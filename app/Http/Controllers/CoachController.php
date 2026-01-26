@@ -31,15 +31,16 @@ class CoachController extends Controller
     }
 
     // GET MY TEAM (Filter by Coach ID)
-    public function getMyTeam($coachId)
-    {
-        $players = DB::table('players')
-                    ->where('coach_id', $coachId)
-                    ->select('id', 'name', 'position', 'jersey_number', 'email', 'profile_image')
-                    ->get();
+public function getMyTeam($coachId)
+{
+    $players = DB::table('players')
+                ->where('coach_id', $coachId)
+                ->where('status', 'active') // <--- ADD THIS LINE!
+                ->select('id', 'name', 'position', 'jersey_number', 'email', 'profile_image')
+                ->get();
 
-        return response()->json($players);
-    }
+    return response()->json($players);
+}
 
     // ADD PLAYER (Automatically assign to this Coach)
     public function addPlayer(Request $request, $coachId)
