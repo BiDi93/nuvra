@@ -51,7 +51,7 @@ public function handleGoogleCallback()
         // We send the data as Query Parameters so React can grab them
         //return redirect("http://127.0.0.1:8000/auth/callback?token={$token}&role={$role}&status={$status}&user_id={$user->id}");
         // Uses APP_URL from your .env file automatically!
-$frontendUrl = config('app.url') . "/auth/callback";
+        $frontendUrl = config('app.url') . "/auth/callback";
 
 return redirect("{$frontendUrl}?token={$token}&role={$role}&status={$status}&user_id={$user->id}");
     }
