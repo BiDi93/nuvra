@@ -73,3 +73,5 @@ Route::post('/payments', [PaymentController::class, 'makePayment']);
 
 // Onboarding new players route from google auth
 Route::post('/player/onboarding', [PlayerController::class, 'submitApplication']);
+
+Route::middleware('auth:sanctum')->get('/player/me', [PlayerController::class, 'me']);

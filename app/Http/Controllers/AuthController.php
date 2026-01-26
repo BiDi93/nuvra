@@ -18,54 +18,37 @@ class AuthController extends Controller
     }
 
     // Handle the user coming back from Google
-    public function handleGoogleCallback()
+public function handleGoogleCallback()
     {
-        try {
-            // Get user info from Google
-            $googleUser = Socialite::driver('google')->stateless()->user();
-            
-            // Check if this user already exists (by Email or Google ID)
-            $user = User::where('email', $googleUser->getEmail())
-                        ->orWhere('google_id', $googleUser->getId())
-                        ->first();
+        $googleUser = Socialite::driver('google')->stateless()->user();
 
-            $isNewUser = false;
+        // 1. Find or Create User
+        $user = User::updateOrCreate(
+            ['email' => $googleUser->getEmail()],
+            [
+                'name' => $googleUser->getName(),
+                'google_id' => $googleUser->getId(),
+                'avatar' => $googleUser->getAvatar(),
+                'password' => Hash::make(Str::random(24)), // Random password for security
+                // If you have a 'role' column, make sure to set a default or fetch it
+                // 'role' => 'player' 
+            ]
+        );
 
-            if (!$user) {
-                // SCENARIO A: Brand new user -> Create them!
-                $isNewUser = true;
-                $user = User::create([
-                    'name' => $googleUser->getName(),
-                    'email' => $googleUser->getEmail(),
-                    'google_id' => $googleUser->getId(),
-                    'avatar' => $googleUser->getAvatar(),
-                    'password' => Hash::make(Str::random(16)), // Random secure password
-                    'role' => 'player' // Default role (we can change this later)
-                ]);
-            } else {
-                // SCENARIO B: Existing user -> Update their avatar/ID just in case
-                $user->update([
-                    'google_id' => $googleUser->getId(),
-                    'avatar' => $googleUser->getAvatar(),
-                ]);
-            }
+        // 2. Generate Token
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-            // Create a Token for them (So React can call the API)
-            $token = $user->createToken('auth_token')->plainTextToken;
+        // 3. Check Role & Status (Logic from your smart login)
+        $role = $user->role ?? 'player';
+        $status = 'active';
 
-            // DECIDE WHERE TO SEND THEM
-            // We redirect back to your Frontend (React) with the token in the URL.
-            // React will grab this token and save it.
-            
-            // If they are brand new, send to "Onboarding" (Pick Team)
-            // If they are old, send to "Dashboard"
-            $targetPage = $isNewUser ? '/onboarding' : '/dashboard';
-            
-            // NOTE: Change 'http://localhost:8000' to your actual frontend URL if different
-            return redirect("http://localhost:8000{$targetPage}?token={$token}&user_id={$user->id}");
-
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Login failed: ' . $e->getMessage()], 500);
+        if ($role === 'player') {
+            $player = \DB::table('players')->where('email', $user->email)->first();
+            $status = $player ? $player->status : 'pending';
         }
+
+        // 4. REDIRECT TO FRONTEND WITH DATA 🚀
+        // We send the data as Query Parameters so React can grab them
+        return redirect("http://127.0.0.1:8000/auth/callback?token={$token}&role={$role}&status={$status}&user_id={$user->id}");
     }
 }
