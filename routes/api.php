@@ -9,7 +9,6 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentController;
 use App\Models\Coach;
-use Illuminate\Support\Facades\Route;
 
 
 Route::get('/user', function (Request $request) {
@@ -49,8 +48,8 @@ Route::post('/register', [PlayerController::class, 'register']);
 
 // Coach Routes
 Route::get('/coach/{id}/requests', [CoachController::class, 'getPendingRequests']);
-Route::post('/coach/{id}/requests/{playerId}', [CoachController::class, 'handleRequest']);
-Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
+Route::post('/coach/{id}/request/{playerId}', [CoachController::class, 'handleRequest']);
+//Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
 
 // Announcements Routes
 Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);

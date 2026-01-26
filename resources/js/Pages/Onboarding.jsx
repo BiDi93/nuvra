@@ -6,11 +6,11 @@ const Onboarding = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     
-    // 1. Grab data from URL
+    // Grab data from URL
     const token = searchParams.get('token');
     const userId = searchParams.get('user_id');
 
-    // 2. Form State
+    // Form State
     const [teams, setTeams] = useState([]);
     const [formData, setFormData] = useState({
         coach_id: '',
@@ -20,7 +20,7 @@ const Onboarding = () => {
         phone: ''
     });
 
-    // 3. Fetch Teams on Load
+    // Fetch Teams on Load
     useEffect(() => {
         if (!token) {
             alert("No token found! Please login again.");

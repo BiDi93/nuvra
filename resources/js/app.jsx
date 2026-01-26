@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Import Pages
 import LandingPage from "./Pages/LandingPage";
 import CoachLogin from "./Pages/CoachLogin";
-import CoachDashboard from "./Pages/CoachDashboard";
 import CoachPlayerView from "./Pages/CoachPlayerView";
 import CoachSchedule from "./Pages/CoachModules/CoachSchedule.jsx";
 

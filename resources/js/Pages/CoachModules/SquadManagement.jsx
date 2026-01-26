@@ -1,14 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PendingRequests from './PendingRequest'; // <--- IMPORT THIS
 
 export default function SquadManagement() {
     const navigate = useNavigate();
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
 
-useEffect(() => {
+    // Hardcoded for now (In Phase 5 we will make this dynamic!)
+    const coachId = 1; 
+
+    // 1. DEFINE THE FETCH FUNCTION
+    const fetchTeam = () => {
+        fetch(`/api/coach/${coachId}/players`) 
+            .then(res => res.json())
+            .then(data => {
+                setTeam(data);
+                setLoading(false);
+            })
+            .catch(err => console.error(err));
+    };
+
+    // 2. CALL IT ON LOAD
+    useEffect(() => {
+        fetchTeam();
+    }, []);
+
+    useEffect(() => {
         // Fetch Players for the Coach's Team
-        const coachId = 1; 
         fetch(`/api/coach/${coachId}/players`) 
             .then(res => res.json())
             .then(data => {
@@ -18,18 +37,27 @@ useEffect(() => {
             .catch(err => console.error(err));
     }, []);
 
+    // Loading Check 
     if (loading) return <div className="text-gray-400 font-bold p-10 text-center">Loading Roster...</div>;
 
     return (
         <div>
-            <div className="flex justify-between items-end mb-6">
+            {/* PENDING REQUESTS INBOX (Added Here) */}
+            {/* This will appear above your roster if there are requests */}
+            <PendingRequests coachId={coachId} onActionComplete={fetchTeam}/>
+            
+            {/* 2. HEADER & COUNTER */}
+            <div className="flex justify-between items-end mb-6 mt-4">
                 <h3 className="text-xl font-bold text-gray-900">Active Roster</h3>
                 <span className="text-sm font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-lg">{team.length} Players</span>
             </div>
 
+            {/* 3. ACTIVE ROSTER GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {team.map(player => (
                     <div key={player.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
+                        
+                        {/* Player Card Content */}
                         <div>
                             <div className="relative z-10 flex items-start justify-between mb-4">
                                 <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white shadow-md overflow-hidden">
@@ -44,6 +72,7 @@ useEffect(() => {
                             <p className="text-sm text-gray-500 mb-4">{player.email}</p>
                         </div>
 
+                        {/* Card Actions */}
                         <div className="border-t border-gray-100 pt-4 flex justify-between items-center mt-2">
                             <button onClick={() => navigate(`/coach/player/${player.id}`)} className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1">
                                 View Stats <span>→</span>
