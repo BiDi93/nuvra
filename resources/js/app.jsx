@@ -28,6 +28,10 @@ import PlayerSchedule from "./Pages/Modules/PlayerShedule.jsx";
 import PlayerPayment from "./Pages/Modules/PlayerPayment.jsx";
 import CoachPayment from "./Pages/CoachModules/CoachPayment.jsx";
 
+import Login from "./Pages/Login";
+import Onboarding from "./Pages/Onboarding";
+
+
 function App() {
     return (
         <BrowserRouter>
@@ -59,6 +63,9 @@ function App() {
                     <Route path="schedule" element={<PlayerSchedule />} />
                     <Route path="payment" element={<PlayerPayment />} />
                 </Route>
+
+                <Route path="/login" element={<Login />} />
+                <Route path="/onboarding" element={<Onboarding />} />
                 
             </Routes>
         </BrowserRouter>

@@ -8,6 +8,8 @@ use App\Http\Controllers\CoachController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentController;
+use App\Models\Coach;
+use Illuminate\Support\Facades\Route;
 
 
 Route::get('/user', function (Request $request) {
@@ -69,3 +71,6 @@ Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPa
 // PLAYER ROUTES
 Route::get('/player/{id}/payments', [PaymentController::class, 'getMyPayments']);
 Route::post('/payments', [PaymentController::class, 'makePayment']);
+
+// Onboarding new players route from google auth
+Route::post('/player/onboarding', [PlayerController::class, 'submitApplication']);

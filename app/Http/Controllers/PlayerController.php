@@ -239,5 +239,40 @@ public function store(Request $request)
 
         return response()->json($players);
     }
+
+    // Submit Application (Link User to a Team/Coach)
+    public function submitApplication(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'coach_id' => 'required|exists:coaches,id',
+            'position' => 'required|string',
+            'details' => 'nullable|array' // For age, phone, etc.
+        ]);
+
+        // Create the Player Profile (Pending Approval)
+        $user = \App\Models\User::find($validated['user_id']);
+        
+        // Check if player profile already exists
+        $existingPlayer = DB::table('players')->where('email', $user->email)->first();
+        
+        if ($existingPlayer) {
+            return response()->json(['message' => 'Application already pending or approved!'], 400);
+        }
+
+        DB::table('players')->insert([
+            'coach_id' => $validated['coach_id'],
+            'name' => $user->name,
+            'email' => $user->email,
+            'profile_image' => $user->avatar,
+            'position' => $validated['position'],
+            'status' => 'pending', // Crucial: Start as pending!
+            'created_at' => now(),
+            'updated_at' => now(),
+            // Add other details like age/phone here if you passed them
+        ]);
+
+        return response()->json(['message' => 'Application submitted successfully!']);
+    }
 }
 
