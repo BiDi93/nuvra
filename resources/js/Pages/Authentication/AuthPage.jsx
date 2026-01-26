@@ -20,7 +20,9 @@ const AuthPage = () => {
 
     const handleGoogleLogin = () => {
         // NOTE: Google Auth logic needs to handle roles on the backend callback
-        window.location.href = "http://localhost:8000/auth/google";
+       // window.location.href = "http://localhost:8000/auth/google";
+       // Dynamic URL
+       window.location.href = "/auth/google";
     };
 
     // --- SMART LOGIN HANDLER (Fixes the Loop!) ---
