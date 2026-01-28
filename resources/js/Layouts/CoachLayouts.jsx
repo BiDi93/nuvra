@@ -7,7 +7,8 @@ export default function CoachLayout() {
     const teamName = "NUVRA Varsity";
 
     const handleLogout = () => {
-        navigate("/coach");
+        localStorage.removeItem("auth_token");
+        navigate("/login");
     };
 
     // Style for sidebar links
