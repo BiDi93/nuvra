@@ -56,7 +56,7 @@ const Onboarding = () => {
             });
 
             alert("Application Submitted! Waiting for Coach Approval.");
-            navigate('/dashboard'); // Or wherever you want them to go
+            navigate('/waiting-room'); // Or wherever you want them to go
         } catch (error) {
             console.error(error);
             alert("Submission failed. You might already have a pending application.");
