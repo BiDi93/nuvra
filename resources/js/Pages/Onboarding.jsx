@@ -32,7 +32,7 @@ const Onboarding = () => {
         localStorage.setItem('auth_token', token);
 
         // Get the list of coaches/teams
-        axios.get('http://localhost:8000/api/teams')
+        axios.get('/api/teams')
             .then(res => setTeams(res.data))
             .catch(err => console.error("Failed to load teams", err));
     }, [token, navigate]);
@@ -42,7 +42,7 @@ const Onboarding = () => {
         e.preventDefault();
         
         try {
-            await axios.post('http://localhost:8000/api/player/onboarding', {
+            await axios.post('/api/player/onboarding', {
                 user_id: userId,
                 coach_id: formData.coach_id,
                 position: formData.position,
