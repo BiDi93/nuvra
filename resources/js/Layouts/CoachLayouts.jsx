@@ -8,7 +8,7 @@ export default function CoachLayout() {
 
     const handleLogout = () => {
         localStorage.removeItem("auth_token");
-        navigate("/login");
+        navigate("/login", { replace: true }); // 'replace: true' erases the Dashboard from history stack
     };
 
     // Style for sidebar links
