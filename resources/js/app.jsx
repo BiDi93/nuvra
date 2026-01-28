@@ -16,7 +16,6 @@ import WaitingRoom from "./Pages/WaitingRoom.jsx";
 
 // Import Pages
 import LandingPage from "./Pages/LandingPage";
-import CoachLogin from "./Pages/CoachLogin";
 import CoachPlayerView from "./Pages/CoachPlayerView";
 import CoachSchedule from "./Pages/CoachModules/CoachSchedule.jsx";
 
@@ -49,9 +48,6 @@ function App() {
                 {/* 1. Public Routes */}
                 <Route path="/" element={<AuthPage />} />
 
-                {/* 2. Coach Routes */}
-                {/* The /coach URL now shows the Login Screen */}
-                <Route path="/coach" element={<CoachLogin />} />
                 {/* After login, they get sent here */}
                 {/* COACH DASHBOARD (Nested Routes) */}
                 <Route path="/coach-dashboard" element={<CoachLayout />}>
