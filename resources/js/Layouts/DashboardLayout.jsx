@@ -53,8 +53,19 @@ export default function DashboardLayout() {
     }, [navigate]);
 
     const handleLogout = () => {
-        localStorage.removeItem("auth_token"); // Clear the correct token
-        navigate("/login");
+// 1. Wipe the keys from storage
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('currentUser');
+    
+    // 2. Kill the session in Axios (Optional but good practice)
+    if (window.axios) {
+        delete window.axios.defaults.headers.common['Authorization'];
+    }
+
+    // 3. THE FIX: Force a Hard Redirect 🛑
+    // Do NOT use navigate('/login').
+    // This forces the browser to load the Login page as a fresh new page.
+    window.location.href = '/login';
     };
 
     if (loading || !data)
