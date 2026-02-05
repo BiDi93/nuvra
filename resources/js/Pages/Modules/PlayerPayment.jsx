@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext,useSearchParams, useNavigate } from 'react-router-dom';
+
 
 export default function PlayerPayment() {
     const { profile } = useOutletContext();
@@ -10,11 +11,53 @@ export default function PlayerPayment() {
     const [selectedMonth, setSelectedMonth] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // INITIALIZE HOOKS
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+
     const currentYear = new Date().getFullYear();
     const months = [
         "January", "February", "March", "April", "May", "June", 
         "July", "August", "September", "October", "November", "December"
     ];
+
+    useEffect(() => {
+        const billId = searchParams.get('billplz[id]');
+        const isPaid = searchParams.get('billplz[paid]');
+
+        if (billId) {
+            // Optional: Clean URL so it doesn't look messy
+            // navigate('/dashboard/payment', { replace: true });
+
+            if (isPaid === 'true') {
+                setIsProcessing(true);
+                
+                // Verify with Backend
+                fetch('/api/payment/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    },
+                    body: JSON.stringify({ bill_id: billId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'paid') {
+                        alert("🎉 Payment Successful! Database updated.");
+                        fetchHistory(); // Refresh the grid
+                    } else {
+                        alert("⚠️ Payment verification failed. Please contact support.");
+                    }
+                })
+                .catch(err => console.error("Verification Error:", err))
+                .finally(() => setIsProcessing(false));
+            } else {
+                alert("Payment was cancelled or failed.");
+            }
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (profile?.id) fetchHistory();
@@ -36,36 +79,35 @@ export default function PlayerPayment() {
     const confirmPayment = () => {
         setIsProcessing(true);
 
-        fetch('/api/payments', {
+        // 1. Call your new Laravel Route to get the Bill URL
+        fetch('/api/payment/create-bill', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Accept': 'application/json' 
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}` // Ensure token is sent!
             },
             body: JSON.stringify({
-                player_id: profile.id,
-                month_year: `${selectedMonth} ${currentYear}`,
+                month: `${selectedMonth} ${currentYear}`, // Sending "February 2026"
                 amount: 50.00
             })
         })
         .then(async res => {
             const data = await res.json();
-            setIsProcessing(false);
-            setShowModal(false); // Close Modal
-
-            if (res.ok) {
-                // Success UI handled by updating list
-                alert("Payment Successful! Receipt emailed. 🧾");
-                fetchHistory(); 
+            
+            if (res.ok && data.url) {
+                // 2. SUCCESS: Redirect to Billplz to pay
+                window.location.href = data.url; 
             } else {
-                alert(`Payment Failed: ${data.message}`);
+                // 3. FAIL: Show error
+                setIsProcessing(false);
+                alert(`Error: ${data.message || 'Could not create bill'}`);
             }
         })
         .catch(err => {
             setIsProcessing(false);
-            setShowModal(false);
             console.error(err);
-            alert("System Error. Please try again.");
+            alert("System Error. Check console for details.");
         });
     };
 
