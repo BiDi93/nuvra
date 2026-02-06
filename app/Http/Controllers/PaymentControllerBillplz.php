@@ -27,7 +27,7 @@ class PaymentControllerBillplz extends Controller
                 'name'          => $user->name,
                 'amount'        => $amount * 100, // ⚠️ Billplz calculates in CENTS (50.00 -> 5000)
                 'callback_url'  => 'http://your-ngrok-url/api/payment/callback', // We will setup Ngrok later
-                'redirect_url'  => 'http://localhost:8000/dashboard/payment', // Where user goes AFTER paying
+                'redirect_url'  => env('APP_URL') . '/dashboard/payment', // Where user goes AFTER paying
                 'description'   => "Monthly Fees for " . ($request->month ?? 'Unknown Month'),
                 'mobile'        => '0123456789' // Optional: Fetch from user profile if available
             ]);
