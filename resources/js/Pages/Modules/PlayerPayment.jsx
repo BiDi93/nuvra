@@ -57,16 +57,20 @@ export default function PlayerPayment() {
                 alert("Payment was cancelled or failed.");
             }
         }
-    }, [searchParams]);
+    }, [searchParams, profile]);
 
     useEffect(() => {
         if (profile?.id) fetchHistory();
     }, [profile]);
 
-    const fetchHistory = () => {
-        fetch(`/api/player/${profile.id}/payments`)
+const fetchHistory = () => {
+        if (!profile?.id) return; // Safety check
+
+        // The "?t=" part forces the browser to get fresh data
+        fetch(`/api/player/${profile.id}/payments?t=${new Date().getTime()}`) 
             .then(res => res.json())
-            .then(data => setHistory(data));
+            .then(data => setHistory(data))
+            .catch(err => console.error(err));
     };
 
     // 1. OPEN THE MODAL (Don't pay yet)

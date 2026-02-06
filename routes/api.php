@@ -68,6 +68,7 @@ Route::post('/player/{id}/update', [PlayerController::class, 'update']);
 Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
 
 // PLAYER ROUTES
+Route::get('/player/{id}/payments', [PaymentControllerBillplz::class, 'getMyPayments']);
 //Payement Billplz Routes UAT
 Route::middleware('auth:sanctum')->post('/payment/create-bill', [PaymentControllerBillplz::class, 'createBill']);
 Route::middleware('auth:sanctum')->post('/payment/verify', [PaymentControllerBillplz::class, 'verifyPayment']);

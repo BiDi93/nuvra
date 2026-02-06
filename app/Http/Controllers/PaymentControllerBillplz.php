@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class PaymentControllerBillplz extends Controller
 {
@@ -93,5 +94,16 @@ public function verifyPayment(Request $request)
         }
 
         return response()->json(['error' => 'Billplz check failed'], 500);
+    }
+
+    public function getMyPayments($id)
+    {
+        // Fetch all payments for this player, ordered by newest first
+        $payments = DB::table('payments')
+            ->where('player_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($payments);
     }
 }
