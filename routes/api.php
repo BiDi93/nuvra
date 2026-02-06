@@ -7,7 +7,6 @@ use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\CoachController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
-use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentControllerBillplz;
 use App\Models\Coach;
 
@@ -69,8 +68,7 @@ Route::post('/player/{id}/update', [PlayerController::class, 'update']);
 Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
 
 // PLAYER ROUTES
-Route::get('/player/{id}/payments', [PaymentController::class, 'getMyPayments']);
-Route::post('/payments', [PaymentController::class, 'makePayment']);
+Route::get('/player/{id}/payments', [PaymentControllerBillplz::class, 'getMyPayments']);
 //Payement Billplz Routes UAT
 Route::middleware('auth:sanctum')->post('/payment/create-bill', [PaymentControllerBillplz::class, 'createBill']);
 Route::middleware('auth:sanctum')->post('/payment/verify', [PaymentControllerBillplz::class, 'verifyPayment']);
