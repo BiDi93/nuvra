@@ -9,31 +9,30 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentControllerBillplz extends Controller
 {
+    // 1. Create the Bill (User clicks "Pay Now")
     public function createBill(Request $request)
     {
-        // 1. Get the User & Amount
         $user = $request->user();
-        $amount = 50.00; // You can pass this dynamically via $request->amount if needed
+        $amount = 50.00;
         
-        // 2. Define Billplz URL (Sandbox vs Production)
-        $url = env('BILLPLZ_SANDBOX') 
+        // FIX: Use config() instead of env() for Sandbox Check
+        $url = config('services.billplz.sandbox') 
             ? 'https://www.billplz-sandbox.com/api/v3/bills' 
             : 'https://www.billplz.com/api/v3/bills';
 
-        // 3. Send Request to Billplz
-        $response = Http::withBasicAuth(env('BILLPLZ_API_KEY'), '')
+        // FIX: Use config() for API Key and Collection ID
+        $response = Http::withBasicAuth(config('services.billplz.key'), '')
             ->post($url, [
-                'collection_id' => env('BILLPLZ_COLLECTION_ID'),
+                'collection_id' => config('services.billplz.collection_id'),
                 'email'         => $user->email,
                 'name'          => $user->name,
-                'amount'        => $amount * 100, // ⚠️ Billplz calculates in CENTS (50.00 -> 5000)
-                'callback_url'  => 'http://your-ngrok-url/api/payment/callback', // We will setup Ngrok later
-                'redirect_url'  => env('APP_URL') . '/dashboard/payment', // Where user goes AFTER paying
+                'amount'        => $amount * 100, 
+                'callback_url'  => config('app.url') . '/api/payment/callback',
+                'redirect_url'  => config('app.url') . '/dashboard/payment',
                 'description'   => "Monthly Fees for " . ($request->month ?? 'Unknown Month'),
-                'mobile'        => '0123456789' // Optional: Fetch from user profile if available
+                'mobile'        => '0123456789' 
             ]);
 
-        // 4. Return the Bill URL to React
         if ($response->successful()) {
             return response()->json([
                 'url' => $response->json()['url'],
@@ -44,43 +43,40 @@ class PaymentControllerBillplz extends Controller
         return response()->json(['error' => 'Failed to create bill'], 500);
     }
 
-public function verifyPayment(Request $request)
+    // 2. Verify Payment (User returns from Billplz)
+    public function verifyPayment(Request $request)
     {
         $billId = $request->bill_id;
 
-        // 1. Define URL (Sandbox vs Production)
-        $url = env('BILLPLZ_SANDBOX') 
+        // FIX: Use config() here too! (This was breaking in production)
+        $url = config('services.billplz.sandbox')
             ? "https://www.billplz-sandbox.com/api/v3/bills/{$billId}" 
             : "https://www.billplz.com/api/v3/bills/{$billId}";
 
-        // 2. Ask Billplz status
-        $response = Http::withBasicAuth(env('BILLPLZ_API_KEY'), '')->get($url);
+        // FIX: Use config() for API Key
+        $response = Http::withBasicAuth(config('services.billplz.key'), '')->get($url);
 
         if ($response->successful()) {
             $data = $response->json();
 
             if ($data['paid'] === true) {
                 
-                // A. Find the Player Profile linked to this User
-                // We assume the User's email matches the Player's email
                 $userEmail = $request->user()->email;
-                $player = \DB::table('players')->where('email', $userEmail)->first();
+                $player = DB::table('players')->where('email', $userEmail)->first();
 
                 if ($player) {
-                    // B. Extract "February 2026" from "Monthly Fees for February 2026"
                     $description = $data['description'];
                     $monthYear = str_replace("Monthly Fees for ", "", $description);
 
-                    // C. Save to Database (The missing part!)
-                    \DB::table('payments')->updateOrInsert(
+                    DB::table('payments')->updateOrInsert(
                         [
                             'player_id'  => $player->id,
-                            'month_year' => $monthYear, // Matches "February 2026"
+                            'month_year' => $monthYear,
                         ],
                         [
-                            'amount'         => $data['amount'] / 100, // Convert 5000 cents -> 50.00
+                            'amount'         => $data['amount'] / 100, 
                             'status'         => 'completed',
-                            'transaction_id' => $data['id'], // Store Billplz ID (e.g. "inbmmzf4")
+                            'transaction_id' => $data['id'],
                             'created_at'     => now(),
                             'updated_at'     => now(),
                         ]
@@ -96,9 +92,9 @@ public function verifyPayment(Request $request)
         return response()->json(['error' => 'Billplz check failed'], 500);
     }
 
+    // 3. Get Payment History
     public function getMyPayments($id)
     {
-        // Fetch all payments for this player, ordered by newest first
         $payments = DB::table('payments')
             ->where('player_id', $id)
             ->orderBy('created_at', 'desc')

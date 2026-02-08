@@ -41,4 +41,11 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL'),
     ],
 
+    'billplz' => [
+        'key'           => env('BILLPLZ_API_KEY'),
+        'x_signature'   => env('BILLPLZ_X_SIGNATURE'),
+        'collection_id' => env('BILLPLZ_COLLECTION_ID'),
+        'sandbox'       => env('BILLPLZ_SANDBOX', true),
+    ],
+
 ];
