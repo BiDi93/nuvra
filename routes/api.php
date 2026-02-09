@@ -2,78 +2,108 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+// --- CONTROLLERS ---
 use App\Http\Controllers\PlayerController;
-use App\Http\Controllers\PerformanceController; 
 use App\Http\Controllers\CoachController;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
-use App\Http\Controllers\PaymentControllerBillplz;
-use App\Models\Coach;
+use App\Http\Controllers\PaymentController; // Legacy (Coach View)
+use App\Http\Controllers\PaymentControllerBillplz; // New (Billplz Integration)
 
-
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-// The read route to get all players
-Route::get('/players', [PlayerController::class, 'index']);
-
-// Write post route to add new player
-Route::post('/players', [PlayerController::class, 'store']);
-
-// To list a specific player's profile and performance history
-Route::get('/players/{id}', [PlayerController::class, 'show']);
-
-// Get list of matches (For the dropdown)
-Route::get('/coach/{id}/matches', [PerformanceController::class, 'getMatches']);
-
-// Save the result
-Route::post('/performances', [PerformanceController::class, 'store']);
-
-//Route for player login
+/*
+|--------------------------------------------------------------------------
+| AUTHENTICATION & ONBOARDING
+|--------------------------------------------------------------------------
+*/
+// Login Routes
 Route::post('/login', [PlayerController::class, 'login']);
-
-
-//Route for coach functionalities
 Route::post('/coach/login', [CoachController::class, 'login']);
+
+// Registration & Onboarding
+Route::post('/register', [PlayerController::class, 'register']);
+Route::post('/player/onboarding', [PlayerController::class, 'submitApplication']);
+
+// Authenticated User Info (Sanctum)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    Route::get('/player/me', [PlayerController::class, 'me']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| COACH PORTAL
+|--------------------------------------------------------------------------
+| Routes used specifically by the Coach Dashboard
+*/
+// Team Management
+Route::get('/coach/{id}/team', [TeamController::class, 'getCoachTeam']);
 Route::get('/coach/{id}/players', [CoachController::class, 'getMyTeam']);
 Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
 
-// Route to get teammates of a player
-Route::get('/players/{id}/teammates', [App\Http\Controllers\PlayerController::class, 'getTeammates']);
-
-// Public Routes
-Route::get('/teams', [PlayerController::class, 'getTeams']);
-Route::post('/register', [PlayerController::class, 'register']);
-
-// Coach Routes
+// Player Requests
 Route::get('/coach/{id}/requests', [CoachController::class, 'getPendingRequests']);
 Route::post('/coach/{id}/request/{playerId}', [CoachController::class, 'handleRequest']);
-//Route::get('/coach/{id}/players', [PlayerController::class, 'getCoachPlayers']);
 
-// Announcements Routes
+// Announcements
 Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);
 Route::post('/announcements', [AnnouncementController::class, 'store']);
 
-//Shedule Routes
+// Schedule
 Route::get('/coach/{id}/schedule', [ScheduleController::class, 'index']);
 Route::post('/schedule', [ScheduleController::class, 'store']);
 Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);
 
-// Player Profile Update Route
-Route::post('/player/{id}/update', [PlayerController::class, 'update']);
-
-// Payements Routes //
-// COACH ROUTES
+// Coach View of Payments
 Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
 
-// PLAYER ROUTES
+/*
+|--------------------------------------------------------------------------
+| PLAYER PORTAL
+|--------------------------------------------------------------------------
+| Routes used specifically by the Player Dashboard
+*/
+// Player Profiles & Teammates
+Route::get('/players/{id}', [PlayerController::class, 'show']);
+Route::post('/player/{id}/update', [PlayerController::class, 'update']);
+Route::get('/players/{id}/teammates', [PlayerController::class, 'getTeammates']);
+
+// Player Payment History
 Route::get('/player/{id}/payments', [PaymentControllerBillplz::class, 'getMyPayments']);
-//Payement Billplz Routes UAT
-Route::middleware('auth:sanctum')->post('/payment/create-bill', [PaymentControllerBillplz::class, 'createBill']);
-Route::middleware('auth:sanctum')->post('/payment/verify', [PaymentControllerBillplz::class, 'verifyPayment']);
 
-// Onboarding new players route from google auth
-Route::post('/player/onboarding', [PlayerController::class, 'submitApplication']);
+// General Player List (Admin/Public?)
+Route::get('/players', [PlayerController::class, 'index']);
+Route::post('/players', [PlayerController::class, 'store']);
 
-Route::middleware('auth:sanctum')->get('/player/me', [PlayerController::class, 'me']);
+/*
+|--------------------------------------------------------------------------
+| PERFORMANCE & MATCHES
+|--------------------------------------------------------------------------
+*/
+// Matches (Dropdowns)
+Route::get('/coach/{id}/matches', [PerformanceController::class, 'getMatches']);
+
+// Saving Stats
+Route::post('/performances', [PerformanceController::class, 'store']);
+
+/*
+|--------------------------------------------------------------------------
+| PAYMENT PROCESSING (BILLPLZ)
+|--------------------------------------------------------------------------
+| Functional routes for processing payments
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/payment/create-bill', [PaymentControllerBillplz::class, 'createBill']);
+    Route::post('/payment/verify', [PaymentControllerBillplz::class, 'verifyPayment']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC / UTILITY
+|--------------------------------------------------------------------------
+*/
+Route::get('/teams', [PlayerController::class, 'getTeams']);
