@@ -1,51 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 export default function RecordStats() {
-    const coachId = 1; 
+    const coachId = 1;
     const [matches, setMatches] = useState([]);
     const [players, setPlayers] = useState([]);
+    const [team, setTeam] = useState(null);
 
     const [formData, setFormData] = useState({
-        match_id: '', player_id: '', minutes_played: '90',
-        goals: '0', assists: '0', rating: ''
+        match_id: "",
+        player_id: "",
+        minutes_played: "90",
+        goals: "0",
+        assists: "0",
+        rating: "",
     });
 
     useEffect(() => {
-        fetch(`/api/coach/${coachId}/matches`).then(res => res.json()).then(setMatches);
-        fetch('/api/teams').then(res => res.json()).then(setPlayers);
+        // Fetch matches and players for the coach's team
+        fetch(`/api/coach/${coachId}/matches`)
+            .then((res) => res.json())
+            .then(setMatches);
+
+        //Fetch players in the team
+        fetch("/api/teams")
+            .then((res) => res.json())
+            .then(setPlayers);
+        //Fetch team info
+        fetch(`/api/coach/${coachId}/team`)
+            .then((res) => res.json())
+            .then((data) => setTeam(data))
+            .catch((err) => console.error("Error fetching team:", err));
     }, []);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        fetch('/api/performances', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        })
-        .then(res => {
+        fetch("/api/performances", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+        }).then((res) => {
             if (res.ok) {
                 alert("Stats Saved Successfully! 📈");
-                setFormData({...formData, rating: '', goals: '0', assists: '0'});
+                setFormData({
+                    ...formData,
+                    rating: "",
+                    goals: "0",
+                    assists: "0",
+                });
             }
         });
     };
 
-    const labelStyle = "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2";
-    const inputStyle = "w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all";
+    const labelStyle =
+        "block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2";
+    const inputStyle =
+        "w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all";
 
-    return (
+ return (
         <div className="max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
             <h2 className="text-2xl font-black text-gray-900 mb-6">Record Match Performance</h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* --- SELECT MATCH DROPDOWN --- */}
                     <div>
                         <label className={labelStyle}>Select Match</label>
-                        <select className={inputStyle} required onChange={e => setFormData({...formData, match_id: e.target.value})}>
+                        <select 
+                            className={inputStyle} 
+                            required 
+                            onChange={e => setFormData({...formData, match_id: e.target.value})}
+                        >
                             <option value="">Choose Game...</option>
-                            {matches.map(m => <option key={m.id} value={m.id}>{m.opponent_name}</option>)}
+                            
+                            {/* 👇 This now reads "vs Royal Tigers FC (Date)" */}
+                            {matches.map(m => (
+                                <option key={m.id} value={m.id}>
+                                    vs {m.opponent_name} ({new Date(m.match_date).toLocaleDateString()})
+                                </option>
+                            ))}
                         </select>
                     </div>
+
                     <div>
                         <label className={labelStyle}>Select Player</label>
                         <select className={inputStyle} required onChange={e => setFormData({...formData, player_id: e.target.value})}>

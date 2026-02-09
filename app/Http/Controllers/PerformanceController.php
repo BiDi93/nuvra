@@ -8,11 +8,21 @@ use Illuminate\Support\Facades\DB;
 class PerformanceController extends Controller
 {
     // Fetch Matches for the Dropdown (So coach can pick a game)
-    public function getMatches($coachId)
+public function getMatches($coachId)
     {
         $matches = DB::table('matches')
-            ->where('coach_id', $coachId)
-            ->orderBy('match_date', 'desc')
+            // 1. Link the 'matches' table to the 'teams' table
+            ->join('teams', 'matches.opponent_team_id', '=', 'teams.id')
+            
+            // 2. Select the Match ID (crucial!) but grab the Name from Teams
+            ->select(
+                'matches.id',              // We still need the Match ID for the form
+                'matches.match_date',      // Useful to show the date
+                'teams.name as opponent_name', // Get the official name from Teams table
+                'teams.logo as opponent_logo'  // Bonus: Get the logo too!
+            )
+            ->where('matches.coach_id', $coachId)
+            ->orderBy('matches.match_date', 'desc')
             ->get();
             
         return response()->json($matches);

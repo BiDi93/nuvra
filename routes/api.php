@@ -9,7 +9,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentControllerBillplz;
 use App\Models\Coach;
-
+use App\Http\Controllers\TeamController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -66,6 +66,7 @@ Route::post('/player/{id}/update', [PlayerController::class, 'update']);
 // Payements Routes //
 // COACH ROUTES
 Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
+Route::get('/coach/{id}/team', [TeamController::class, 'getCoachTeam']);
 
 // PLAYER ROUTES
 Route::get('/player/{id}/payments', [PaymentControllerBillplz::class, 'getMyPayments']);
@@ -77,3 +78,4 @@ Route::middleware('auth:sanctum')->post('/payment/verify', [PaymentControllerBil
 Route::post('/player/onboarding', [PlayerController::class, 'submitApplication']);
 
 Route::middleware('auth:sanctum')->get('/player/me', [PlayerController::class, 'me']);
+
