@@ -105,7 +105,7 @@ public function store(Request $request)
                         'matches.opponent_name', 
                         'matches.match_date', 
                         'matches.venue', 
-                        'matches.league_type'
+                        'matches.league_name'
                      )
                      ->get();
 
@@ -158,7 +158,7 @@ public function store(Request $request)
                         'matches.opponent_name', 
                         'matches.match_date', 
                         'matches.venue', 
-                        'matches.league_type'
+                        'matches.league_name'
                      )
                      ->get();
 

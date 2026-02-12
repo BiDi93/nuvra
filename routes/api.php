@@ -59,7 +59,7 @@ Route::post('/schedule', [ScheduleController::class, 'store']);
 Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);
 
 // Coach View of Payments
-Route::get('/coach/{id}/payments/{month}', [PaymentController::class, 'getTeamPayments']);
+Route::get('/coach/{id}/payments/{month}', [PaymentControllerBillplz::class, 'getTeamPayments']);
 
 /*
 |--------------------------------------------------------------------------

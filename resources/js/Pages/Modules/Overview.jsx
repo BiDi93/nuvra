@@ -131,8 +131,8 @@ export default function Overview() {
                                 <th className="p-5 font-bold">Date</th>
                                 <th className="p-5 font-bold">Opponent / Venue</th>
                                 <th className="p-5 font-bold">League</th>
-                                <th className="p-5 font-bold text-center">Mins</th>
-                                <th className="p-5 font-bold text-center">G / A</th>
+                                <th className="p-5 font-bold text-center">Minutes Played</th>
+                                <th className="p-5 font-bold text-center">Goal / Assist</th>
                                 <th className="p-5 font-bold text-right">Rating</th>
                             </tr>
                         </thead>
@@ -146,12 +146,12 @@ export default function Overview() {
                                     <td className="p-5">
                                         <div className="font-bold text-gray-900">{match.opponent_name}</div>
                                         <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                                            <span>📍 {match.venue || 'Unknown Venue'}</span>
+                                            <span>📍 {match.venue || 'None'}</span>
                                         </div>
                                     </td>
                                     <td className="p-5">
                                         <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-100">
-                                            {match.league_type || 'League'}
+                                            {match.league_name || 'League'}
                                         </span>
                                     </td>
                                     <td className="p-5 text-center font-bold text-gray-400">{match.minutes_played}'</td>

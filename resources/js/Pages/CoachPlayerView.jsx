@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
+import {
     AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis 
+    Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 
 export default function CoachPlayerView() {
@@ -47,7 +47,7 @@ export default function CoachPlayerView() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
-            
+
             {/* Header / Navigation */}
             <div className="max-w-7xl mx-auto mb-8 flex items-center gap-4">
                 <button onClick={() => navigate('/coach-dashboard')} className="bg-white p-3 rounded-xl border border-gray-200 text-gray-500 hover:text-gray-900 hover:shadow-md transition-all">← Back</button>
@@ -63,7 +63,7 @@ export default function CoachPlayerView() {
             </div>
 
             <div className="max-w-7xl mx-auto space-y-8">
-                
+
                 {/* 1. TOP SECTION: CHARTS (Same as before) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
@@ -88,13 +88,13 @@ export default function CoachPlayerView() {
                                 <AreaChart data={historyData}>
                                     <defs>
                                         <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
-                                    <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)'}} />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }} />
                                     <Area type="monotone" dataKey="rating" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRating)" />
                                 </AreaChart>
                             </ResponsiveContainer>
@@ -108,7 +108,7 @@ export default function CoachPlayerView() {
                         <h3 className="text-xl font-bold text-gray-900">Match Log</h3>
                         <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">{history.length} Matches</span>
                     </div>
-                    
+
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -116,8 +116,8 @@ export default function CoachPlayerView() {
                                     <th className="p-5 font-bold">Date</th>
                                     <th className="p-5 font-bold">Opponent / Venue</th>
                                     <th className="p-5 font-bold">League</th>
-                                    <th className="p-5 font-bold text-center">Mins</th>
-                                    <th className="p-5 font-bold text-center">G / A</th>
+                                    <th className="p-5 font-bold text-center">Minutes Played</th>
+                                    <th className="p-5 font-bold text-center">Goal / Assist</th>
                                     <th className="p-5 font-bold text-right">Rating</th>
                                 </tr>
                             </thead>
@@ -130,12 +130,12 @@ export default function CoachPlayerView() {
                                         <td className="p-5">
                                             <div className="font-bold text-gray-900">{match.opponent_name}</div>
                                             <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                                                <span>📍 {match.venue || 'Unknown Venue'}</span>
+                                                <span>📍 {match.venue || 'None'}</span>
                                             </div>
                                         </td>
                                         <td className="p-5">
                                             <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-100">
-                                                {match.league_type || 'League'}
+                                                {match.league_name || 'League'}
                                             </span>
                                         </td>
                                         <td className="p-5 text-center font-bold text-gray-400">{match.minutes_played}'</td>
