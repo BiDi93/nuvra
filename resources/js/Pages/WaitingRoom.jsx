@@ -17,18 +17,18 @@ const WaitingRoom = () => {
         axios.get('/api/player/me', {
             headers: { Authorization: `Bearer ${token}` }
         })
-        .then(res => {
-            // Even if pending, we get the profile data
-            setPlayer(res.data.profile || res.data); 
-            
-            // If they are suddenly active, auto-redirect!
-            if (res.data.profile?.status === 'active' || res.data.status === 'active') {
-                navigate('/dashboard');
-            }
-        })
-        .catch(() => {
-            // If fetch fails, just ignore. We will show placeholders.
-        });
+            .then(res => {
+                // Even if pending, we get the profile data
+                setPlayer(res.data.profile || res.data);
+
+                // If they are suddenly active, auto-redirect!
+                if (res.data.profile?.status === 'active' || res.data.status === 'active') {
+                    navigate('/dashboard');
+                }
+            })
+            .catch(() => {
+                // If fetch fails, just ignore. We will show placeholders.
+            });
     }, [navigate]);
 
     const handleLogout = () => {
@@ -46,13 +46,14 @@ const WaitingRoom = () => {
 
     return (
         <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
-            
+
             {/* --- 1. LOCKED SIDEBAR --- */}
             <aside className="w-64 bg-white border-r border-gray-100 flex flex-col hidden md:flex z-20 opacity-70 grayscale-[0.5]">
-                <div className="p-8">
-                    <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 tracking-tighter">
+                <div className="p-8 flex items-center gap-3">
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-14 w-14 object-cover object-left" />
+                    <span className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
                         NUVRA
-                    </h1>
+                    </span>
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2 select-none">
@@ -71,7 +72,7 @@ const WaitingRoom = () => {
 
             {/* --- 2. MAIN CONTENT AREA --- */}
             <main className="flex-1 overflow-y-auto bg-gray-50 relative flex flex-col">
-                
+
                 {/* Header (Visual Only - Matches Dashboard) */}
                 <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center select-none">
                     <h2 className="text-xl font-bold text-gray-800">
@@ -90,12 +91,12 @@ const WaitingRoom = () => {
 
                 {/* --- 3. THE WAITING CONTENT --- */}
                 <div className="flex-1 flex items-center justify-center p-6 relative">
-                    
+
                     {/* Background Blur to simulate locked content */}
                     <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664')] bg-cover bg-center opacity-5 filter blur-sm"></div>
 
                     <div className="relative bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full text-center border border-gray-100 z-10">
-                        
+
                         {/* Status Icon */}
                         <div className="w-20 h-20 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-yellow-100">
                             <svg className="w-10 h-10 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,19 +106,19 @@ const WaitingRoom = () => {
 
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Pending</h2>
                         <p className="text-gray-500 mb-8 leading-relaxed">
-                            Welcome to the team, <span className="font-bold text-gray-800">{player?.name}</span>! <br/>
+                            Welcome to the team, <span className="font-bold text-gray-800">{player?.name}</span>! <br />
                             Your coach is currently reviewing your request. You will gain full access to the dashboard once approved.
                         </p>
 
                         <div className="space-y-3">
-                            <button 
-                                onClick={() => window.location.reload()} 
+                            <button
+                                onClick={() => window.location.reload()}
                                 className="w-full bg-gray-900 text-white hover:bg-black py-3 rounded-xl font-bold transition shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                                 Check Status Again
                             </button>
-                            
+
                             <p className="text-xs text-gray-400 mt-4">
                                 If this is taking too long, please contact your coach directly.
                             </p>
@@ -126,7 +127,7 @@ const WaitingRoom = () => {
                 </div>
 
             </main>
-        </div>
+        </div >
     );
 };
 

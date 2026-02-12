@@ -22,50 +22,50 @@ export default function DashboardLayout() {
         axios.get('/api/player/me', {
             headers: { Authorization: `Bearer ${token}` }
         })
-        .then((res) => {
-            const player = res.data;
+            .then((res) => {
+                const player = res.data;
 
-            // --- 🛡️ GATEKEEPER LOGIC START ---
-            if (player.status === 'pending') {
-                navigate('/waiting-room'); // Stop! Go to waiting room
-                return;
-            } 
-            else if (player.status === 'rejected') {
-                alert("Your application was declined.");
-                localStorage.removeItem("auth_token");
-                navigate("/login");
-                return;
-            }
-            // --- 🛡️ GATEKEEPER LOGIC END ---
+                // --- 🛡️ GATEKEEPER LOGIC START ---
+                if (player.status === 'pending') {
+                    navigate('/waiting-room'); // Stop! Go to waiting room
+                    return;
+                }
+                else if (player.status === 'rejected') {
+                    alert("Your application was declined.");
+                    localStorage.removeItem("auth_token");
+                    navigate("/login");
+                    return;
+                }
+                // --- 🛡️ GATEKEEPER LOGIC END ---
 
-            // If Active, let them in!
-            setData(player); 
-            setLoading(false);
-        })
-        .catch((err) => {
-            console.error("Error fetching player data:", err);
-            // If the token is invalid (expired), kick them out
-            if (err.response && err.response.status === 401) {
-                localStorage.removeItem("auth_token");
-                navigate("/login");
-            }
-        });
+                // If Active, let them in!
+                setData(player);
+                setLoading(false);
+            })
+            .catch((err) => {
+                console.error("Error fetching player data:", err);
+                // If the token is invalid (expired), kick them out
+                if (err.response && err.response.status === 401) {
+                    localStorage.removeItem("auth_token");
+                    navigate("/login");
+                }
+            });
     }, [navigate]);
 
     const handleLogout = () => {
-// 1. Wipe the keys from storage
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('currentUser');
-    
-    // 2. Kill the session in Axios (Optional but good practice)
-    if (window.axios) {
-        delete window.axios.defaults.headers.common['Authorization'];
-    }
+        // 1. Wipe the keys from storage
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('currentUser');
 
-    // 3. THE FIX: Force a Hard Redirect 🛑
-    // Do NOT use navigate('/login').
-    // This forces the browser to load the Login page as a fresh new page.
-    window.location.href = '/login';
+        // 2. Kill the session in Axios (Optional but good practice)
+        if (window.axios) {
+            delete window.axios.defaults.headers.common['Authorization'];
+        }
+
+        // 3. THE FIX: Force a Hard Redirect 🛑
+        // Do NOT use navigate('/login').
+        // This forces the browser to load the Login page as a fresh new page.
+        window.location.href = '/login';
     };
 
     if (loading || !data)
@@ -84,11 +84,10 @@ export default function DashboardLayout() {
         return (
             <div
                 onClick={() => navigate(path)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer mb-1 ${
-                    isActive
-                        ? "bg-purple-50 text-purple-700 font-bold"
-                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer mb-1 ${isActive
+                    ? "bg-purple-50 text-purple-700 font-bold"
+                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
+                    }`}
             >
                 <div className="w-5">{icon}</div>
                 <span>{text}</span>
@@ -100,13 +99,18 @@ export default function DashboardLayout() {
         <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
             {/* LEFT SIDEBAR */}
             <aside className="w-64 bg-white border-r border-gray-100 flex flex-col hidden md:flex z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-                <div className="p-8">
-                    <h1
-                        className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 tracking-tighter cursor-pointer"
-                        onClick={() => navigate("/")}
-                    >
+                <div
+                    className="p-8 flex items-center gap-3 cursor-pointer"
+                    onClick={() => navigate("/")}
+                >
+                    <img
+                        src="/images/logoImage/NUVRA_LOGO.png"
+                        alt="NUVRA"
+                        className="h-12 w-12 object-cover object-left"
+                    />
+                    <span className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
                         NUVRA
-                    </h1>
+                    </span>
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2">

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function LandingPage() {
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
-    
+
     // Login State
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -13,7 +13,7 @@ export default function LandingPage() {
     // Sign Up State
     const [teams, setTeams] = useState([]);
     // New State for the Image File
-    const [photo, setPhoto] = useState(null); 
+    const [photo, setPhoto] = useState(null);
     const [formData, setFormData] = useState({
         name: '', age: '', address: '', position: 'Forward',
         email: '', password: '', coach_id: ''
@@ -33,15 +33,15 @@ export default function LandingPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         })
-        .then(async res => {
-            if (!res.ok) throw new Error("Invalid credentials");
-            return res.json();
-        })
-        .then(data => {
-            localStorage.setItem("currentUser", data.player_id);
-            navigate("/dashboard");
-        })
-        .catch(err => setError(err.message));
+            .then(async res => {
+                if (!res.ok) throw new Error("Invalid credentials");
+                return res.json();
+            })
+            .then(data => {
+                localStorage.setItem("currentUser", data.player_id);
+                navigate("/dashboard");
+            })
+            .catch(err => setError(err.message));
     };
 
     const handleSignUp = (e) => {
@@ -56,7 +56,7 @@ export default function LandingPage() {
         data.append('coach_id', formData.coach_id);
         data.append('email', formData.email);
         data.append('password', formData.password);
-        
+
         // Only append if user selected a file
         if (photo) {
             data.append('profile_image', photo);
@@ -66,15 +66,15 @@ export default function LandingPage() {
             method: 'POST',
             body: data // <--- Browser automatically sets headers for file upload
         })
-        .then(async res => {
-            if (!res.ok) throw new Error("Registration failed");
-            return res.json();
-        })
-        .then(data => {
-            alert(data.message);
-            setIsLogin(true);
-        })
-        .catch(err => alert(err.message));
+            .then(async res => {
+                if (!res.ok) throw new Error("Registration failed");
+                return res.json();
+            })
+            .then(data => {
+                alert(data.message);
+                setIsLogin(true);
+            })
+            .catch(err => alert(err.message));
     };
 
     // Shared Styles
@@ -90,9 +90,14 @@ export default function LandingPage() {
             </div>
 
             <div className="relative z-10 w-full max-w-md px-4 animate-fade-in-up my-auto">
-                <div className="text-center mb-8">
-                    <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 tracking-tighter drop-shadow-2xl">NUVRA</h1>
-                    <p className="text-gray-300 font-medium tracking-widest text-sm uppercase mt-2">{isLogin ? "Player Intelligence System" : "Join the Elite Squad"}</p>
+                <div className="text-center mb-8 flex flex-col items-center justify-center">
+                    <div className="flex items-center gap-4 mb-4">
+                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-24 w-24 object-cover object-left" />
+                        <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 tracking-tighter drop-shadow-2xl">
+                            NUVRA
+                        </span>
+                    </div>
+                    <p className="text-gray-300 font-medium tracking-widest text-sm uppercase">{isLogin ? "Player Intelligence System" : "Join the Elite Squad"}</p>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.25)]">
@@ -113,26 +118,26 @@ export default function LandingPage() {
 
 
                             <div className="grid grid-cols-3 gap-3">
-                                <div className="col-span-2"><label className={labelStyle}>Full Name</label><input className={inputStyle} placeholder="Neymar Jr" required onChange={e => setFormData({...formData, name: e.target.value})} /></div>
-                                <div><label className={labelStyle}>Age</label><input className={inputStyle} placeholder="15" type="number" required onChange={e => setFormData({...formData, age: e.target.value})} /></div>
+                                <div className="col-span-2"><label className={labelStyle}>Full Name</label><input className={inputStyle} placeholder="Neymar Jr" required onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
+                                <div><label className={labelStyle}>Age</label><input className={inputStyle} placeholder="15" type="number" required onChange={e => setFormData({ ...formData, age: e.target.value })} /></div>
                             </div>
-                            <div><label className={labelStyle}>Current Address</label><input className={inputStyle} placeholder="City, Country" required onChange={e => setFormData({...formData, address: e.target.value})} /></div>
+                            <div><label className={labelStyle}>Current Address</label><input className={inputStyle} placeholder="City, Country" required onChange={e => setFormData({ ...formData, address: e.target.value })} /></div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className={labelStyle}>Select Team</label><select className={`${inputStyle} appearance-none cursor-pointer`} required onChange={e => setFormData({...formData, coach_id: e.target.value})}><option value="" className="text-gray-900">Choose...</option>{teams.map(t => <option key={t.id} value={t.id} className="text-gray-900">{t.team_name}</option>)}</select></div>
-                                <div><label className={labelStyle}>Position</label><select className={`${inputStyle} appearance-none cursor-pointer`} onChange={e => setFormData({...formData, position: e.target.value})}><option className="text-gray-900">Forward</option><option className="text-gray-900">Midfielder</option><option className="text-gray-900">Defender</option><option className="text-gray-900">Goalkeeper</option></select></div>
+                                <div><label className={labelStyle}>Select Team</label><select className={`${inputStyle} appearance-none cursor-pointer`} required onChange={e => setFormData({ ...formData, coach_id: e.target.value })}><option value="" className="text-gray-900">Choose...</option>{teams.map(t => <option key={t.id} value={t.id} className="text-gray-900">{t.team_name}</option>)}</select></div>
+                                <div><label className={labelStyle}>Position</label><select className={`${inputStyle} appearance-none cursor-pointer`} onChange={e => setFormData({ ...formData, position: e.target.value })}><option className="text-gray-900">Forward</option><option className="text-gray-900">Midfielder</option><option className="text-gray-900">Defender</option><option className="text-gray-900">Goalkeeper</option></select></div>
                             </div>
                             {/* NEW: Profile Photo Input */}
                             <div>
                                 <label className={labelStyle}>Profile Photo</label>
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     accept="image/*"
                                     onChange={e => setPhoto(e.target.files[0])}
                                     className="w-full px-5 py-3 bg-black/20 border border-white/10 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:text-black cursor-pointer"
                                 />
                             </div>
-                            <div><label className={labelStyle}>Email</label><input className={inputStyle} type="email" placeholder="you@email.com" required onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-                            <div><label className={labelStyle}>Create Password</label><input className={inputStyle} type="password" placeholder="••••••••" required onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+                            <div><label className={labelStyle}>Email</label><input className={inputStyle} type="email" placeholder="you@email.com" required onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+                            <div><label className={labelStyle}>Create Password</label><input className={inputStyle} type="password" placeholder="••••••••" required onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
                             <button className={buttonStyle}>SUBMIT APPLICATION</button>
                         </form>
                     )}
