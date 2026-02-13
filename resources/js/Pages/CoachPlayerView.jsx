@@ -25,6 +25,51 @@ export default function CoachPlayerView() {
             });
     }, [id]);
 
+    // EDIT STATE
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValues, setEditValues] = useState({});
+
+    const handleEditToggle = () => {
+        if (!isEditing) {
+            // Enter Edit Mode: copy current attributes to temp state
+            setEditValues({ ...data.attributes });
+        }
+        setIsEditing(!isEditing);
+    };
+
+    const handleAttributeChange = (key, value) => {
+        setEditValues(prev => ({
+            ...prev,
+            [key]: parseInt(value)
+        }));
+    };
+
+    const saveAttributes = () => {
+        fetch(`/api/player/${id}/attributes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+                // Add Authorization header if needed, but usually handled by cookie/browser for same-origin
+            },
+            body: JSON.stringify(editValues)
+        })
+            .then(res => res.json())
+            .then(response => {
+                // Update the main data state with new attributes
+                setData(prev => ({
+                    ...prev,
+                    attributes: { ...editValues }
+                }));
+                setIsEditing(false);
+                alert("Stats updated successfully!");
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Failed to update stats.");
+            });
+    };
+
     if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400 font-bold">Loading Stats...</div>;
     if (!data) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-red-400 font-bold">Player not found.</div>;
 
@@ -67,18 +112,59 @@ export default function CoachPlayerView() {
                 {/* 1. TOP SECTION: CHARTS (Same as before) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
-                        <h3 className="text-xl font-bold mb-2 self-start">Player DNA</h3>
-                        <div className="w-full h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                    <PolarGrid stroke="#e5e7eb" />
-                                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 'bold' }} />
-                                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                    <Radar name="Player" dataKey="A" stroke="#8b5cf6" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.5} />
-                                    <Tooltip />
-                                </RadarChart>
-                            </ResponsiveContainer>
+                        <div className="w-full flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold">Player DNA</h3>
+                            {/* EDIT BUTTON */}
+                            <button
+                                onClick={handleEditToggle}
+                                className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${isEditing ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}`}
+                            >
+                                {isEditing ? 'Cancel Edit' : 'Edit Stats'}
+                            </button>
                         </div>
+
+                        {/* VIEW MODE: RADAR CHART */}
+                        {!isEditing && (
+                            <div className="w-full h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                        <PolarGrid stroke="#e5e7eb" />
+                                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 'bold' }} />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                        <Radar name="Player" dataKey="A" stroke="#8b5cf6" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.5} />
+                                        <Tooltip />
+                                    </RadarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {/* EDIT MODE: SLIDERS */}
+                        {isEditing && (
+                            <div className="w-full space-y-4 animate-fade-in-up">
+                                {['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical'].map(attr => (
+                                    <div key={attr} className="flex items-center gap-4">
+                                        <label className="w-24 text-sm font-bold text-gray-500 uppercase">{attr}</label>
+                                        <input
+                                            type="range"
+                                            min="0" max="100"
+                                            value={editValues[attr] || 0}
+                                            onChange={(e) => handleAttributeChange(attr, e.target.value)}
+                                            className="flex-1 accent-purple-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <span className="w-8 text-right font-bold text-gray-900">{editValues[attr]}</span>
+                                    </div>
+                                ))}
+
+                                <div className="pt-4 flex justify-end">
+                                    <button
+                                        onClick={saveAttributes}
+                                        className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">

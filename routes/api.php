@@ -70,6 +70,7 @@ Route::get('/coach/{id}/payments/{month}', [PaymentControllerBillplz::class, 'ge
 // Player Profiles & Teammates
 Route::get('/players/{id}', [PlayerController::class, 'show']);
 Route::post('/player/{id}/update', [PlayerController::class, 'update']);
+Route::post('/player/{id}/attributes', [PlayerController::class, 'updateAttributes']); // <--- NEW ROUTE
 Route::get('/players/{id}/teammates', [PlayerController::class, 'getTeammates']);
 
 // Player Payment History
