@@ -27,7 +27,12 @@ export default function CoachPlayerView() {
 
     // EDIT STATE
     const [isEditing, setIsEditing] = useState(false);
+
     const [editValues, setEditValues] = useState({});
+
+    // JERSEY NUMBER EDIT STATE
+    const [isEditingJersey, setIsEditingJersey] = useState(false);
+    const [jerseyNumber, setJerseyNumber] = useState('');
 
     const handleEditToggle = () => {
         if (!isEditing) {
@@ -70,6 +75,33 @@ export default function CoachPlayerView() {
             });
     };
 
+    const handleJerseySave = () => {
+        const token = localStorage.getItem('auth_token');
+        fetch(`/api/player/${id}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ jersey_number: jerseyNumber })
+        })
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok) {
+                    setData(prev => ({
+                        ...prev,
+                        profile: { ...prev.profile, jersey_number: jerseyNumber }
+                    }));
+                    setIsEditingJersey(false);
+                    alert("Jersey Number Updated!");
+                } else {
+                    alert(data.message || "Failed to update.");
+                }
+            })
+            .catch(err => console.error(err));
+    };
+
     if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400 font-bold">Loading Stats...</div>;
     if (!data) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-red-400 font-bold">Player not found.</div>;
 
@@ -102,7 +134,30 @@ export default function CoachPlayerView() {
                     </div>
                     <div>
                         <h1 className="text-lg font-black text-gray-900 leading-none">{profile.name}</h1>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{profile.position} • #{profile.jersey_number}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{profile.position} • </p>
+
+                            {isEditingJersey ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">#</span>
+                                    <input
+                                        type="number"
+                                        value={jerseyNumber}
+                                        onChange={(e) => setJerseyNumber(e.target.value)}
+                                        className="w-16 border rounded px-1 py-0.5 text-sm font-bold"
+                                    />
+                                    <button onClick={handleJerseySave} className="text-green-600 text-xs font-bold hover:underline">Save</button>
+                                    <button onClick={() => setIsEditingJersey(false)} className="text-red-500 text-xs font-bold hover:underline">Cancel</button>
+                                </div>
+                            ) : (
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider group relative cursor-pointer" onClick={() => {
+                                    setJerseyNumber(profile.jersey_number || '');
+                                    setIsEditingJersey(true);
+                                }}>
+                                    #{profile.jersey_number} <span className="hidden group-hover:inline text-purple-600 ml-1">✎</span>
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
