@@ -57,6 +57,22 @@ class PlayerController extends Controller
             $updateData['profile_image'] = '/storage/' . $path;
         }
 
+        // COACH-ONLY: Jersey Number Update
+        if ($request->has('jersey_number')) {
+            $token = $request->bearerToken();
+            $isCoach = $token && str_starts_with($token, 'coach-session-token-');
+
+            if (!$isCoach) {
+                return response()->json(['message' => 'Only coaches can update player attributes.'], 403);
+            }
+
+            $request->validate([
+                'jersey_number' => 'nullable|integer'
+            ]);
+
+            $updateData['jersey_number'] = $request->input('jersey_number');
+        }
+
         DB::table('players')->where('id', $id)->update($updateData);
 
         return response()->json([
