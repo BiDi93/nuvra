@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // --- 1. IMPORT THE GATEKEEPER ---
-import ProtectedRoute from "./Components/ProtectedRoute"; 
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 // Auth Page
 import AuthPage from "./Pages/Authentication/AuthPage.jsx";
@@ -53,7 +53,7 @@ function App() {
                     Only accessible if 'auth_token' exists
                    ========================================= */}
                 <Route element={<ProtectedRoute />}>
-                    
+
                     {/* Setup Pages */}
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/waiting-room" element={<WaitingRoom />} />
@@ -80,7 +80,7 @@ function App() {
                         <Route path="payment" element={<PlayerPayment />} />
                     </Route>
 
-                </Route> 
+                </Route>
                 {/* End of Protected Routes */}
 
             </Routes>

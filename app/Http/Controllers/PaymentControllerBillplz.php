@@ -102,4 +102,37 @@ class PaymentControllerBillplz extends Controller
 
         return response()->json($payments);
     }
+
+    // 👇 Get Team Payment Status (For Coach Dashboard)
+    public function getTeamPayments($coachId, $month)
+    {
+        // 1. Get all active players for this Coach
+        $players = DB::table('players')
+            ->where('coach_id', $coachId)
+            ->where('status', 'active')
+            ->select('id', 'name', 'profile_image')
+            ->get();
+
+        // 2. Loop through players and check if they paid for the specific month
+        $roster = $players->map(function($player) use ($month) {
+            
+            $payment = DB::table('payments')
+                ->where('player_id', $player->id)
+                ->where('month_year', $month) // Matches "January 2026"
+                ->where('status', 'completed') // Only completed payments
+                ->first();
+
+            return [
+                'id'            => $player->id,
+                'name'          => $player->name,
+                'profile_image' => $player->profile_image,
+                // Frontend expects 'Paid' or 'Unpaid'
+                'status'        => $payment ? 'Paid' : 'Unpaid', 
+                'amount'        => $payment ? $payment->amount : 0,
+                'date_paid'     => $payment ? $payment->created_at : null
+            ];
+        });
+
+        return response()->json($roster);
+    }
 }

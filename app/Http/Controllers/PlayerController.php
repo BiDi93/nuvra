@@ -64,6 +64,34 @@ class PlayerController extends Controller
             'profile_image' => $updateData['profile_image'] ?? $player->profile_image
         ]);
     }
+
+    // UPDATE ATTRIBUTES (Coach Edit)
+    public function updateAttributes(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'pace' => 'required|integer|min:0|max:100',
+            'shooting' => 'required|integer|min:0|max:100',
+            'passing' => 'required|integer|min:0|max:100',
+            'dribbling' => 'required|integer|min:0|max:100',
+            'defending' => 'required|integer|min:0|max:100',
+            'physical' => 'required|integer|min:0|max:100',
+        ]);
+
+        DB::table('attributes')->updateOrInsert(
+            ['player_id' => $id],
+            [
+                'pace' => $validated['pace'],
+                'shooting' => $validated['shooting'],
+                'passing' => $validated['passing'],
+                'dribbling' => $validated['dribbling'],
+                'defending' => $validated['defending'],
+                'physical' => $validated['physical'],
+                'updated_at' => now()
+            ]
+        );
+
+        return response()->json(['message' => 'Attributes updated successfully!']);
+    }
 public function store(Request $request)
     {
         $validated = $request->validate([
@@ -105,7 +133,7 @@ public function store(Request $request)
                         'matches.opponent_name', 
                         'matches.match_date', 
                         'matches.venue', 
-                        'matches.league_type'
+                        'matches.league_name'
                      )
                      ->get();
 
@@ -158,7 +186,7 @@ public function store(Request $request)
                         'matches.opponent_name', 
                         'matches.match_date', 
                         'matches.venue', 
-                        'matches.league_type'
+                        'matches.league_name'
                      )
                      ->get();
 

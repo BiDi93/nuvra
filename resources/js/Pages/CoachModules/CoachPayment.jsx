@@ -64,7 +64,7 @@ export default function CoachPayment() {
                 {/* Card 1: Collection Rate */}
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <div className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Collection Rate</div>
+                        <div className="text-gray-400ß text-xs font-bold uppercase tracking-wider mb-1">Collection Rate</div>
                         <div className="text-3xl font-black text-gray-900">{collectionRate}%</div>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center font-bold">

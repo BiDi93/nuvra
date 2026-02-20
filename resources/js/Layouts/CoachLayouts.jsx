@@ -13,10 +13,9 @@ export default function CoachLayout() {
 
     // Style for sidebar links
     const linkStyle = ({ isActive }) =>
-        `flex items-center gap-3 w-full px-4 py-4 rounded-xl font-bold transition-all ${
-            isActive
-                ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
+        `flex items-center gap-3 w-full px-4 py-4 rounded-xl font-bold transition-all ${isActive
+            ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
+            : "text-gray-400 hover:bg-white/5 hover:text-white"
         }`;
 
     return (
@@ -24,11 +23,14 @@ export default function CoachLayout() {
             {/* SIDEBAR */}
             <aside className="w-72 bg-[#1a1c23] flex flex-col shadow-xl z-20">
                 <div className="p-8">
-                    <h1 className="text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                        NUVRA
-                    </h1>
+                    <div className="flex items-center gap-3 mb-1">
+                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-12 w-12 object-cover object-left" />
+                        <span className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                            NUVRA
+                        </span>
+                    </div>
                     <p className="text-gray-500 text-xs font-bold tracking-widest mt-1">
-                        STAFF PORTAL
+                        ADMIN PORTAL
                     </p>
                 </div>
 
