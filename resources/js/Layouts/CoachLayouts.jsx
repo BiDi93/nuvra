@@ -14,27 +14,28 @@ export default function CoachLayout() {
 
     // Style for sidebar links
     const linkStyle = ({ isActive }) =>
-        `flex items-center gap-3 px-4 py-4 rounded-xl font-bold transition-all whitespace-nowrap ${isActive
+        `flex items-center px-4 py-4 rounded-xl font-bold transition-all whitespace-nowrap ${isActive
             ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
             : "text-gray-400 hover:bg-white/5 hover:text-white"
-        } ${!isSidebarHovered ? "justify-center w-auto mx-2" : "w-full"}`;
+        } ${!isSidebarHovered ? "justify-center w-auto mx-2" : "w-full gap-3"}`;
 
     return (
         <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
             {/* SIDEBAR */}
+            <div className="w-24 flex-shrink-0 z-10" />
             <aside
-                className={`bg-[#1a1c23] flex flex-col shadow-xl z-20 transition-all duration-300 ${isSidebarHovered ? "w-72" : "w-24"}`}
+                className={`fixed top-0 left-0 h-screen bg-[#1a1c23] flex flex-col shadow-xl z-30 transition-all duration-500 ${isSidebarHovered ? "w-72" : "w-24"}`}
                 onMouseEnter={() => setIsSidebarHovered(true)}
                 onMouseLeave={() => setIsSidebarHovered(false)}
             >
-                <div className={`py-8 transition-all duration-300 ${isSidebarHovered ? "px-8" : "px-0 flex flex-col items-center"}`}>
-                    <div className="flex items-center gap-3 mb-1">
+                <div className={`py-8 transition-all duration-500 ${isSidebarHovered ? "px-8" : "px-0 flex flex-col items-center"}`}>
+                    <div className={`flex items-center mb-1 transition-all duration-500 ${isSidebarHovered ? "gap-3" : "gap-0"}`}>
                         <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-12 w-12 flex-shrink-0 object-cover object-left" />
-                        <span className={`text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>
+                        <span className={`text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>
                             NUVRA
                         </span>
                     </div>
-                    <p className={`text-gray-500 text-xs font-bold tracking-widest mt-1 transition-opacity duration-200 whitespace-nowrap ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>
+                    <p className={`text-gray-500 text-xs font-bold tracking-widest mt-1 transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>
                         ADMIN PORTAL
                     </p>
                 </div>
@@ -54,7 +55,7 @@ export default function CoachLayout() {
                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                             />
                         </svg>
-                        <span className={`transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Squad Management</span>
+                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Squad Management</span>
                     </NavLink>
 
                     <NavLink
@@ -74,7 +75,7 @@ export default function CoachLayout() {
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
                             />
                         </svg>
-                        <span className={`transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Record Match Stats</span>
+                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Record Match Stats</span>
                     </NavLink>
                     <NavLink
                         to="/coach-dashboard/announcements"
@@ -93,7 +94,7 @@ export default function CoachLayout() {
                                 d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"
                             />
                         </svg>
-                        <span className={`transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Announcements</span>
+                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Announcements</span>
                     </NavLink>
                     <NavLink
                         to="/coach-dashboard/schedule"
@@ -112,7 +113,7 @@ export default function CoachLayout() {
                                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                             />
                         </svg>
-                        <span className={`transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Team Schedule</span>
+                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Team Schedule</span>
                     </NavLink>
                     <NavLink
                         to="/coach-dashboard/payment"
@@ -131,14 +132,14 @@ export default function CoachLayout() {
                                 d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                         </svg>
-                        <span className={`transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Payment</span>
+                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Payment</span>
                     </NavLink>
                 </nav>
 
                 <div className="p-4 border-t border-white/10">
                     <button
                         onClick={handleLogout}
-                        className={`flex items-center gap-3 py-3 text-red-400 hover:bg-white/5 rounded-xl transition-colors font-bold text-sm ${isSidebarHovered ? "px-4 w-full" : "justify-center w-full"}`}
+                        className={`flex items-center py-3 text-red-400 hover:bg-white/5 rounded-xl transition-colors font-bold text-sm ${isSidebarHovered ? "px-4 w-full gap-3" : "justify-center w-full"}`}
                     >
                         <svg
                             className="w-5 h-5 flex-shrink-0"
@@ -153,7 +154,7 @@ export default function CoachLayout() {
                                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                             />
                         </svg>
-                        <span className={`transition-opacity duration-200 whitespace-nowrap ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Sign Out</span>
+                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Sign Out</span>
                     </button>
                 </div>
             </aside>
