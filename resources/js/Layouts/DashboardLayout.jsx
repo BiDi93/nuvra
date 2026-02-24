@@ -7,6 +7,7 @@ export default function DashboardLayout() {
     const location = useLocation();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
     // 1. Fetch Data & Check Status (The Gatekeeper)
     useEffect(() => {
@@ -87,10 +88,10 @@ export default function DashboardLayout() {
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer mb-1 ${isActive
                     ? "bg-purple-50 text-purple-700 font-bold"
                     : "text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
-                    }`}
+                    } ${!isSidebarHovered ? "justify-center" : ""}`}
             >
-                <div className="w-5">{icon}</div>
-                <span>{text}</span>
+                <div className="w-5 flex-shrink-0">{icon}</div>
+                <span className={`transition-opacity duration-200 whitespace-nowrap ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>{text}</span>
             </div>
         );
     };
@@ -98,17 +99,21 @@ export default function DashboardLayout() {
     return (
         <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
             {/* LEFT SIDEBAR */}
-            <aside className="w-64 bg-white border-r border-gray-100 flex flex-col hidden md:flex z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+            <aside
+                className={`bg-white border-r border-gray-100 flex flex-col hidden md:flex z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ${isSidebarHovered ? "w-64" : "w-24"}`}
+                onMouseEnter={() => setIsSidebarHovered(true)}
+                onMouseLeave={() => setIsSidebarHovered(false)}
+            >
                 <div
-                    className="p-8 flex items-center gap-3 cursor-pointer"
+                    className={`py-8 flex items-center gap-3 cursor-pointer transition-all duration-300 ${isSidebarHovered ? "px-8" : "px-0 justify-center"}`}
                     onClick={() => navigate("/")}
                 >
                     <img
                         src="/images/logoImage/NUVRA_LOGO.png"
                         alt="NUVRA"
-                        className="h-12 w-12 object-cover object-left"
+                        className="h-12 w-12 flex-shrink-0 object-cover object-left"
                     />
-                    <span className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
+                    <span className={`text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 transition-opacity duration-200 ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>
                         NUVRA
                     </span>
                 </div>
@@ -165,12 +170,12 @@ export default function DashboardLayout() {
                 <div className="p-4 border-t border-gray-100">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl w-full transition-all font-bold text-sm"
+                        className={`flex items-center gap-3 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-all font-bold text-sm ${isSidebarHovered ? "px-4 w-full" : "justify-center w-full"}`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 flex-shrink-0">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                         </svg>
-                        Log Out
+                        <span className={`transition-opacity duration-200 whitespace-nowrap ${!isSidebarHovered ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>Log Out</span>
                     </button>
                 </div>
             </aside>
