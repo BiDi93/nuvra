@@ -36,20 +36,50 @@ import PlayerSchedule from "./Pages/Modules/PlayerShedule.jsx";
 import PlayerPayment from "./Pages/Modules/PlayerPayment.jsx";
 import CoachPayment from "./Pages/CoachModules/CoachPayment.jsx";
 
+// --- NUVRA PORTAL & COMMUNITY ---
+import NuvraPortal from "./Pages/NuvraPortal.jsx";
+import CommunityHome from "./Pages/Community/CommunityHome.jsx";
+import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
+import GameDetail from "./Pages/Community/GameDetail.jsx";
+import CommunityAnnouncements from "./Pages/Community/CommunityAnnouncements.jsx";
+import CreateGame from "./Pages/Community/Admin/CreateGame.jsx";
+import PostAnnouncement from "./Pages/Community/Admin/PostAnnouncement.jsx";
+
+// Community Protected Route (uses community_token, not auth_token)
+const CommunityAdminRoute = () => {
+    const user = JSON.parse(localStorage.getItem("community_user") || "null");
+    if (!user || user.role !== "admin") return <Navigate to="/community" replace />;
+    return <React.Suspense fallback={null}>{React.createElement(React.Fragment, null, <Navigate to="/community" replace />)}</React.Suspense>;
+};
+
 function App() {
     return (
         <BrowserRouter>
             <Routes>
                 {/* =========================================
-                    1. PUBLIC ROUTES (Accessible by everyone)
+                    0. NUVRA PORTAL (Public Entry Point)
                    ========================================= */}
-                <Route path="/" element={<AuthPage />} />
-                <Route path="/login" element={<AuthPage />} />
-                <Route path="/auth/callback" element={<GoogleCallback />} />
-
+                <Route path="/" element={<NuvraPortal />} />
 
                 {/* =========================================
-                    2. PROTECTED ROUTES (Requires Login) 
+                    1. PUBLIC ROUTES — Club Portal
+                   ========================================= */}
+                <Route path="/login" element={<AuthPage />} />
+                <Route path="/club" element={<AuthPage />} />
+                <Route path="/auth/callback" element={<GoogleCallback />} />
+
+                {/* =========================================
+                    2. COMMUNITY ROUTES (separate auth)
+                   ========================================= */}
+                <Route path="/community" element={<CommunityHome />} />
+                <Route path="/community/feed" element={<CommunityFeed />} />
+                <Route path="/community/games/:id" element={<GameDetail />} />
+                <Route path="/community/announcements" element={<CommunityAnnouncements />} />
+                <Route path="/community/admin/create-game" element={<CreateGame />} />
+                <Route path="/community/admin/post-announcement" element={<PostAnnouncement />} />
+
+                {/* =========================================
+                    3. PROTECTED ROUTES — Club Portal
                     Only accessible if 'auth_token' exists
                    ========================================= */}
                 <Route element={<ProtectedRoute />}>

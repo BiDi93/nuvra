@@ -13,6 +13,11 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentController; // Legacy (Coach View)
 use App\Http\Controllers\PaymentControllerBillplz; // New (Billplz Integration)
 
+// --- COMMUNITY CONTROLLERS ---
+use App\Http\Controllers\CommunityAuthController;
+use App\Http\Controllers\CommunityGameController;
+use App\Http\Controllers\CommunityAnnouncementController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION & ONBOARDING
@@ -108,3 +113,32 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::get('/teams', [PlayerController::class, 'getTeams']);
+
+/*
+|--------------------------------------------------------------------------
+| NUVRA COMMUNITY
+|--------------------------------------------------------------------------
+*/
+Route::prefix('community')->group(function () {
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    Route::post('/register', [CommunityAuthController::class, 'register']);
+    Route::post('/login',    [CommunityAuthController::class, 'login']);
+    Route::post('/logout',   [CommunityAuthController::class, 'logout']);
+    Route::get('/me',        [CommunityAuthController::class, 'me']);
+
+    // ── Games (public reads) ───────────────────────────────────────────────────
+    Route::get('/games',              [CommunityGameController::class, 'index']);
+    Route::get('/games/{id}',         [CommunityGameController::class, 'show']);
+
+    // ── Games (auth required) ─────────────────────────────────────────────────
+    Route::post('/games',             [CommunityGameController::class, 'store']);
+    Route::patch('/games/{id}/cancel',[CommunityGameController::class, 'cancel']);
+    Route::post('/games/{id}/join',   [CommunityGameController::class, 'join']);
+    Route::delete('/games/{id}/leave',[CommunityGameController::class, 'leave']);
+
+    // ── Announcements ─────────────────────────────────────────────────────────
+    Route::get('/announcements',         [CommunityAnnouncementController::class, 'index']);
+    Route::post('/announcements',        [CommunityAnnouncementController::class, 'store']);
+    Route::delete('/announcements/{id}', [CommunityAnnouncementController::class, 'destroy']);
+});
