@@ -185,7 +185,7 @@ const styles = {
         fontFamily: "inherit",
     },
     tabActive: {
-        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
+        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
         color: "#080810",
     },
     errorBox: {
@@ -202,7 +202,7 @@ const styles = {
     },
     submitBtn: {
         marginTop: 8, padding: "14px", borderRadius: 12, border: "none",
-        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
+        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
         color: "#080810", fontSize: 14, fontWeight: 800, cursor: "pointer",
         letterSpacing: 0.5, transition: "opacity 0.2s", fontFamily: "inherit",
     },

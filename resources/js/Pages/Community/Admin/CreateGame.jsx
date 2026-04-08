@@ -188,7 +188,7 @@ function Field({ label, value, onChange, placeholder, type = "text" }) {
 
 const styles = {
     root: { fontFamily: "'Inter', sans-serif", minHeight: "100vh", background: "#080810", color: "#fff" },
-    bgGlow: { position: "fixed", top: 0, left: 0, right: 0, height: "40vh", zIndex: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,255,135,0.07) 0%, transparent 70%)" },
+    bgGlow: { position: "fixed", top: 0, left: 0, right: 0, height: "40vh", zIndex: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,212,236,0.07) 0%, transparent 70%)" },
     nav: { position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 60, background: "rgba(8,8,16,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" },
     backBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
     navBrand: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: 2 },
@@ -201,11 +201,11 @@ const styles = {
     row: { display: "flex", gap: 16 },
     label: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, display: "block" },
     input: { width: "100%", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, fontFamily: "inherit", outline: "none" },
-    seatPreviewWrap: { background: "rgba(0,255,135,0.04)", border: "1px solid rgba(0,255,135,0.1)", borderRadius: 12, padding: 16 },
+    seatPreviewWrap: { background: "rgba(0,212,236,0.04)", border: "1px solid rgba(0,212,236,0.1)", borderRadius: 12, padding: 16 },
     seatPreviewLabel: { fontSize: 12, fontWeight: 600, color: "rgba(0,255,135,0.6)", marginBottom: 12 },
     seatGrid: { display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 6 },
-    seat: { height: 16, borderRadius: 4, background: "rgba(0,255,135,0.2)", border: "1px solid rgba(0,255,135,0.3)" },
-    submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00ff87, #00c9ff)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 8 },
+    seat: { height: 16, borderRadius: 4, background: "rgba(0,212,236,0.2)", border: "1px solid rgba(0,212,236,0.3)" },
+    submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 8 },
 
     paymentSection: { background: "rgba(0,201,255,0.04)", border: "1px solid rgba(0,201,255,0.12)", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 16 },
     paymentSectionLabel: { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "rgba(0,201,255,0.7)" },

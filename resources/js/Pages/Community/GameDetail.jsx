@@ -113,7 +113,7 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
     const pct  = Math.min((filled / max) * 100, 100);
     const isFull = remaining <= 0;
     const isLow  = remaining <= 5 && !isFull;
-    const color  = isFull ? "#ff4444" : isLow ? "#ff6b35" : "#00ff87";
+    const color  = isFull ? "#ff4444" : isLow ? "#ff6b35" : "#00D4EC";
 
     return (
         <div style={T.wrap}>
@@ -129,7 +129,7 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
                     <div key={i} style={{
                         ...T.seat,
                         background: i < filled
-                            ? `linear-gradient(135deg, ${color}, ${isFull ? "#ff4444" : "#00c9ff"})`
+                            ? `linear-gradient(135deg, ${color}, ${isFull ? "#ff4444" : "#00D4EC"})`
                             : "rgba(255,255,255,0.04)",
                         border: i < filled ? "none" : "1px solid rgba(255,255,255,0.07)",
                     }} />
@@ -138,7 +138,7 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
 
             <div style={T.barRow}>
                 <div style={T.barTrack}>
-                    <div style={{ ...T.barFill, width: `${pct}%`, background: `linear-gradient(90deg, ${color}, #00c9ff)` }} />
+                    <div style={{ ...T.barFill, width: `${pct}%`, background: `linear-gradient(90deg, ${color}, #00D4EC)` }} />
                 </div>
                 <span style={T.barLabel}>{filled}/{max}</span>
             </div>
@@ -245,14 +245,14 @@ function AdminBookingsPanel({ gameId, token, onAction }) {
             {/* Confirmed */}
             <div style={A.group}>
                 <div style={A.groupLabel}>
-                    <span style={{ color: "#00ff87" }}>✅ CONFIRMED</span>
+                    <span style={{ color: "#00D4EC" }}>✅ CONFIRMED</span>
                     <span style={A.count}>{confirmed.length}</span>
                 </div>
                 {confirmed.length === 0 ? (
                     <div style={A.empty}>No confirmed players yet</div>
                 ) : confirmed.map((b, i) => (
                     <div key={b.id} style={{ ...A.row, opacity: 0.8 }}>
-                        <div style={{ ...A.avatar, background: "linear-gradient(135deg, #00ff87, #00c9ff)" }}>{b.player_name?.[0]?.toUpperCase()}</div>
+                        <div style={{ ...A.avatar, background: "linear-gradient(135deg, #00D4EC, #D040EF)" }}>{b.player_name?.[0]?.toUpperCase()}</div>
                         <div style={A.info}>
                             <div style={A.name}>{b.player_name}</div>
                             <div style={A.meta}>{b.team_side === "team_a" ? "Team A" : "Team B"} · #{i + 1}</div>
@@ -327,7 +327,7 @@ export default function GameDetail() {
     const bookingStatus = myBooking?.booking_status;
 
     const statusColors = {
-        open:      { color: "#00ff87", bg: "rgba(0,255,135,0.1)", border: "rgba(0,255,135,0.3)" },
+        open:      { color: "#00D4EC", bg: "rgba(0,212,236,0.1)", border: "rgba(0,212,236,0.3)" },
         full:      { color: "#ff4444", bg: "rgba(255,68,68,0.1)",  border: "rgba(255,68,68,0.3)" },
         cancelled: { color: "#888",    bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.1)" },
         completed: { color: "#888",    bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.1)" },
@@ -504,10 +504,10 @@ const S = {
     navItem: { display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "inherit", textAlign: "left", width: "100%" },
     navIcon: { fontSize: 14, width: 20, textAlign: "center" },
     userBox: { display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.05)" },
-    userAvatar: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #00ff87, #00c9ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#080810", flexShrink: 0 },
+    userAvatar: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #00D4EC, #D040EF)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#080810", flexShrink: 0 },
     userName: { fontSize: 12, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
     userRole: { fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.3)", marginTop: 1 },
-    signInBtn: { margin: "12px 16px 20px", padding: "10px", borderRadius: 6, border: "1px solid rgba(0,255,135,0.3)", background: "rgba(0,255,135,0.05)", color: "#00ff87", fontSize: 11, fontWeight: 800, letterSpacing: 1.5, cursor: "pointer", fontFamily: "inherit" },
+    signInBtn: { margin: "12px 16px 20px", padding: "10px", borderRadius: 6, border: "1px solid rgba(0,212,236,0.3)", background: "rgba(0,212,236,0.05)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 1.5, cursor: "pointer", fontFamily: "inherit" },
 
     main: { marginLeft: 210, flex: 1, padding: "0 32px 60px", position: "relative", zIndex: 10 },
     topBar: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", marginBottom: 24 },
@@ -521,21 +521,21 @@ const S = {
     gameTitle: { fontSize: "clamp(22px, 3vw, 36px)", fontWeight: 800, lineHeight: 1.2, marginBottom: 12 },
     gameMeta: { display: "flex", flexWrap: "wrap", gap: 16, fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 10, alignItems: "center" },
     gameDesc: { fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, maxWidth: 600 },
-    priceBadge: { padding: "3px 10px", borderRadius: 4, background: "rgba(0,201,255,0.1)", border: "1px solid rgba(0,201,255,0.25)", color: "#00c9ff", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 },
-    freeBadge:  { padding: "3px 10px", borderRadius: 4, background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)", color: "#00ff87", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 },
+    priceBadge: { padding: "3px 10px", borderRadius: 4, background: "rgba(0,201,255,0.1)", border: "1px solid rgba(0,201,255,0.25)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 },
+    freeBadge:  { padding: "3px 10px", borderRadius: 4, background: "rgba(0,212,236,0.08)", border: "1px solid rgba(0,212,236,0.2)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 },
 
     bookingBanner: { borderRadius: 10, padding: "14px 20px", fontSize: 13, fontWeight: 600, marginBottom: 24, letterSpacing: 0.2 },
-    bookingBannerConfirmed: { background: "rgba(0,255,135,0.07)", border: "1px solid rgba(0,255,135,0.2)", color: "#00ff87" },
+    bookingBannerConfirmed: { background: "rgba(0,212,236,0.07)", border: "1px solid rgba(0,212,236,0.2)", color: "#00D4EC" },
     bookingBannerPending:   { background: "rgba(255,107,53,0.07)", border: "1px solid rgba(255,107,53,0.2)", color: "#ff9966" },
 
-    nudgeBox: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,255,135,0.04)", border: "1px solid rgba(0,255,135,0.12)", borderRadius: 8, padding: "12px 20px", marginBottom: 24 },
-    nudgeBtn: { padding: "7px 16px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #00ff87, #00c9ff)", color: "#080810", fontSize: 10, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
+    nudgeBox: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,212,236,0.04)", border: "1px solid rgba(0,212,236,0.12)", borderRadius: 8, padding: "12px 20px", marginBottom: 24 },
+    nudgeBtn: { padding: "7px 16px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 10, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
 
     sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
     sectionTitle:  { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "rgba(255,255,255,0.5)" },
     teamsGrid: { display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 20, alignItems: "start", marginBottom: 32 },
     vsDivider: { display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 60 },
-    vsChip: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: 3, color: "#00ff87", border: "1px solid rgba(0,255,135,0.2)", borderRadius: 4, padding: "6px 10px" },
+    vsChip: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: 3, color: "#00D4EC", border: "1px solid rgba(0,212,236,0.2)", borderRadius: 4, padding: "6px 10px" },
 };
 
 const T = {
@@ -549,7 +549,7 @@ const T = {
     barTrack: { flex: 1, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" },
     barFill:  { height: "100%", borderRadius: 2, transition: "width 0.6s ease" },
     barLabel: { fontSize: 10, color: "rgba(255,255,255,0.35)", whiteSpace: "nowrap", fontWeight: 700 },
-    joinBtn:  { padding: "10px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #00ff87, #00c9ff)", color: "#080810", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, cursor: "pointer", fontFamily: "Inter, sans-serif" },
+    joinBtn:  { padding: "10px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, cursor: "pointer", fontFamily: "Inter, sans-serif" },
     joinBtnDisabled: { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.2)", cursor: "not-allowed" },
 };
 
@@ -565,7 +565,7 @@ const M = {
     qrWrap: { display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "16px 0" },
     qrLabel: { fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "rgba(255,255,255,0.3)" },
     qrImg: { width: 180, height: 180, objectFit: "contain", borderRadius: 12, background: "#fff", padding: 8 },
-    qrAmount: { fontSize: 22, fontWeight: 800, color: "#00ff87", letterSpacing: 1 },
+    qrAmount: { fontSize: 22, fontWeight: 800, color: "#00D4EC", letterSpacing: 1 },
     noQr: { background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "16px", fontSize: 13, color: "rgba(255,255,255,0.4)", textAlign: "center" },
     divider: { height: 1, background: "rgba(255,255,255,0.07)" },
     uploadSection: { display: "flex", flexDirection: "column", gap: 10 },
@@ -574,7 +574,7 @@ const M = {
     filePlaceholder: { borderRadius: 10, border: "2px dashed rgba(255,255,255,0.12)", padding: "28px 20px", textAlign: "center", color: "rgba(255,255,255,0.5)" },
     receiptPreview: { width: "100%", maxHeight: 200, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" },
     changeFile: { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", padding: 0 },
-    submitBtn: { padding: "14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #00ff87, #00c9ff)", color: "#080810", fontSize: 13, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
+    submitBtn: { padding: "14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 13, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
     submitBtnDisabled: { opacity: 0.5, cursor: "not-allowed" },
 };
 
@@ -594,9 +594,9 @@ const A = {
     name: { fontSize: 13, fontWeight: 700, color: "#fff" },
     meta: { fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 },
     actions: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
-    receiptLink: { fontSize: 10, color: "#00c9ff", fontWeight: 700, textDecoration: "none", letterSpacing: 0.5 },
-    approveBtn: { padding: "5px 12px", borderRadius: 5, border: "1px solid rgba(0,255,135,0.3)", background: "rgba(0,255,135,0.08)", color: "#00ff87", fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "Inter, sans-serif", letterSpacing: 0.5 },
+    receiptLink: { fontSize: 10, color: "#00D4EC", fontWeight: 700, textDecoration: "none", letterSpacing: 0.5 },
+    approveBtn: { padding: "5px 12px", borderRadius: 5, border: "1px solid rgba(0,212,236,0.3)", background: "rgba(0,212,236,0.08)", color: "#00D4EC", fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "Inter, sans-serif", letterSpacing: 0.5 },
     rejectBtn: { padding: "5px 12px", borderRadius: 5, border: "1px solid rgba(255,68,68,0.3)", background: "rgba(255,68,68,0.08)", color: "#ff6b6b", fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "Inter, sans-serif", letterSpacing: 0.5 },
-    confirmedBadge: { fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: "#00ff87", background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)", padding: "3px 8px", borderRadius: 4 },
+    confirmedBadge: { fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: "#00D4EC", background: "rgba(0,212,236,0.08)", border: "1px solid rgba(0,212,236,0.2)", padding: "3px 8px", borderRadius: 4 },
     loadingText: { padding: 24, color: "rgba(255,255,255,0.3)", fontSize: 12, textAlign: "center" },
 };

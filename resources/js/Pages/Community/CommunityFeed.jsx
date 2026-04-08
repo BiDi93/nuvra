@@ -8,10 +8,10 @@ const API = "/api/community";
 // ── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
     const map = {
-        open:      { label: "OPEN",      color: "#00ff87", bg: "rgba(0,255,135,0.1)" },
-        full:      { label: "FULL",      color: "#ff4444", bg: "rgba(255,68,68,0.1)" },
+        open: { label: "OPEN", color: "#00D4EC", bg: "rgba(0,212,236,0.1)" },
+        full: { label: "FULL", color: "#ff4444", bg: "rgba(255,68,68,0.1)" },
         cancelled: { label: "CANCELLED", color: "#ff6b35", bg: "rgba(255,107,53,0.1)" },
-        completed: { label: "DONE",      color: "#888",    bg: "rgba(255,255,255,0.05)" },
+        completed: { label: "DONE", color: "#888", bg: "rgba(255,255,255,0.05)" },
     };
     const s = map[status] || map.open;
     return (
@@ -30,8 +30,8 @@ function SlotBar({ filled, max }) {
     const pct = Math.min((filled / max) * 100, 100);
     const remaining = max - filled;
     const isFull = remaining <= 0;
-    const isLow  = remaining <= 5 && !isFull;
-    const color  = isFull ? "#ff4444" : isLow ? "#ff6b35" : "#00ff87";
+    const isLow = remaining <= 5 && !isFull;
+    const color = isFull ? "#ff4444" : isLow ? "#ff6b35" : "#00D4EC";
     return (
         <div style={{ marginTop: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 5, color: "rgba(255,255,255,0.35)" }}>
@@ -41,7 +41,7 @@ function SlotBar({ filled, max }) {
                 </span>
             </div>
             <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${isFull ? "#ff4444" : "#00c9ff"})`, borderRadius: 2, transition: "width 0.6s ease" }} />
+                <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${isFull ? "#ff4444" : "#00D4EC"})`, borderRadius: 2, transition: "width 0.6s ease" }} />
             </div>
         </div>
     );
@@ -52,12 +52,12 @@ function GameCard({ game, onClick, isAdmin }) {
     const totalA = game.team_a_count ?? 0;
     const totalB = game.team_b_count ?? 0;
     const filled = totalA + totalB;
-    const max    = game.max_slots_per_team * 2;
-    const date   = new Date(game.game_date);
+    const max = game.max_slots_per_team * 2;
+    const date = new Date(game.game_date);
     const dayStr = date.toLocaleDateString("en-MY", { weekday: "short" }).toUpperCase();
     const dateNum = date.getDate();
     const timeStr = date.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
-    const isOpen  = game.status === "open";
+    const isOpen = game.status === "open";
 
     return (
         <div style={S.card} onClick={onClick} className="grid-card">
@@ -121,11 +121,11 @@ function NavItem({ icon, label, active, onClick }) {
 
 // ── Main Feed ────────────────────────────────────────────────────────────────
 export default function CommunityFeed() {
-    const navigate  = useNavigate();
-    const [games,   setGames]   = useState([]);
+    const navigate = useNavigate();
+    const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [user,    setUser]    = useState(null);
-    const [filter,  setFilter]  = useState("all"); // all | open | full | cancelled
+    const [user, setUser] = useState(null);
+    const [filter, setFilter] = useState("all"); // all | open | full | cancelled
 
     useEffect(() => {
         const stored = localStorage.getItem("community_user");
@@ -135,7 +135,7 @@ export default function CommunityFeed() {
 
     const fetchGames = async () => {
         try {
-            const res  = await fetch(`${API}/games`);
+            const res = await fetch(`${API}/games`);
             const data = await res.json();
             setGames(Array.isArray(data) ? data : []);
         } catch {
@@ -176,16 +176,16 @@ export default function CommunityFeed() {
             <aside style={S.sidebar}>
                 {/* Brand */}
                 <div style={S.brand} onClick={() => navigate("/")}>
-                    <div style={S.brandText}>THE GRID</div>
+                    <div style={S.brandText}>NUVRA</div>
                     <div style={S.brandSub}>FOOTBALL COMMUNITY</div>
                 </div>
 
                 {/* Nav */}
                 <nav style={S.sideNav}>
-                    <NavItem icon="⊞" label="DASHBOARD"     active={true}  onClick={() => {}} />
-                    <NavItem icon="📅" label="FIXTURES"      active={false} onClick={() => {}} />
+                    <NavItem icon="⊞" label="DASHBOARD" active={true} onClick={() => { }} />
+                    <NavItem icon="📅" label="FIXTURES" active={false} onClick={() => { }} />
                     <NavItem icon="📢" label="ANNOUNCEMENTS" active={false} onClick={() => navigate("/community/announcements")} />
-                    <NavItem icon="👥" label="COMMUNITY"     active={false} onClick={() => {}} />
+                    <NavItem icon="👥" label="COMMUNITY" active={false} onClick={() => { }} />
                     {user?.role === "admin" && (
                         <NavItem icon="+" label="POST GAME" active={false} onClick={() => navigate("/community/admin/create-game")} />
                     )}
@@ -368,7 +368,7 @@ const S = {
         position: "absolute",
         left: 0, top: 0, bottom: 0,
         width: 3,
-        background: "linear-gradient(180deg, #00ff87, #00c9ff)",
+        background: "linear-gradient(180deg, #00D4EC, #D040EF)",
         borderRadius: "0 2px 2px 0",
     },
     userBox: {
@@ -382,7 +382,7 @@ const S = {
         width: 32,
         height: 32,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
+        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -419,9 +419,9 @@ const S = {
         margin: "12px 16px 20px",
         padding: "10px",
         borderRadius: 6,
-        border: "1px solid rgba(0,255,135,0.3)",
-        background: "rgba(0,255,135,0.05)",
-        color: "#00ff87",
+        border: "1px solid rgba(0,212,236,0.3)",
+        background: "rgba(0,212,236,0.05)",
+        color: "#00D4EC",
         fontSize: 11,
         fontWeight: 800,
         letterSpacing: 1.5,
@@ -469,7 +469,7 @@ const S = {
     statChipNum: {
         fontFamily: "'Barlow Condensed', sans-serif",
         fontSize: 24,
-        color: "#00ff87",
+        color: "#00D4EC",
         lineHeight: 1,
     },
     statChipLabel: {
@@ -507,9 +507,9 @@ const S = {
         fontFamily: "inherit",
     },
     filterBtnActive: {
-        background: "rgba(0,255,135,0.1)",
-        border: "1px solid rgba(0,255,135,0.3)",
-        color: "#00ff87",
+        background: "rgba(0,212,236,0.1)",
+        border: "1px solid rgba(0,212,236,0.3)",
+        color: "#00D4EC",
     },
     grid: {
         display: "grid",
@@ -537,7 +537,7 @@ const S = {
     },
     cardAccent: {
         width: 3,
-        background: "linear-gradient(180deg, #00ff87, #00c9ff)",
+        background: "linear-gradient(180deg, #00D4EC, #D040EF)",
         flexShrink: 0,
     },
     cardInner: {
@@ -563,7 +563,7 @@ const S = {
         marginBottom: 10,
         width: "fit-content",
     },
-    datePillDay: { fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: "#00c9ff" },
+    datePillDay: { fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: "#00D4EC" },
     datePillTime: { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)" },
     vsRow: {
         display: "flex",
@@ -591,10 +591,10 @@ const S = {
     vsChip: {
         fontFamily: "'Barlow Condensed', sans-serif",
         fontSize: 14,
-        color: "#00ff87",
+        color: "#00D4EC",
         flexShrink: 0,
         padding: "2px 6px",
-        border: "1px solid rgba(0,255,135,0.2)",
+        border: "1px solid rgba(0,212,236,0.2)",
         borderRadius: 4,
         letterSpacing: 1,
     },
@@ -603,7 +603,7 @@ const S = {
         padding: "9px",
         borderRadius: 6,
         border: "none",
-        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
+        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
         color: "#080810",
         fontSize: 10,
         fontWeight: 800,

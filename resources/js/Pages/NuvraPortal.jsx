@@ -49,16 +49,83 @@ function FeatureItem({ text }) {
 // ── SVG icons ──────────────────────────────────────────────────────────────────
 const IconArrowRight = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="12 5 19 12 12 19" />
     </svg>
 );
 const IconArrowDown = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <polyline points="19 12 12 19 5 12"/>
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <polyline points="19 12 12 19 5 12" />
     </svg>
 );
+
+// ── Gallery Strip ──────────────────────────────────────────────────────────────
+const ROW_A = [
+    "/images/gallery/g1.jpg",  // team photo – orange/teal jerseys
+    "/images/gallery/g3.jpg",  // solo kick near goal
+    "/images/gallery/g5.jpg",  // dribbling duel
+    "/images/gallery/g7.jpg",  // two players racing for ball
+    "/images/gallery/g9.jpg",  // outdoor duel, checker vs dark
+];
+const ROW_B = [
+    "/images/gallery/g2.jpg",  // team group shot – blue
+    "/images/gallery/g4.jpg",  // two players chasing ball
+    "/images/gallery/g6.jpg",  // player kicking ball, great form
+    "/images/gallery/g8.jpg",  // team group shot – green checker
+    "/images/gallery/g10.jpg", // GK in action, green jersey
+];
+
+function GalleryStrip() {
+    // Duplicate each row for seamless infinite loop
+    const rowA = [...ROW_A, ...ROW_A];
+    const rowB = [...ROW_B, ...ROW_B];
+
+    return (
+        <section style={G.section}>
+            {/* Header */}
+            <div style={G.header}>
+                <div style={G.headerLine} />
+                <div style={G.headerInner}>
+                    <span style={G.tag}>FROM THE PITCH</span>
+                    <h2 style={G.title}>REAL GAMES.<br />REAL PLAYERS.</h2>
+                    <p style={G.sub}>Captured live from Vellar League matchdays across Malaysia.</p>
+                </div>
+                <div style={G.headerLine} />
+            </div>
+
+            {/* Strip wrapper — faded edges */}
+            <div style={G.stripOuter}>
+                <div style={G.fadeLeft} />
+                <div style={G.fadeRight} />
+
+                {/* Row 1 — scrolls left */}
+                <div style={G.row}>
+                    <div className="marquee-left" style={G.track}>
+                        {rowA.map((src, i) => (
+                            <div key={i} style={G.imgWrap} className="gallery-img-wrap">
+                                <img src={src} alt="" style={G.img} loading="lazy" />
+                                <div className="gallery-overlay" style={G.overlay} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Row 2 — scrolls right */}
+                <div style={{ ...G.row, marginTop: 12 }}>
+                    <div className="marquee-right" style={G.track}>
+                        {rowB.map((src, i) => (
+                            <div key={i} style={G.imgWrap} className="gallery-img-wrap">
+                                <img src={src} alt="" style={G.img} loading="lazy" />
+                                <div className="gallery-overlay" style={G.overlay} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
 
 // ── Portal ─────────────────────────────────────────────────────────────────────
 export default function NuvraPortal() {
@@ -102,6 +169,24 @@ export default function NuvraPortal() {
                     50% { opacity: 0.5; transform: scale(1.4); }
                 }
 
+                @keyframes marquee-left {
+                    0%   { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+                @keyframes marquee-right {
+                    0%   { transform: translateX(-50%); }
+                    100% { transform: translateX(0); }
+                }
+                .marquee-left  { animation: marquee-left  40s linear infinite; }
+                .marquee-right { animation: marquee-right 40s linear infinite; }
+                .marquee-left:hover,
+                .marquee-right:hover { animation-play-state: paused; }
+
+                .gallery-img-wrap { position: relative; overflow: hidden; border-radius: 6px; flex-shrink: 0; }
+                .gallery-overlay  { position: absolute; inset: 0; background: rgba(0,0,0,0.35); transition: opacity 0.3s; }
+                .gallery-img-wrap:hover .gallery-overlay { opacity: 0; }
+                .gallery-img-wrap:hover img { transform: scale(1.04); }
+
                 @media (max-width: 768px) {
                     .portal-two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
                     .portal-nav-links { display: none !important; }
@@ -115,8 +200,8 @@ export default function NuvraPortal() {
             {/* ── NAV ── */}
             <nav style={{ ...S.nav, ...(scrolled ? S.navScrolled : {}) }}>
                 <div style={S.navLogo} onClick={() => navigate("/")}>
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={{ height: 32 }} />
-                    <span style={S.navBrand}>NUVRA</span>
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={{ height: 40 }} />
+
                 </div>
                 <div className="portal-nav-links" style={S.navLinks}>
                     <button className="portal-nav-link" style={S.navLink}
@@ -143,11 +228,6 @@ export default function NuvraPortal() {
 
             {/* ── HERO ── */}
             <section style={S.hero}>
-                {/* Live badge */}
-                <div style={S.heroBadge}>
-                    <span style={S.heroBadgeDot} />
-                    <span>Now Live — Football for Every Level</span>
-                </div>
 
                 {/* Title */}
                 <h1 style={S.heroTitle}>
@@ -219,12 +299,15 @@ export default function NuvraPortal() {
             {/* ── STATS ── */}
             <section style={S.statsSection}>
                 <div className="portal-stats-inner" style={S.statsInner}>
-                    <StatCard value={500}  suffix="+" label="Community Players" />
-                    <StatCard value={120}  suffix="+" label="Games Organised" />
-                    <StatCard value={30}   suffix="+" label="Clubs on Platform" />
+                    <StatCard value={500} suffix="+" label="Community Players" />
+                    <StatCard value={120} suffix="+" label="Games Organised" />
+                    <StatCard value={30} suffix="+" label="Clubs on Platform" />
                     <StatCard value={2500} suffix="+" label="Stats Recorded" />
                 </div>
             </section>
+
+            {/* ── GALLERY ── */}
+            <GalleryStrip />
 
             {/* ── COMMUNITY SECTION ── */}
             <section id="community-section" style={S.section}>
@@ -254,7 +337,7 @@ export default function NuvraPortal() {
                         </div>
                         {[
                             { title: "Team Alpha vs Team Beta", venue: "Cheras Futsal Arena", slots: 14, max: 20 },
-                            { title: "The Reds vs The Blues",   venue: "Desa Park Turf",     slots: 7,  max: 20 },
+                            { title: "The Reds vs The Blues", venue: "Desa Park Turf", slots: 7, max: 20 },
                         ].map((g, i) => (
                             <div key={i} style={S.gameCard}>
                                 <div style={S.gameVs}>{g.title}</div>
@@ -287,9 +370,9 @@ export default function NuvraPortal() {
                             <span style={{ ...S.mockBadge, color: "#D040EF", borderColor: "rgba(208,64,239,0.3)" }}>ACTIVE</span>
                         </div>
                         {[
-                            { name: "Haziq Amirul", pos: "Forward",    rating: "87", initial: "H" },
+                            { name: "Haziq Amirul", pos: "Forward", rating: "87", initial: "H" },
                             { name: "Danial Razif", pos: "Midfielder", rating: "82", initial: "D" },
-                            { name: "Syafiq Nizam", pos: "Defender",   rating: "79", initial: "S" },
+                            { name: "Syafiq Nizam", pos: "Defender", rating: "79", initial: "S" },
                         ].map((p, i) => (
                             <div key={i} style={S.playerRow}>
                                 <div style={S.playerAvatar}>{p.initial}</div>
@@ -341,9 +424,9 @@ export default function NuvraPortal() {
                         </div>
                         <div className="portal-steps-grid" style={S.stepsGrid}>
                             {[
-                                { num: "01", title: "Sign Up Free",    desc: "Create your community account in under a minute. No club needed." },
-                                { num: "02", title: "Browse Games",    desc: "See all upcoming pickup games — venue, time, teams, and slots remaining." },
-                                { num: "03", title: "Book Your Slot",  desc: "Pick a side and confirm your spot. You'll get an email confirmation." },
+                                { num: "01", title: "Sign Up Free", desc: "Create your community account in under a minute. No club needed." },
+                                { num: "02", title: "Browse Games", desc: "See all upcoming pickup games — venue, time, teams, and slots remaining." },
+                                { num: "03", title: "Book Your Slot", desc: "Pick a side and confirm your spot. You'll get an email confirmation." },
                             ].map(s => (
                                 <div key={s.num} className="portal-step" style={S.step}>
                                     <div style={{ ...S.stepNum, color: "#00D4EC" }}>{s.num}</div>
@@ -364,9 +447,9 @@ export default function NuvraPortal() {
                         </div>
                         <div className="portal-steps-grid" style={S.stepsGrid}>
                             {[
-                                { num: "01", title: "Coach Registers",      desc: "Coach creates the team and sets up the club on Nuvra Club." },
-                                { num: "02", title: "Players Join",         desc: "Players apply to the club and get approved by the coach." },
-                                { num: "03", title: "Manage Everything",    desc: "Track stats, schedule matches, post announcements, manage payments." },
+                                { num: "01", title: "Coach Registers", desc: "Coach creates the team and sets up the club on Nuvra Club." },
+                                { num: "02", title: "Players Join", desc: "Players apply to the club and get approved by the coach." },
+                                { num: "03", title: "Manage Everything", desc: "Track stats, schedule matches, post announcements, manage payments." },
                             ].map(s => (
                                 <div key={s.num} className="portal-step" style={S.step}>
                                     <div style={{ ...S.stepNum, color: "#D040EF" }}>{s.num}</div>
@@ -684,7 +767,7 @@ const S = {
         border: "1px solid rgba(208,64,239,0.25)",
     },
     playerName: { fontSize: 14, fontWeight: 600, color: "#F5F5F7" },
-    playerPos:  { fontSize: 12, color: "#72727e" },
+    playerPos: { fontSize: 12, color: "#72727e" },
     playerRating: {
         marginLeft: "auto",
         fontFamily: "'Barlow Condensed', sans-serif",
@@ -713,7 +796,7 @@ const S = {
         fontSize: 44, fontWeight: 700, lineHeight: 1, marginBottom: 14,
     },
     stepTitle: { fontSize: 16, fontWeight: 700, marginBottom: 8, color: "#F5F5F7" },
-    stepDesc:  { fontSize: 13, color: "#72727e", lineHeight: 1.65 },
+    stepDesc: { fontSize: 13, color: "#72727e", lineHeight: 1.65 },
 
     // CTA
     ctaSection: {
@@ -755,6 +838,8 @@ const S = {
         display: "flex", alignItems: "center", gap: 8,
     },
 
+    // Gallery (used inline in G object below)
+
     // Footer
     footer: {
         padding: "32px 48px",
@@ -773,5 +858,105 @@ const S = {
     },
     footerCopy: {
         fontSize: 12, color: "#72727e",
+    },
+};
+
+// ── Gallery Styles ─────────────────────────────────────────────────────────────
+const G = {
+    section: {
+        background: "#080810",
+        borderTop: "1px solid #1a1a20",
+        borderBottom: "1px solid #1a1a20",
+        padding: "80px 0",
+        overflow: "hidden",
+    },
+    header: {
+        display: "flex",
+        alignItems: "center",
+        gap: 32,
+        maxWidth: 1100,
+        margin: "0 auto 56px",
+        padding: "0 24px",
+    },
+    headerLine: {
+        flex: 1,
+        height: 1,
+        background: "linear-gradient(90deg, transparent, #2a2a30, transparent)",
+    },
+    headerInner: {
+        textAlign: "center",
+        flexShrink: 0,
+    },
+    tag: {
+        display: "inline-block",
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 11, fontWeight: 700,
+        letterSpacing: 3,
+        color: "#00D4EC",
+        border: "1px solid rgba(0,212,236,0.25)",
+        borderRadius: 3,
+        padding: "3px 12px",
+        marginBottom: 14,
+        textTransform: "uppercase",
+    },
+    title: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: "clamp(32px, 5vw, 60px)",
+        fontWeight: 800,
+        letterSpacing: 3,
+        textTransform: "uppercase",
+        lineHeight: 0.95,
+        color: "#F5F5F7",
+        marginBottom: 12,
+    },
+    sub: {
+        fontSize: 13,
+        color: "#72727e",
+        fontWeight: 400,
+    },
+    stripOuter: {
+        position: "relative",
+        overflow: "hidden",
+    },
+    fadeLeft: {
+        position: "absolute",
+        top: 0, left: 0, bottom: 0,
+        width: 120,
+        background: "linear-gradient(to right, #080810, transparent)",
+        zIndex: 10,
+        pointerEvents: "none",
+    },
+    fadeRight: {
+        position: "absolute",
+        top: 0, right: 0, bottom: 0,
+        width: 120,
+        background: "linear-gradient(to left, #080810, transparent)",
+        zIndex: 10,
+        pointerEvents: "none",
+    },
+    row: {
+        overflow: "hidden",
+        width: "100%",
+    },
+    track: {
+        display: "flex",
+        gap: 12,
+        width: "max-content",
+        willChange: "transform",
+    },
+    imgWrap: {
+        width: 320,
+        height: 210,
+        cursor: "zoom-in",
+    },
+    img: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+        transition: "transform 0.5s ease",
+    },
+    overlay: {
+        borderRadius: 6,
     },
 };

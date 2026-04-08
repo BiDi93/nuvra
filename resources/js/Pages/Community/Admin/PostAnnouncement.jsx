@@ -91,5 +91,5 @@ const styles = {
     form: { display: "flex", flexDirection: "column", gap: 20 },
     label: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, display: "block" },
     input: { width: "100%", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, fontFamily: "inherit", outline: "none" },
-    submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00c9ff, #a78bfa)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" },
+    submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00D4EC, #a78bfa)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" },
 };
