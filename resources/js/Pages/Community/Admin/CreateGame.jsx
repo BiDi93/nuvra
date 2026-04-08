@@ -11,8 +11,10 @@ export default function CreateGame() {
     const [form, setForm] = useState({
         title: "", description: "", venue: "",
         game_date: "", team_a_name: "Team A", team_b_name: "Team B",
-        max_slots_per_team: 20,
+        max_slots_per_team: 20, price_per_player: 0,
     });
+    const [qrFile, setQrFile] = useState(null);
+    const [qrPreview, setQrPreview] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -25,14 +27,26 @@ export default function CreateGame() {
         );
     }
 
+    const handleQrChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setQrFile(file);
+        setQrPreview(URL.createObjectURL(file));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(""); setLoading(true);
         try {
+            // Use FormData to support file upload
+            const fd = new FormData();
+            Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+            if (qrFile) fd.append("payment_qr", qrFile);
+
             const res = await fetch(`${API}/games`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify(form),
+                headers: { Authorization: `Bearer ${token}` },
+                body: fd,
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Failed to create game");
@@ -96,6 +110,42 @@ export default function CreateGame() {
                         </div>
                     </div>
 
+                    {/* Payment section */}
+                    <div style={styles.paymentSection}>
+                        <div style={styles.paymentSectionLabel}>💳 PAYMENT SETTINGS</div>
+                        <div style={styles.row}>
+                            <div style={{ flex: 1 }}>
+                                <label style={styles.label}>Price Per Player (RM)</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step="0.50"
+                                    value={form.price_per_player}
+                                    onChange={e => set("price_per_player", parseFloat(e.target.value) || 0)}
+                                    style={styles.input}
+                                    placeholder="0 = Free"
+                                />
+                                <div style={styles.fieldHint}>Set to 0 for free games — slots confirmed instantly</div>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={styles.label}>Payment QR Code {form.price_per_player > 0 && "*"}</label>
+                                <label style={styles.fileLabel}>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleQrChange}
+                                        style={{ display: "none" }}
+                                    />
+                                    {qrPreview
+                                        ? <img src={qrPreview} alt="QR preview" style={styles.qrPreview} />
+                                        : <div style={styles.filePlaceholder}>📷 Upload QR Image</div>
+                                    }
+                                </label>
+                                <div style={styles.fieldHint}>DuitNow / bank transfer QR</div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Seat preview */}
                     <div style={styles.seatPreviewWrap}>
                         <div style={styles.seatPreviewLabel}>Seat Preview — {form.max_slots_per_team} slots per team</div>
@@ -156,4 +206,11 @@ const styles = {
     seatGrid: { display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 6 },
     seat: { height: 16, borderRadius: 4, background: "rgba(0,255,135,0.2)", border: "1px solid rgba(0,255,135,0.3)" },
     submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00ff87, #00c9ff)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 8 },
+
+    paymentSection: { background: "rgba(0,201,255,0.04)", border: "1px solid rgba(0,201,255,0.12)", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 16 },
+    paymentSectionLabel: { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "rgba(0,201,255,0.7)" },
+    fieldHint: { fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 6 },
+    fileLabel: { display: "block", cursor: "pointer" },
+    filePlaceholder: { width: "100%", padding: "20px 0", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: 600, textAlign: "center" },
+    qrPreview: { width: "100%", maxHeight: 140, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)" },
 };

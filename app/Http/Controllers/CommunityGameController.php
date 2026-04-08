@@ -4,16 +4,16 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class CommunityGameController extends Controller
 {
-    // ── Helper: resolve community user from bearer token ──────────────────────
+    // ── Helper: resolve community user from Sanctum-authenticated request ────────
     private function resolveUser(Request $request)
     {
-        $token = $request->bearerToken();
-        if (! $token) return null;
-        return DB::table('community_users')->where('remember_token', $token)->first();
+        $authUser = $request->user(); // Resolved by auth:sanctum middleware
+        if (! $authUser) return null;
+        return DB::table('community_users')->where('user_id', $authUser->id)->first();
     }
 
     // ── GET /community/games — list all open/upcoming games (public) ──────────
@@ -28,13 +28,16 @@ class CommunityGameController extends Controller
                 $game->team_a_count = DB::table('community_bookings')
                     ->where('game_id', $game->id)
                     ->where('team_side', 'team_a')
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['payment_submitted', 'confirmed'])
                     ->count();
                 $game->team_b_count = DB::table('community_bookings')
                     ->where('game_id', $game->id)
                     ->where('team_side', 'team_b')
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['payment_submitted', 'confirmed'])
                     ->count();
+                $game->payment_qr_url = $game->payment_qr_path
+                    ? Storage::url($game->payment_qr_path)
+                    : null;
                 return $game;
             });
 
@@ -50,20 +53,24 @@ class CommunityGameController extends Controller
             return response()->json(['message' => 'Game not found.'], 404);
         }
 
+        $game->payment_qr_url = $game->payment_qr_path
+            ? Storage::url($game->payment_qr_path)
+            : null;
+
         $teamA = DB::table('community_bookings')
             ->join('community_users', 'community_bookings.community_user_id', '=', 'community_users.id')
             ->where('community_bookings.game_id', $id)
             ->where('community_bookings.team_side', 'team_a')
-            ->where('community_bookings.status', 'confirmed')
-            ->select('community_users.id', 'community_users.name', 'community_bookings.created_at as joined_at')
+            ->whereIn('community_bookings.status', ['payment_submitted', 'confirmed'])
+            ->select('community_users.id', 'community_users.name', 'community_bookings.created_at as joined_at', 'community_bookings.status as booking_status')
             ->get();
 
         $teamB = DB::table('community_bookings')
             ->join('community_users', 'community_bookings.community_user_id', '=', 'community_users.id')
             ->where('community_bookings.game_id', $id)
             ->where('community_bookings.team_side', 'team_b')
-            ->where('community_bookings.status', 'confirmed')
-            ->select('community_users.id', 'community_users.name', 'community_bookings.created_at as joined_at')
+            ->whereIn('community_bookings.status', ['payment_submitted', 'confirmed'])
+            ->select('community_users.id', 'community_users.name', 'community_bookings.created_at as joined_at', 'community_bookings.status as booking_status')
             ->get();
 
         return response()->json([
@@ -90,7 +97,14 @@ class CommunityGameController extends Controller
             'team_b_name'         => 'nullable|string|max:100',
             'max_slots_per_team'  => 'nullable|integer|min:1|max:20',
             'description'         => 'nullable|string',
+            'price_per_player'    => 'nullable|numeric|min:0',
+            'payment_qr'          => 'nullable|image|max:4096',
         ]);
+
+        $qrPath = null;
+        if ($request->hasFile('payment_qr')) {
+            $qrPath = $request->file('payment_qr')->store('payment-qr', 'public');
+        }
 
         $gameId = DB::table('community_games')->insertGetId([
             'title'              => $request->title,
@@ -100,6 +114,8 @@ class CommunityGameController extends Controller
             'team_a_name'        => $request->team_a_name ?? 'Team A',
             'team_b_name'        => $request->team_b_name ?? 'Team B',
             'max_slots_per_team' => $request->max_slots_per_team ?? 20,
+            'price_per_player'   => $request->price_per_player ?? 0,
+            'payment_qr_path'    => $qrPath,
             'status'             => 'open',
             'created_by'         => $user->id,
             'created_at'         => now(),
@@ -107,9 +123,6 @@ class CommunityGameController extends Controller
         ]);
 
         $game = DB::table('community_games')->where('id', $gameId)->first();
-
-        // ── Fire email notifications to all community players ──────────────────
-        // $this->notifyPlayers($game);
 
         return response()->json([
             'message' => 'Game created successfully!',
@@ -151,11 +164,11 @@ class CommunityGameController extends Controller
 
         $request->validate([
             'team_side' => 'required|in:team_a,team_b',
+            'receipt'   => 'nullable|image|max:8192',
         ]);
 
         try {
             return DB::transaction(function () use ($request, $id, $user) {
-                // Lock the game row for update to prevent concurrent overbooking
                 $game = DB::table('community_games')->where('id', $id)->lockForUpdate()->first();
 
                 if (! $game) {
@@ -170,7 +183,7 @@ class CommunityGameController extends Controller
                 $existing = DB::table('community_bookings')
                     ->where('game_id', $id)
                     ->where('community_user_id', $user->id)
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['payment_submitted', 'confirmed'])
                     ->exists();
 
                 if ($existing) {
@@ -181,28 +194,44 @@ class CommunityGameController extends Controller
                 $sideCount = DB::table('community_bookings')
                     ->where('game_id', $id)
                     ->where('team_side', $request->team_side)
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['payment_submitted', 'confirmed'])
                     ->count();
 
                 if ($sideCount >= $game->max_slots_per_team) {
                     return response()->json(['message' => 'This team is full. Try the other side!'], 422);
                 }
 
-                // Create booking
+                // Free game → confirm immediately; paid game → require receipt
+                $isPaid = $game->price_per_player > 0;
+
+                if ($isPaid && ! $request->hasFile('receipt')) {
+                    return response()->json(['message' => 'Payment receipt is required to book a slot.'], 422);
+                }
+
+                $receiptPath = null;
+                if ($isPaid && $request->hasFile('receipt')) {
+                    $receiptPath = $request->file('receipt')->store('receipts', 'public');
+                }
+
+                $bookingStatus = $isPaid ? 'payment_submitted' : 'confirmed';
+
                 DB::table('community_bookings')->insert([
                     'game_id'           => $id,
                     'community_user_id' => $user->id,
                     'team_side'         => $request->team_side,
-                    'status'            => 'confirmed',
+                    'status'            => $bookingStatus,
+                    'receipt_path'      => $receiptPath,
                     'created_at'        => now(),
                     'updated_at'        => now(),
                 ]);
 
-                // Check if both teams are now full → update status to 'full'
+                // Check if both teams are now full
                 $teamACount = DB::table('community_bookings')
-                    ->where('game_id', $id)->where('team_side', 'team_a')->where('status', 'confirmed')->count();
+                    ->where('game_id', $id)->where('team_side', 'team_a')
+                    ->whereIn('status', ['payment_submitted', 'confirmed'])->count();
                 $teamBCount = DB::table('community_bookings')
-                    ->where('game_id', $id)->where('team_side', 'team_b')->where('status', 'confirmed')->count();
+                    ->where('game_id', $id)->where('team_side', 'team_b')
+                    ->whereIn('status', ['payment_submitted', 'confirmed'])->count();
 
                 if ($teamACount >= $game->max_slots_per_team && $teamBCount >= $game->max_slots_per_team) {
                     DB::table('community_games')->where('id', $id)->update([
@@ -211,7 +240,11 @@ class CommunityGameController extends Controller
                     ]);
                 }
 
-                return response()->json(['message' => 'Slot booked! See you on the pitch. 🔥'], 201);
+                $msg = $isPaid
+                    ? 'Slot reserved! Admin will verify your payment soon. 🔥'
+                    : 'Slot booked! See you on the pitch. 🔥';
+
+                return response()->json(['message' => $msg, 'booking_status' => $bookingStatus], 201);
             });
         } catch (\Exception $e) {
             \Log::error("Join game error: " . $e->getMessage());
@@ -220,6 +253,8 @@ class CommunityGameController extends Controller
     }
 
     // ── DELETE /community/games/{id}/leave — cancel own booking ──────────────
+    // Only allowed for free games (confirmed, before admin approval for paid games)
+    // Paid game bookings (payment_submitted) cannot be self-cancelled
     public function leave(Request $request, $id)
     {
         $user = $this->resolveUser($request);
@@ -230,7 +265,6 @@ class CommunityGameController extends Controller
 
         try {
             return DB::transaction(function () use ($id, $user) {
-                // Lock game row
                 $game = DB::table('community_games')->where('id', $id)->lockForUpdate()->first();
 
                 if (! $game) {
@@ -240,18 +274,17 @@ class CommunityGameController extends Controller
                 $booking = DB::table('community_bookings')
                     ->where('game_id', $id)
                     ->where('community_user_id', $user->id)
-                    ->where('status', 'confirmed')
+                    ->where('status', 'confirmed') // only free-game confirmed bookings can self-cancel
                     ->first();
 
                 if (! $booking) {
-                    return response()->json(['message' => 'No active booking found.'], 404);
+                    return response()->json(['message' => 'No cancellable booking found.'], 404);
                 }
 
                 DB::table('community_bookings')
                     ->where('id', $booking->id)
                     ->update(['status' => 'cancelled', 'updated_at' => now()]);
 
-                // If game was full and someone leaves, re-open it
                 if ($game->status === 'full') {
                     DB::table('community_games')->where('id', $id)->update([
                         'status'     => 'open',
@@ -267,29 +300,99 @@ class CommunityGameController extends Controller
         }
     }
 
-    // ── Private: send email notifications to all community players ────────────
-    private function notifyPlayers($game)
+    // ── GET /community/games/{id}/bookings — admin: see all bookings ──────────
+    public function bookings(Request $request, $id)
     {
-        $players = DB::table('community_users')->where('role', 'player')->get();
+        $user = $this->resolveUser($request);
 
-        foreach ($players as $player) {
-            try {
-                Mail::raw(
-                    "Hi {$player->name},\n\nA new game has been posted on Nuvra Community!\n\n"
-                    . "🏟️  {$game->title}\n"
-                    . "📍  {$game->venue}\n"
-                    . "⏰  " . date('D, d M Y H:i', strtotime($game->game_date)) . "\n\n"
-                    . "Open the Nuvra Community app to book your slot before it fills up!\n\n"
-                    . "See you on the pitch,\nNuvra Community Team",
-                    function ($message) use ($player, $game) {
-                        $message->to($player->email, $player->name)
-                                ->subject("⚽ New Game Posted: {$game->title}");
-                    }
-                );
-            } catch (\Exception $e) {
-                // Silently fail — don't break game creation if email fails
-                \Log::warning("Community email failed for {$player->email}: " . $e->getMessage());
-            }
+        if (! $user || $user->role !== 'admin') {
+            return response()->json(['message' => 'Forbidden. Admins only.'], 403);
+        }
+
+        $bookings = DB::table('community_bookings')
+            ->join('community_users', 'community_bookings.community_user_id', '=', 'community_users.id')
+            ->where('community_bookings.game_id', $id)
+            ->whereIn('community_bookings.status', ['payment_submitted', 'confirmed'])
+            ->select(
+                'community_bookings.id',
+                'community_bookings.team_side',
+                'community_bookings.status',
+                'community_bookings.receipt_path',
+                'community_bookings.created_at',
+                'community_users.id as player_id',
+                'community_users.name as player_name',
+                'community_users.email as player_email'
+            )
+            ->orderBy('community_bookings.status')
+            ->orderBy('community_bookings.created_at')
+            ->get()
+            ->map(function ($b) {
+                $b->receipt_url = $b->receipt_path ? Storage::url($b->receipt_path) : null;
+                return $b;
+            });
+
+        return response()->json($bookings);
+    }
+
+    // ── PATCH /community/bookings/{bookingId}/approve — admin approves ─────────
+    public function approveBooking(Request $request, $bookingId)
+    {
+        $user = $this->resolveUser($request);
+
+        if (! $user || $user->role !== 'admin') {
+            return response()->json(['message' => 'Forbidden. Admins only.'], 403);
+        }
+
+        $booking = DB::table('community_bookings')->where('id', $bookingId)->first();
+
+        if (! $booking || $booking->status !== 'payment_submitted') {
+            return response()->json(['message' => 'Booking not found or not pending approval.'], 404);
+        }
+
+        DB::table('community_bookings')->where('id', $bookingId)->update([
+            'status'     => 'confirmed',
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'Booking approved. Player confirmed!']);
+    }
+
+    // ── PATCH /community/bookings/{bookingId}/reject — admin rejects ───────────
+    public function rejectBooking(Request $request, $bookingId)
+    {
+        $user = $this->resolveUser($request);
+
+        if (! $user || $user->role !== 'admin') {
+            return response()->json(['message' => 'Forbidden. Admins only.'], 403);
+        }
+
+        try {
+            return DB::transaction(function () use ($bookingId) {
+                $booking = DB::table('community_bookings')->where('id', $bookingId)->lockForUpdate()->first();
+
+                if (! $booking || $booking->status === 'cancelled') {
+                    return response()->json(['message' => 'Booking not found.'], 404);
+                }
+
+                DB::table('community_bookings')->where('id', $bookingId)->update([
+                    'status'     => 'cancelled',
+                    'updated_at' => now(),
+                ]);
+
+                // If game was full, reopen it
+                $game = DB::table('community_games')->where('id', $booking->game_id)->first();
+                if ($game && $game->status === 'full') {
+                    DB::table('community_games')->where('id', $booking->game_id)->update([
+                        'status'     => 'open',
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                return response()->json(['message' => 'Booking rejected and slot freed.']);
+            });
+        } catch (\Exception $e) {
+            \Log::error("Reject booking error: " . $e->getMessage());
+            return response()->json(['message' => 'An error occurred.'], 500);
         }
     }
 }

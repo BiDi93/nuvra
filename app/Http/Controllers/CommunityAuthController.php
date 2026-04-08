@@ -39,10 +39,19 @@ class CommunityAuthController extends Controller
 
         $token = $user->createToken('community_token')->plainTextToken;
 
+        $communityProfile = \Illuminate\Support\Facades\DB::table('community_users')
+            ->where('user_id', $user->id)
+            ->first();
+
         return response()->json([
             'message' => 'Registration successful! Welcome to the Nuvra Community.',
             'token'   => $token,
-            'user'    => $user,
+            'user'    => [
+                'id'    => $communityProfile->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+                'role'  => $communityProfile->role,
+            ],
         ], 201);
     }
 
@@ -61,14 +70,19 @@ class CommunityAuthController extends Controller
         $user = Auth::user();
         $token = $user->createToken('community_token')->plainTextToken;
 
+        // Fetch community profile for role and community_user id
+        $communityUser = \Illuminate\Support\Facades\DB::table('community_users')
+            ->where('user_id', $user->id)
+            ->first();
+
         return response()->json([
             'message' => 'Login successful.',
             'token'   => $token,
             'user'    => [
-                'id'    => $user->id,
+                'id'    => $communityUser ? $communityUser->id : $user->id,
                 'name'  => $user->name,
                 'email' => $user->email,
-                'role'  => $user->role,
+                'role'  => $communityUser ? $communityUser->role : 'player',
             ],
         ]);
     }

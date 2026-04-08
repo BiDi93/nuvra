@@ -143,10 +143,13 @@ Route::prefix('community')->group(function () {
         Route::get('/me',        [CommunityAuthController::class, 'me']);
 
         // ── Games (auth required) ─────────────────────────────────────────────────
-        Route::post('/games',             [CommunityGameController::class, 'store']);
-        Route::patch('/games/{id}/cancel',[CommunityGameController::class, 'cancel']);
-        Route::post('/games/{id}/join',   [CommunityGameController::class, 'join']);
-        Route::delete('/games/{id}/leave',[CommunityGameController::class, 'leave']);
+        Route::post('/games',                          [CommunityGameController::class, 'store']);
+        Route::patch('/games/{id}/cancel',             [CommunityGameController::class, 'cancel']);
+        Route::post('/games/{id}/join',                [CommunityGameController::class, 'join']);
+        Route::delete('/games/{id}/leave',             [CommunityGameController::class, 'leave']);
+        Route::get('/games/{id}/bookings',             [CommunityGameController::class, 'bookings']);
+        Route::patch('/bookings/{bookingId}/approve',  [CommunityGameController::class, 'approveBooking']);
+        Route::patch('/bookings/{bookingId}/reject',   [CommunityGameController::class, 'rejectBooking']);
 
         // ── Announcements ─────────────────────────────────────────────────────────
         Route::get('/announcements',         [CommunityAnnouncementController::class, 'index']);

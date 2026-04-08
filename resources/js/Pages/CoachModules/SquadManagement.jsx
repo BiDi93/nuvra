@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import PendingRequests from './PendingRequest';
 
 export default function SquadManagement() {
     const navigate = useNavigate();
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
-    const coachId = 1;
+    
+    const user = JSON.parse(localStorage.getItem("community_user") || "{}");
+    const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+    const coachId = user.id || 1;
 
     const fetchTeam = () => {
-        fetch(`/api/coach/${coachId}/players`)
+        const headers = { Authorization: `Bearer ${token}` };
+        fetch(`/api/coach/${coachId}/players`, { headers })
             .then(res => res.json())
             .then(data => { setTeam(data); setLoading(false); })
             .catch(err => console.error(err));
     };
 
-    useEffect(() => { fetchTeam(); }, []);
+    useEffect(() => { fetchTeam(); }, [coachId, token]);
 
     if (loading) return (
         <div style={S.loading}>LOADING ROSTER...</div>
@@ -23,6 +28,7 @@ export default function SquadManagement() {
 
     return (
         <div style={S.page}>
+            <Toaster position="top-right" />
             {/* Top bar */}
             <div style={S.topBar}>
                 <div style={S.topBarTitle}>NUVRA // SQUAD MANAGEMENT</div>

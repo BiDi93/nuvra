@@ -1,47 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast, Toaster } from 'react-hot-toast';
 
-// 1. Added 'onActionComplete' to props
 const PendingRequests = ({ coachId, onActionComplete }) => {
     const [requests, setRequests] = useState([]);
+    const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
 
-    // Fetch Requests on Load
     useEffect(() => {
         if(!coachId) return;
+        const headers = { Authorization: `Bearer ${token}` };
 
-        axios.get(`/api/coach/${coachId}/requests`)
+        axios.get(`/api/coach/${coachId}/requests`, { headers })
             .then(res => setRequests(res.data))
             .catch(err => console.error("Error fetching requests:", err));
-    }, [coachId]);
+    }, [coachId, token]);
 
-    // Handle Approve/Decline
     const handleAction = async (playerId, action) => {
+        const toastId = toast.loading(`${action === 'approve' ? 'Approving' : 'Declining'} player...`);
+        const previousRequests = [...requests];
+        
+        // Optimistic UI
+        setRequests(requests.filter(req => req.id !== playerId));
+
         try {
+            const headers = { Authorization: `Bearer ${token}` };
             await axios.post(`/api/coach/${coachId}/request/${playerId}`, {
                 action: action 
-            });
+            }, { headers });
 
-            // Remove the processed player from the list visually
-            setRequests(requests.filter(req => req.id !== playerId));
-            
-            alert(`Player ${action}d successfully!`);
+            toast.success(`Player ${action}d successfully!`, { id: toastId });
 
-            // 2. TRIGGER THE REFRESH SIGNAL
-            // This tells SquadManagement to re-fetch the active roster immediately
             if (onActionComplete) {
                 onActionComplete();
             }
-
         } catch (error) {
+            setRequests(previousRequests); // Rollback
             console.error("Action failed:", error);
-            alert("Something went wrong.");
+            toast.error("Something went wrong.", { id: toastId });
         }
     };
 
     if (requests.length === 0) return null; 
 
     return (
-        
         <div className="border border-yellow-600 rounded-lg p-6 mb-8 text-white">
             <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center">
                 ⚠️ Pending Approvals ({requests.length})
@@ -52,7 +53,7 @@ const PendingRequests = ({ coachId, onActionComplete }) => {
                     <div key={player.id} className="flex items-center justify-between bg-gray-800 p-4 rounded">
                         <div>
                             <p className="font-bold text-lg">{player.name}</p>
-                            <p className="text-sm text-gray-400">Position: {player.position} | Age: {player.age || 'N/A'}</p>
+                            <p className="text-sm text-gray-400">Position: {player.position}</p>
                         </div>
                         <div className="flex gap-3">
                             <button 
