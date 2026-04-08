@@ -109,7 +109,7 @@ class CommunityGameController extends Controller
         $game = DB::table('community_games')->where('id', $gameId)->first();
 
         // ── Fire email notifications to all community players ──────────────────
-        $this->notifyPlayers($game);
+        // $this->notifyPlayers($game);
 
         return response()->json([
             'message' => 'Game created successfully!',
@@ -153,62 +153,70 @@ class CommunityGameController extends Controller
             'team_side' => 'required|in:team_a,team_b',
         ]);
 
-        $game = DB::table('community_games')->where('id', $id)->first();
+        try {
+            return DB::transaction(function () use ($request, $id, $user) {
+                // Lock the game row for update to prevent concurrent overbooking
+                $game = DB::table('community_games')->where('id', $id)->lockForUpdate()->first();
 
-        if (! $game) {
-            return response()->json(['message' => 'Game not found.'], 404);
+                if (! $game) {
+                    return response()->json(['message' => 'Game not found.'], 404);
+                }
+
+                if ($game->status !== 'open') {
+                    return response()->json(['message' => 'This game is no longer open for bookings.'], 422);
+                }
+
+                // Check duplicate booking
+                $existing = DB::table('community_bookings')
+                    ->where('game_id', $id)
+                    ->where('community_user_id', $user->id)
+                    ->where('status', 'confirmed')
+                    ->exists();
+
+                if ($existing) {
+                    return response()->json(['message' => 'You have already joined this game.'], 422);
+                }
+
+                // Check team slot availability
+                $sideCount = DB::table('community_bookings')
+                    ->where('game_id', $id)
+                    ->where('team_side', $request->team_side)
+                    ->where('status', 'confirmed')
+                    ->count();
+
+                if ($sideCount >= $game->max_slots_per_team) {
+                    return response()->json(['message' => 'This team is full. Try the other side!'], 422);
+                }
+
+                // Create booking
+                DB::table('community_bookings')->insert([
+                    'game_id'           => $id,
+                    'community_user_id' => $user->id,
+                    'team_side'         => $request->team_side,
+                    'status'            => 'confirmed',
+                    'created_at'        => now(),
+                    'updated_at'        => now(),
+                ]);
+
+                // Check if both teams are now full → update status to 'full'
+                $teamACount = DB::table('community_bookings')
+                    ->where('game_id', $id)->where('team_side', 'team_a')->where('status', 'confirmed')->count();
+                $teamBCount = DB::table('community_bookings')
+                    ->where('game_id', $id)->where('team_side', 'team_b')->where('status', 'confirmed')->count();
+
+                if ($teamACount >= $game->max_slots_per_team && $teamBCount >= $game->max_slots_per_team) {
+                    DB::table('community_games')->where('id', $id)->update([
+                        'status'     => 'full',
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                return response()->json(['message' => 'Slot booked! See you on the pitch. 🔥'], 201);
+            });
+        } catch (\Exception $e) {
+            \Log::error("Join game error: " . $e->getMessage());
+            return response()->json(['message' => 'An error occurred while joining the game.'], 500);
         }
-
-        if ($game->status !== 'open') {
-            return response()->json(['message' => 'This game is no longer open for bookings.'], 422);
-        }
-
-        // Check duplicate booking
-        $existing = DB::table('community_bookings')
-            ->where('game_id', $id)
-            ->where('community_user_id', $user->id)
-            ->where('status', 'confirmed')
-            ->exists();
-
-        if ($existing) {
-            return response()->json(['message' => 'You have already joined this game.'], 422);
-        }
-
-        // Check team slot availability
-        $sideCount = DB::table('community_bookings')
-            ->where('game_id', $id)
-            ->where('team_side', $request->team_side)
-            ->where('status', 'confirmed')
-            ->count();
-
-        if ($sideCount >= $game->max_slots_per_team) {
-            return response()->json(['message' => 'This team is full. Try the other side!'], 422);
-        }
-
-        // Create booking
-        DB::table('community_bookings')->insert([
-            'game_id'           => $id,
-            'community_user_id' => $user->id,
-            'team_side'         => $request->team_side,
-            'status'            => 'confirmed',
-            'created_at'        => now(),
-            'updated_at'        => now(),
-        ]);
-
-        // Check if both teams are now full → update status to 'full'
-        $teamACount = DB::table('community_bookings')
-            ->where('game_id', $id)->where('team_side', 'team_a')->where('status', 'confirmed')->count();
-        $teamBCount = DB::table('community_bookings')
-            ->where('game_id', $id)->where('team_side', 'team_b')->where('status', 'confirmed')->count();
-
-        if ($teamACount >= $game->max_slots_per_team && $teamBCount >= $game->max_slots_per_team) {
-            DB::table('community_games')->where('id', $id)->update([
-                'status'     => 'full',
-                'updated_at' => now(),
-            ]);
-        }
-
-        return response()->json(['message' => 'Slot booked! See you on the pitch. 🔥'], 201);
     }
 
     // ── DELETE /community/games/{id}/leave — cancel own booking ──────────────
@@ -220,27 +228,43 @@ class CommunityGameController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $booking = DB::table('community_bookings')
-            ->where('game_id', $id)
-            ->where('community_user_id', $user->id)
-            ->where('status', 'confirmed')
-            ->first();
+        try {
+            return DB::transaction(function () use ($id, $user) {
+                // Lock game row
+                $game = DB::table('community_games')->where('id', $id)->lockForUpdate()->first();
 
-        if (! $booking) {
-            return response()->json(['message' => 'No active booking found.'], 404);
+                if (! $game) {
+                    return response()->json(['message' => 'Game not found.'], 404);
+                }
+
+                $booking = DB::table('community_bookings')
+                    ->where('game_id', $id)
+                    ->where('community_user_id', $user->id)
+                    ->where('status', 'confirmed')
+                    ->first();
+
+                if (! $booking) {
+                    return response()->json(['message' => 'No active booking found.'], 404);
+                }
+
+                DB::table('community_bookings')
+                    ->where('id', $booking->id)
+                    ->update(['status' => 'cancelled', 'updated_at' => now()]);
+
+                // If game was full and someone leaves, re-open it
+                if ($game->status === 'full') {
+                    DB::table('community_games')->where('id', $id)->update([
+                        'status'     => 'open',
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                return response()->json(['message' => 'Your booking has been cancelled.']);
+            });
+        } catch (\Exception $e) {
+            \Log::error("Leave game error: " . $e->getMessage());
+            return response()->json(['message' => 'An error occurred while leaving the game.'], 500);
         }
-
-        DB::table('community_bookings')
-            ->where('id', $booking->id)
-            ->update(['status' => 'cancelled', 'updated_at' => now()]);
-
-        // If game was full and someone leaves, re-open it
-        DB::table('community_games')->where('id', $id)->where('status', 'full')->update([
-            'status'     => 'open',
-            'updated_at' => now(),
-        ]);
-
-        return response()->json(['message' => 'Your booking has been cancelled.']);
     }
 
     // ── Private: send email notifications to all community players ────────────

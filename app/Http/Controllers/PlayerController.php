@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 //Import Models
 use App\Models\User;
@@ -49,8 +50,11 @@ class PlayerController extends Controller
         // Handle Image Upload
         if ($request->hasFile('profile_image')) {
             // Delete old image if it exists and isn't a default one
-            if ($player->profile_image && file_exists(public_path($player->profile_image))) {
-                 // unlink(public_path($player->profile_image)); 
+            if ($player->profile_image) {
+                $oldPath = str_replace('/storage/', '', $player->profile_image);
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
             }
 
             $path = $request->file('profile_image')->store('players', 'public');
