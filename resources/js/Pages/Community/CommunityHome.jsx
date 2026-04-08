@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DynamicBackground from "../../Components/DynamicBackground";
+import PageLoader from "../../Components/PageLoader";
 
 const API = "/api/community";
 
@@ -56,18 +58,13 @@ export default function CommunityHome() {
 
     return (
         <div style={styles.root}>
+            <PageLoader />
+            <DynamicBackground />
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap');
                 * { box-sizing: border-box; margin: 0; padding: 0; }
-                body { background: #080810; }
             `}</style>
 
-            {/* Background */}
-            <div style={styles.bg}>
-                <div style={styles.bgGlow1} />
-                <div style={styles.bgGlow2} />
-                <div style={styles.bgGrid} />
-            </div>
+
 
             {/* Back to portal */}
             <button style={styles.backBtn} onClick={() => navigate("/")}>← Back to Nuvra</button>
@@ -81,7 +78,7 @@ export default function CommunityHome() {
                 </div>
 
                 {/* Card */}
-                <div style={styles.card}>
+                <div className="glass-panel" style={styles.card}>
                     {/* Tab switcher */}
                     <div style={styles.tabBar}>
                         {["login", "register"].map(t => (
@@ -152,32 +149,13 @@ function Field({ label, type, placeholder, value, onChange }) {
 
 const styles = {
     root: {
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "var(--font-sans)",
         minHeight: "100vh",
-        background: "#080810",
-        color: "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: "80px 24px",
         position: "relative",
-        overflow: "hidden",
-    },
-    bg: { position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" },
-    bgGlow1: {
-        position: "absolute", top: "-20%", left: "50%", transform: "translateX(-50%)",
-        width: "600px", height: "600px", borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(0,255,135,0.12) 0%, transparent 70%)",
-    },
-    bgGlow2: {
-        position: "absolute", bottom: "-10%", right: "10%",
-        width: "400px", height: "400px", borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(0,201,255,0.08) 0%, transparent 70%)",
-    },
-    bgGrid: {
-        position: "absolute", inset: 0,
-        backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-        backgroundSize: "40px 40px",
     },
     backBtn: {
         position: "fixed", top: 20, left: 24, zIndex: 100,
@@ -189,13 +167,12 @@ const styles = {
     container: { position: "relative", zIndex: 1, width: "100%", maxWidth: 420 },
     header: { textAlign: "center", marginBottom: 32 },
     iconWrap: { fontSize: 48, marginBottom: 12 },
-    title: { fontFamily: "'Bebas Neue', cursive", fontSize: 48, letterSpacing: 3, lineHeight: 1 },
-    subtitle: { color: "rgba(255,255,255,0.45)", fontSize: 14, marginTop: 8, fontWeight: 500 },
+    title: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 48, letterSpacing: 3, lineHeight: 1 },
+    subtitle: { color: "var(--text-muted)", fontSize: 14, marginTop: 8, fontWeight: 500 },
     card: {
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: 24, padding: 32,
-        backdropFilter: "blur(20px)",
+        padding: 40,
+        display: "flex",
+        flexDirection: "column",
     },
     tabBar: {
         display: "flex", gap: 4,

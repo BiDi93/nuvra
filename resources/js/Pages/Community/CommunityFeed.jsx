@@ -1,100 +1,131 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import DynamicBackground from "../../Components/DynamicBackground";
+import PageLoader from "../../Components/PageLoader";
 
 const API = "/api/community";
 
-// ── Slot Bar ────────────────────────────────────────────────────────────────
-function SlotBar({ filled, max, label }) {
-    const pct = Math.min((filled / max) * 100, 100);
-    const remaining = max - filled;
-    const isLow = remaining <= 5;
-    const isFull = remaining <= 0;
-    const color = isFull ? "#ff4444" : isLow ? "#ff6b35" : "#00ff87";
-    return (
-        <div style={{ marginTop: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 5, color: "rgba(255,255,255,0.45)" }}>
-                <span>{label}</span>
-                <span style={{ color, fontWeight: 700 }}>
-                    {isFull ? "FULL" : `${remaining}/${max} slots left`}
-                </span>
-            </div>
-            <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${isFull ? "#ff4444" : isLow ? "#ffa500" : "#00c9ff"})`, borderRadius: 4, transition: "width 0.6s ease" }} />
-            </div>
-        </div>
-    );
-}
-
-// ── Status Badge ─────────────────────────────────────────────────────────────
+// ── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
     const map = {
-        open:      { label: "Open",      bg: "rgba(0,255,135,0.1)",  color: "#00ff87" },
-        full:      { label: "Full",      bg: "rgba(255,68,68,0.1)",  color: "#ff4444" },
-        cancelled: { label: "Cancelled", bg: "rgba(255,107,53,0.1)", color: "#ff6b35" },
-        completed: { label: "Done",      bg: "rgba(255,255,255,0.05)", color: "#aaa" },
+        open:      { label: "OPEN",      color: "#00ff87", bg: "rgba(0,255,135,0.1)" },
+        full:      { label: "FULL",      color: "#ff4444", bg: "rgba(255,68,68,0.1)" },
+        cancelled: { label: "CANCELLED", color: "#ff6b35", bg: "rgba(255,107,53,0.1)" },
+        completed: { label: "DONE",      color: "#888",    bg: "rgba(255,255,255,0.05)" },
     };
     const s = map[status] || map.open;
     return (
-        <span style={{ padding: "3px 10px", borderRadius: 100, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>
+        <span style={{
+            padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 800,
+            letterSpacing: 0.8, background: s.bg, color: s.color,
+            border: `1px solid ${s.color}33`,
+        }}>
             {s.label}
         </span>
     );
 }
 
-// ── Game Card ─────────────────────────────────────────────────────────────────
-function GameCard({ game, onClick }) {
-    const totalA = game.team_a_count ?? 0;
-    const totalB = game.team_b_count ?? 0;
-    const max = game.max_slots_per_team;
-    const date = new Date(game.game_date);
-    const dateStr = date.toLocaleDateString("en-MY", { weekday: "short", day: "numeric", month: "short" });
-    const timeStr = date.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
-
+// ── Slot Progress Bar ─────────────────────────────────────────────────────────
+function SlotBar({ filled, max }) {
+    const pct = Math.min((filled / max) * 100, 100);
+    const remaining = max - filled;
+    const isFull = remaining <= 0;
+    const isLow  = remaining <= 5 && !isFull;
+    const color  = isFull ? "#ff4444" : isLow ? "#ff6b35" : "#00ff87";
     return (
-        <div style={styles.card} onClick={onClick}>
-            <div style={styles.cardTop}>
-                <div>
-                    <div style={styles.cardTitle}>{game.title}</div>
-                    <div style={styles.cardMeta}>
-                        <span>📍 {game.venue}</span>
-                        <span>📅 {dateStr}</span>
-                        <span>⏰ {timeStr}</span>
-                    </div>
-                </div>
-                <StatusBadge status={game.status} />
+        <div style={{ marginTop: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 5, color: "rgba(255,255,255,0.35)" }}>
+                <span style={{ textTransform: "uppercase", letterSpacing: 0.5 }}>SLOTS</span>
+                <span style={{ color, fontWeight: 700 }}>
+                    {isFull ? "FULL" : `${remaining}/${max} left`}
+                </span>
             </div>
-
-            <div style={styles.vsRow}>
-                <div style={styles.teamPill}>
-                    <span style={styles.teamName}>{game.team_a_name}</span>
-                    <span style={styles.teamCount}>{totalA}/{max}</span>
-                </div>
-                <span style={styles.vsText}>VS</span>
-                <div style={styles.teamPill}>
-                    <span style={styles.teamName}>{game.team_b_name}</span>
-                    <span style={styles.teamCount}>{totalB}/{max}</span>
-                </div>
+            <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${isFull ? "#ff4444" : "#00c9ff"})`, borderRadius: 2, transition: "width 0.6s ease" }} />
             </div>
-
-            <SlotBar filled={totalA + totalB} max={max * 2} label="Total Slots" />
-
-            {game.description && (
-                <p style={styles.cardDesc}>{game.description}</p>
-            )}
-
-            <button style={{ ...styles.joinBtn, ...(game.status !== "open" ? styles.joinBtnDisabled : {}) }}>
-                {game.status === "open" ? "View & Join →" : game.status === "full" ? "Game Full" : "Cancelled"}
-            </button>
         </div>
     );
 }
 
-// ── Main Feed ─────────────────────────────────────────────────────────────────
+// ── Game Card (Grid style) ────────────────────────────────────────────────────
+function GameCard({ game, onClick }) {
+    const totalA = game.team_a_count ?? 0;
+    const totalB = game.team_b_count ?? 0;
+    const filled = totalA + totalB;
+    const max    = game.max_slots_per_team * 2;
+    const date   = new Date(game.game_date);
+    const dayStr = date.toLocaleDateString("en-MY", { weekday: "short" }).toUpperCase();
+    const dateNum = date.getDate();
+    const timeStr = date.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
+    const isOpen  = game.status === "open";
+
+    return (
+        <div style={S.card} onClick={onClick} className="grid-card">
+            {/* Gradient border glow on left */}
+            <div style={S.cardAccent} />
+
+            <div style={S.cardInner}>
+                {/* Top row */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                        <div style={S.cardTitle}>{game.title}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>
+                            📍 {game.venue}
+                        </div>
+                    </div>
+                    <StatusBadge status={game.status} />
+                </div>
+
+                {/* Date/Time pill */}
+                <div style={S.datePill}>
+                    <span style={S.datePillDay}>{dayStr} {dateNum}</span>
+                    <span style={S.datePillTime}>{timeStr}</span>
+                </div>
+
+                {/* VS row */}
+                <div style={S.vsRow}>
+                    <div style={S.teamSide}>
+                        <span style={S.teamLabel}>{game.team_a_name}</span>
+                        <span style={S.teamCount}>{totalA}/{game.max_slots_per_team}</span>
+                    </div>
+                    <div style={S.vsChip}>VS</div>
+                    <div style={{ ...S.teamSide, textAlign: "right" }}>
+                        <span style={S.teamLabel}>{game.team_b_name}</span>
+                        <span style={S.teamCount}>{totalB}/{game.max_slots_per_team}</span>
+                    </div>
+                </div>
+
+                <SlotBar filled={filled} max={max} />
+
+                <button
+                    style={{ ...S.joinBtn, ...(isOpen ? {} : S.joinBtnDisabled) }}
+                    onClick={(e) => { e.stopPropagation(); onClick(); }}
+                >
+                    {isOpen ? "VIEW & JOIN" : game.status === "full" ? "GAME FULL" : game.status.toUpperCase()}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ── Sidebar Nav Item ──────────────────────────────────────────────────────────
+function NavItem({ icon, label, active, onClick }) {
+    return (
+        <button style={{ ...S.navItem, ...(active ? S.navItemActive : {}) }} onClick={onClick}>
+            <span style={S.navIcon}>{icon}</span>
+            <span style={S.navLabel}>{label}</span>
+            {active && <div style={S.navActiveLine} />}
+        </button>
+    );
+}
+
+// ── Main Feed ────────────────────────────────────────────────────────────────
 export default function CommunityFeed() {
-    const navigate = useNavigate();
-    const [games, setGames] = useState([]);
+    const navigate  = useNavigate();
+    const [games,   setGames]   = useState([]);
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState(null);
+    const [user,    setUser]    = useState(null);
+    const [filter,  setFilter]  = useState("all"); // all | open | full | cancelled
 
     useEffect(() => {
         const stored = localStorage.getItem("community_user");
@@ -104,7 +135,7 @@ export default function CommunityFeed() {
 
     const fetchGames = async () => {
         try {
-            const res = await fetch(`${API}/games`);
+            const res  = await fetch(`${API}/games`);
             const data = await res.json();
             setGames(Array.isArray(data) ? data : []);
         } catch {
@@ -122,172 +153,467 @@ export default function CommunityFeed() {
         navigate("/community");
     };
 
+    const filtered = filter === "all" ? games : games.filter(g => g.status === filter);
+    const openCount = games.filter(g => g.status === "open").length;
+
     return (
-        <div style={styles.root}>
+        <div style={S.root}>
+            <PageLoader />
+            <DynamicBackground />
+
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap');
                 * { box-sizing: border-box; margin: 0; padding: 0; }
-                body { background: #080810; }
-                ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+                ::-webkit-scrollbar { width: 5px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+                .grid-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+                .grid-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,201,255,0.15); }
+                .filter-btn { transition: all 0.2s ease; }
+                .filter-btn:hover { background: rgba(255,255,255,0.08) !important; }
             `}</style>
 
-            {/* BG */}
-            <div style={styles.bgGlow} />
-
-            {/* Nav */}
-            <nav style={styles.nav}>
-                <div style={styles.navLeft}>
-                    <span style={styles.navLogo} onClick={() => navigate("/")}>NUVRA</span>
-                    <span style={styles.navSep}>/</span>
-                    <span style={styles.navPage}>Community</span>
+            {/* ── LEFT SIDEBAR ── */}
+            <aside style={S.sidebar}>
+                {/* Brand */}
+                <div style={S.brand} onClick={() => navigate("/")}>
+                    <div style={S.brandText}>THE GRID</div>
+                    <div style={S.brandSub}>FOOTBALL COMMUNITY</div>
                 </div>
-                <div style={styles.navRight}>
+
+                {/* Nav */}
+                <nav style={S.sideNav}>
+                    <NavItem icon="⊞" label="DASHBOARD"     active={true}  onClick={() => {}} />
+                    <NavItem icon="📅" label="FIXTURES"      active={false} onClick={() => {}} />
+                    <NavItem icon="📢" label="ANNOUNCEMENTS" active={false} onClick={() => navigate("/community/announcements")} />
+                    <NavItem icon="👥" label="COMMUNITY"     active={false} onClick={() => {}} />
                     {user?.role === "admin" && (
-                        <button style={styles.adminBtn} onClick={() => navigate("/community/admin/create-game")}>
-                            + Post Game
-                        </button>
+                        <NavItem icon="+" label="POST GAME" active={false} onClick={() => navigate("/community/admin/create-game")} />
                     )}
-                    <button style={styles.announcementBtn} onClick={() => navigate("/community/announcements")}>
-                        📢 Announcements
-                    </button>
-                    {user ? (
-                        <div style={styles.userPill}>
-                            <span style={styles.userAvatar}>{user.name?.[0]?.toUpperCase()}</span>
-                            <span style={styles.userName}>{user.name}</span>
-                            <button style={styles.logoutBtn} onClick={logout}>Out</button>
-                        </div>
-                    ) : (
-                        <button style={styles.loginBtn} onClick={() => navigate("/community")}>Sign In</button>
-                    )}
-                </div>
-            </nav>
+                </nav>
 
-            {/* Content */}
-            <div style={styles.content}>
-                <div style={styles.pageHeader}>
-                    <div>
-                        <h1 style={styles.pageTitle}>Upcoming Games</h1>
-                        <p style={styles.pageSubtitle}>Pick a game, pick a side, show up and play.</p>
-                    </div>
-                    <div style={styles.gamesCount}>
-                        <span style={styles.gamesCountNum}>{games.filter(g => g.status === "open").length}</span>
-                        <span style={styles.gamesCountLabel}>Open</span>
-                    </div>
-                </div>
+                {/* Spacer */}
+                <div style={{ flex: 1 }} />
 
-                {loading ? (
-                    <div style={styles.empty}>Loading games...</div>
-                ) : games.length === 0 ? (
-                    <div style={styles.empty}>
-                        <div style={{ fontSize: 48, marginBottom: 16 }}>⚽</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Games Yet</div>
-                        <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>
-                            Check back soon — a Community Admin will post the next game!
+                {/* User section */}
+                {user ? (
+                    <div style={S.userBox}>
+                        <div style={S.userAvatar}>{user.name?.[0]?.toUpperCase()}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={S.userName}>{user.name}</div>
+                            <div style={S.userRole}>{user.role?.toUpperCase() || "MEMBER"}</div>
                         </div>
+                        <button style={S.logoutBtn} onClick={logout} title="Sign out">↩</button>
                     </div>
                 ) : (
-                    <div style={styles.grid}>
-                        {games.map(game => (
-                            <GameCard key={game.id} game={game} onClick={() => navigate(`/community/games/${game.id}`)} />
+                    <button style={S.signInBtn} onClick={() => navigate("/community")}>
+                        SIGN IN
+                    </button>
+                )}
+            </aside>
+
+            {/* ── MAIN CONTENT ── */}
+            <main style={S.main}>
+                {/* Top bar */}
+                <div style={S.topBar}>
+                    <div>
+                        <div style={S.topBarTitle}>THE GRID // DASHBOARD</div>
+                    </div>
+                    <div style={S.topBarRight}>
+                        <div style={S.statChip}>
+                            <span style={S.statChipNum}>{openCount}</span>
+                            <span style={S.statChipLabel}>OPEN GAMES</span>
+                        </div>
+                        <div style={S.statChip}>
+                            <span style={S.statChipNum}>{games.length}</span>
+                            <span style={S.statChipLabel}>TOTAL</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Section header + filters */}
+                <div style={S.sectionHeader}>
+                    <span style={S.sectionTitle}>UPCOMING MATCHES</span>
+                    <div style={S.filterRow}>
+                        {["all", "open", "full", "cancelled"].map(f => (
+                            <button
+                                key={f}
+                                className="filter-btn"
+                                onClick={() => setFilter(f)}
+                                style={{
+                                    ...S.filterBtn,
+                                    ...(filter === f ? S.filterBtnActive : {}),
+                                }}
+                            >
+                                {f.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Game grid */}
+                {loading ? (
+                    <div style={S.emptyState}>
+                        <div style={S.emptyIcon}>⏳</div>
+                        <div style={S.emptyText}>LOADING MATCHES...</div>
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div style={S.emptyState}>
+                        <div style={S.emptyIcon}>⚽</div>
+                        <div style={S.emptyText}>NO MATCHES FOUND</div>
+                        <div style={S.emptySubText}>Check back soon — a Community Admin will post the next game.</div>
+                    </div>
+                ) : (
+                    <div style={S.grid}>
+                        {filtered.map(game => (
+                            <GameCard
+                                key={game.id}
+                                game={game}
+                                onClick={() => navigate(`/community/games/${game.id}`)}
+                            />
                         ))}
                     </div>
                 )}
-            </div>
+            </main>
         </div>
     );
 }
 
-const styles = {
-    root: { fontFamily: "'Inter', sans-serif", minHeight: "100vh", background: "#080810", color: "#fff" },
-    bgGlow: {
-        position: "fixed", top: 0, left: 0, right: 0, height: "50vh", zIndex: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,255,135,0.07) 0%, transparent 70%)",
-    },
-    nav: {
-        position: "sticky", top: 0, zIndex: 100,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 32px", height: 60,
-        background: "rgba(8,8,16,0.85)", backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-    },
-    navLeft: { display: "flex", alignItems: "center", gap: 10 },
-    navLogo: { fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 2, cursor: "pointer", color: "#fff" },
-    navSep: { color: "rgba(255,255,255,0.2)", fontSize: 18 },
-    navPage: { fontSize: 14, fontWeight: 600, color: "#00ff87" },
-    navRight: { display: "flex", alignItems: "center", gap: 12 },
-    adminBtn: {
-        padding: "6px 14px", borderRadius: 8, border: "none",
-        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
-        color: "#080810", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-    },
-    announcementBtn: {
-        padding: "6px 14px", borderRadius: 8,
-        background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-        color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-    },
-    loginBtn: {
-        padding: "6px 16px", borderRadius: 8,
-        background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.3)",
-        color: "#00ff87", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-    },
-    userPill: { display: "flex", alignItems: "center", gap: 8 },
-    userAvatar: {
-        width: 30, height: 30, borderRadius: "50%",
-        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#080810", fontSize: 12, fontWeight: 800,
-    },
-    userName: { fontSize: 13, fontWeight: 600 },
-    logoutBtn: {
-        padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)",
-        background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit",
-    },
-    content: { position: "relative", zIndex: 1, maxWidth: 960, margin: "0 auto", padding: "40px 24px 80px" },
-    pageHeader: {
-        display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36,
-    },
-    pageTitle: { fontSize: 32, fontWeight: 800, lineHeight: 1 },
-    pageSubtitle: { fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 8 },
-    gamesCount: {
-        display: "flex", flexDirection: "column", alignItems: "center",
-        background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)",
-        borderRadius: 14, padding: "12px 20px",
-    },
-    gamesCountNum: { fontFamily: "'Bebas Neue', cursive", fontSize: 36, color: "#00ff87", lineHeight: 1 },
-    gamesCountLabel: { fontSize: 10, fontWeight: 700, color: "rgba(0,255,135,0.6)", textTransform: "uppercase", letterSpacing: 1 },
-    grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 },
-    empty: {
-        textAlign: "center", padding: "80px 24px",
-        color: "rgba(255,255,255,0.4)", fontSize: 16,
+// ── Styles ────────────────────────────────────────────────────────────────────
+const S = {
+    root: {
+        display: "flex",
+        minHeight: "100vh",
+        background: "#080a12",
+        color: "#fff",
+        fontFamily: "'Inter', sans-serif",
+        position: "relative",
+        overflow: "hidden",
     },
 
-    // Card styles
-    card: {
-        background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 20, padding: 24, cursor: "pointer",
-        transition: "transform 0.2s, border-color 0.2s, box-shadow 0.2s",
-        display: "flex", flexDirection: "column", gap: 0,
+    /* SIDEBAR */
+    sidebar: {
+        width: 210,
+        minWidth: 210,
+        maxWidth: 210,
+        minHeight: "100vh",
+        background: "rgba(6,7,18,0.95)",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        bottom: 0,
+        zIndex: 50,
+        backdropFilter: "blur(20px)",
     },
-    cardTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
-    cardTitle: { fontSize: 16, fontWeight: 700, lineHeight: 1.3, marginBottom: 8 },
-    cardMeta: { display: "flex", flexDirection: "column", gap: 3, fontSize: 12, color: "rgba(255,255,255,0.4)" },
-    vsRow: { display: "flex", alignItems: "center", gap: 12, margin: "12px 0" },
-    teamPill: {
-        flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center",
-        background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 12px",
-        border: "1px solid rgba(255,255,255,0.06)",
+    brand: {
+        padding: "28px 20px 20px",
+        cursor: "pointer",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        marginBottom: 8,
     },
-    teamName: { fontSize: 13, fontWeight: 700 },
-    teamCount: { fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 600 },
-    vsText: { fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#00ff87", flexShrink: 0 },
-    cardDesc: { fontSize: 13, color: "rgba(255,255,255,0.35)", marginTop: 12, lineHeight: 1.5 },
-    joinBtn: {
-        marginTop: 16, padding: "10px", borderRadius: 10, border: "none",
+    brandText: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 22,
+        letterSpacing: 3,
+        color: "#fff",
+        lineHeight: 1,
+    },
+    brandSub: {
+        fontSize: 9,
+        letterSpacing: 2,
+        color: "rgba(255,255,255,0.3)",
+        marginTop: 3,
+        textTransform: "uppercase",
+    },
+    sideNav: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        padding: "8px 0",
+    },
+    navItem: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 20px",
+        background: "transparent",
+        border: "none",
+        color: "rgba(255,255,255,0.4)",
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 1.2,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        textAlign: "left",
+        position: "relative",
+        transition: "color 0.2s, background 0.2s",
+        borderRadius: 0,
+    },
+    navItemActive: {
+        color: "#fff",
+        background: "rgba(255,255,255,0.04)",
+    },
+    navIcon: {
+        fontSize: 14,
+        width: 20,
+        textAlign: "center",
+    },
+    navLabel: {
+        flex: 1,
+    },
+    navActiveLine: {
+        position: "absolute",
+        left: 0, top: 0, bottom: 0,
+        width: 3,
+        background: "linear-gradient(180deg, #00ff87, #00c9ff)",
+        borderRadius: "0 2px 2px 0",
+    },
+    userBox: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "16px 20px",
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+    },
+    userAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: "50%",
         background: "linear-gradient(135deg, #00ff87, #00c9ff)",
-        color: "#080810", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 13,
+        fontWeight: 800,
+        color: "#080810",
+        flexShrink: 0,
+    },
+    userName: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: "#fff",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    userRole: {
+        fontSize: 9,
+        letterSpacing: 1,
+        color: "rgba(255,255,255,0.3)",
+        marginTop: 1,
+    },
+    logoutBtn: {
+        background: "none",
+        border: "none",
+        color: "rgba(255,255,255,0.3)",
+        fontSize: 16,
+        cursor: "pointer",
+        padding: "2px 4px",
+        transition: "color 0.2s",
+        flexShrink: 0,
+    },
+    signInBtn: {
+        margin: "12px 16px 20px",
+        padding: "10px",
+        borderRadius: 6,
+        border: "1px solid rgba(0,255,135,0.3)",
+        background: "rgba(0,255,135,0.05)",
+        color: "#00ff87",
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: 1.5,
+        cursor: "pointer",
+        fontFamily: "inherit",
+    },
+
+    /* MAIN */
+    main: {
+        marginLeft: 210,
+        flex: 1,
+        padding: "0 32px 48px",
+        position: "relative",
+        zIndex: 10,
+        minHeight: "100vh",
+    },
+    topBar: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "28px 0 20px",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        marginBottom: 28,
+    },
+    topBarTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 20,
+        letterSpacing: 3,
+        color: "rgba(255,255,255,0.6)",
+    },
+    topBarRight: {
+        display: "flex",
+        gap: 12,
+        alignItems: "center",
+    },
+    statChip: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "8px 16px",
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 8,
+    },
+    statChipNum: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 24,
+        color: "#00ff87",
+        lineHeight: 1,
+    },
+    statChipLabel: {
+        fontSize: 9,
+        letterSpacing: 1.2,
+        color: "rgba(255,255,255,0.35)",
+        marginTop: 2,
+    },
+    sectionHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: 2,
+        color: "rgba(255,255,255,0.7)",
+    },
+    filterRow: {
+        display: "flex",
+        gap: 6,
+    },
+    filterBtn: {
+        padding: "4px 10px",
+        borderRadius: 4,
+        border: "1px solid rgba(255,255,255,0.08)",
+        background: "transparent",
+        color: "rgba(255,255,255,0.35)",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.8,
+        cursor: "pointer",
+        fontFamily: "inherit",
+    },
+    filterBtnActive: {
+        background: "rgba(0,255,135,0.1)",
+        border: "1px solid rgba(0,255,135,0.3)",
+        color: "#00ff87",
+    },
+    grid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: 16,
+    },
+    emptyState: {
+        textAlign: "center",
+        padding: "80px 24px",
+        color: "rgba(255,255,255,0.3)",
+    },
+    emptyIcon: { fontSize: 48, marginBottom: 16 },
+    emptyText: { fontSize: 14, fontWeight: 800, letterSpacing: 2, marginBottom: 8 },
+    emptySubText: { fontSize: 13, color: "rgba(255,255,255,0.25)", lineHeight: 1.6 },
+
+    /* CARD */
+    card: {
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 10,
+        cursor: "pointer",
+        overflow: "hidden",
+        position: "relative",
+        display: "flex",
+    },
+    cardAccent: {
+        width: 3,
+        background: "linear-gradient(180deg, #00ff87, #00c9ff)",
+        flexShrink: 0,
+    },
+    cardInner: {
+        flex: 1,
+        padding: "16px 16px 16px 14px",
+        display: "flex",
+        flexDirection: "column",
+    },
+    cardTitle: {
+        fontSize: 13,
+        fontWeight: 800,
+        letterSpacing: 0.3,
+        color: "#fff",
+        lineHeight: 1.3,
+    },
+    datePill: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        background: "rgba(255,255,255,0.05)",
+        borderRadius: 4,
+        padding: "4px 8px",
+        marginBottom: 10,
+        width: "fit-content",
+    },
+    datePillDay: { fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: "#00c9ff" },
+    datePillTime: { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)" },
+    vsRow: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        margin: "8px 0",
+    },
+    teamSide: {
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+    },
+    teamLabel: {
+        fontSize: 12,
+        fontWeight: 800,
+        color: "#fff",
+        letterSpacing: 0.3,
+    },
+    teamCount: {
+        fontSize: 10,
+        color: "rgba(255,255,255,0.3)",
+        fontWeight: 600,
+        marginTop: 1,
+    },
+    vsChip: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 14,
+        color: "#00ff87",
+        flexShrink: 0,
+        padding: "2px 6px",
+        border: "1px solid rgba(0,255,135,0.2)",
+        borderRadius: 4,
+        letterSpacing: 1,
+    },
+    joinBtn: {
+        marginTop: 14,
+        padding: "9px",
+        borderRadius: 6,
+        border: "none",
+        background: "linear-gradient(135deg, #00ff87, #00c9ff)",
+        color: "#080810",
+        fontSize: 10,
+        fontWeight: 800,
+        letterSpacing: 1.5,
+        cursor: "pointer",
+        fontFamily: "inherit",
         width: "100%",
     },
     joinBtnDisabled: {
-        background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)", cursor: "default",
+        background: "rgba(255,255,255,0.05)",
+        color: "rgba(255,255,255,0.25)",
+        cursor: "default",
     },
 };

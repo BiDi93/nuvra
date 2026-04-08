@@ -82,7 +82,7 @@ const styles = {
     bgGlow: { position: "fixed", top: 0, left: 0, right: 0, height: "40vh", zIndex: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,201,255,0.06) 0%, transparent 70%)" },
     nav: { position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 60, background: "rgba(8,8,16,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" },
     backBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
-    navBrand: { fontFamily: "'Bebas Neue', cursive", fontSize: 18, letterSpacing: 2 },
+    navBrand: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: 2 },
     adminBadge: { fontSize: 12, color: "rgba(255,215,0,0.8)", fontWeight: 600 },
     content: { position: "relative", zIndex: 1, maxWidth: 600, margin: "0 auto", padding: "40px 24px 80px" },
     title: { fontSize: 32, fontWeight: 800, marginBottom: 8 },

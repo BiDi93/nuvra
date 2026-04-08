@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PageLoader from "../Components/PageLoader";
 
-// ─── Animated counter hook ─────────────────────────────────────────────────
+// ── Count-up hook ──────────────────────────────────────────────────────────────
 function useCountUp(target, duration = 2000) {
     const [count, setCount] = useState(0);
     const ref = useRef(null);
@@ -24,27 +25,42 @@ function useCountUp(target, duration = 2000) {
     return { count, ref };
 }
 
-// ─── Stat Card ─────────────────────────────────────────────────────────────
+// ── Stat Card ──────────────────────────────────────────────────────────────────
 function StatCard({ value, suffix = "", label }) {
     const { count, ref } = useCountUp(value);
     return (
-        <div ref={ref} className="portal-stat-card">
-            <span className="portal-stat-number">{count.toLocaleString()}{suffix}</span>
-            <span className="portal-stat-label">{label}</span>
+        <div ref={ref} style={S.statCard}>
+            <span style={S.statNumber}>{count.toLocaleString()}{suffix}</span>
+            <span style={S.statLabel}>{label}</span>
         </div>
     );
 }
 
-// ─── Feature Row ───────────────────────────────────────────────────────────
-function FeatureItem({ icon, text }) {
+// ── Feature row ────────────────────────────────────────────────────────────────
+function FeatureItem({ text }) {
     return (
-        <div className="portal-feature-item">
-            <span className="portal-feature-icon">{icon}</span>
+        <div style={S.featureItem}>
+            <span style={S.featureDot} />
             <span>{text}</span>
         </div>
     );
 }
 
+// ── SVG icons ──────────────────────────────────────────────────────────────────
+const IconArrowRight = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+    </svg>
+);
+const IconArrowDown = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <polyline points="19 12 12 19 5 12"/>
+    </svg>
+);
+
+// ── Portal ─────────────────────────────────────────────────────────────────────
 export default function NuvraPortal() {
     const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
@@ -56,479 +72,203 @@ export default function NuvraPortal() {
     }, []);
 
     return (
-        <div className="portal-root">
+        <div style={S.root}>
+            <PageLoader />
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap');
-
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+                ::-webkit-scrollbar { width: 4px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 2px; }
 
-                .portal-root {
-                    font-family: 'Inter', sans-serif;
-                    background: #080810;
-                    color: #fff;
-                    min-height: 100vh;
-                    overflow-x: hidden;
-                }
+                .portal-nav-link:hover { color: #F5F5F7 !important; }
+                .portal-footer-link:hover { color: #F5F5F7 !important; }
 
-                /* ── Nav ── */
-                .portal-nav {
-                    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-                    display: flex; align-items: center; justify-content: space-between;
-                    padding: 20px 48px;
-                    transition: all 0.3s ease;
-                }
-                .portal-nav.scrolled {
-                    background: rgba(8,8,16,0.92);
-                    backdrop-filter: blur(16px);
-                    border-bottom: 1px solid rgba(255,255,255,0.06);
-                    padding: 14px 48px;
-                }
-                .portal-nav-logo {
-                    display: flex; align-items: center; gap: 10px;
-                }
-                .portal-nav-logo img { height: 36px; }
-                .portal-nav-brand {
-                    font-family: 'Bebas Neue', cursive;
-                    font-size: 28px; letter-spacing: 2px;
-                    background: linear-gradient(135deg, #fff, #a78bfa);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                }
-                .portal-nav-links { display: flex; gap: 32px; align-items: center; }
-                .portal-nav-link {
-                    color: rgba(255,255,255,0.65); font-size: 14px; font-weight: 500;
-                    text-decoration: none; transition: color 0.2s;
-                    cursor: pointer; background: none; border: none;
-                }
-                .portal-nav-link:hover { color: #fff; }
-                .portal-nav-cta {
-                    padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
-                    background: linear-gradient(135deg, #7c3aed, #4f46e5);
-                    color: #fff; border: none; cursor: pointer; transition: opacity 0.2s;
-                }
-                .portal-nav-cta:hover { opacity: 0.85; }
+                .portal-card-community:hover { border-color: #00D4EC !important; }
+                .portal-card-club:hover { border-color: rgba(245,245,247,0.3) !important; }
 
-                /* ── Hero ── */
-                .portal-hero {
-                    min-height: 100vh;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    text-align: center; padding: 120px 24px 80px;
-                    position: relative; overflow: hidden;
-                }
-                .portal-hero-bg {
-                    position: absolute; inset: 0; z-index: 0;
-                    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,0.25) 0%, transparent 70%),
-                                radial-gradient(ellipse 60% 50% at 20% 80%, rgba(0,255,135,0.08) 0%, transparent 60%),
-                                radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,107,53,0.08) 0%, transparent 60%);
-                }
-                .portal-hero-badge {
-                    display: inline-flex; align-items: center; gap: 8px;
-                    background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4);
-                    border-radius: 100px; padding: 6px 16px; font-size: 13px; font-weight: 600;
-                    color: #a78bfa; margin-bottom: 32px; position: relative; z-index: 1;
-                }
-                .portal-hero-badge-dot {
-                    width: 6px; height: 6px; border-radius: 50%; background: #00ff87;
-                    animation: pulse 2s infinite;
-                }
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.5; transform: scale(1.3); }
-                }
-                .portal-hero-title {
-                    font-family: 'Bebas Neue', cursive;
-                    font-size: clamp(64px, 10vw, 140px);
-                    line-height: 0.9; letter-spacing: 4px;
-                    position: relative; z-index: 1; margin-bottom: 8px;
-                }
-                .portal-hero-title-green {
-                    background: linear-gradient(135deg, #00ff87, #00c9ff);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                }
-                .portal-hero-tagline {
-                    font-size: clamp(16px, 2.5vw, 22px); color: rgba(255,255,255,0.55);
-                    max-width: 560px; line-height: 1.6; margin: 20px auto 48px;
-                    position: relative; z-index: 1; font-weight: 500;
-                }
+                .portal-step:hover { border-color: #2a2a30 !important; background: #1a1a1f !important; }
 
-                /* ── Portal Cards ── */
-                .portal-cards-wrapper {
-                    display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
-                    position: relative; z-index: 1; margin-bottom: 48px;
-                }
-                .portal-card {
-                    width: 320px; border-radius: 24px; padding: 32px;
-                    cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease;
-                    border: 1px solid;
-                    text-align: left; position: relative; overflow: hidden;
-                    background: none;
-                }
-                .portal-card:hover { transform: translateY(-8px); }
-                .portal-card-community {
-                    background: linear-gradient(135deg, rgba(0,255,135,0.08), rgba(0,201,255,0.05));
-                    border-color: rgba(0,255,135,0.25);
-                    box-shadow: 0 0 40px rgba(0,255,135,0.08);
-                }
-                .portal-card-community:hover { box-shadow: 0 20px 60px rgba(0,255,135,0.15); }
-                .portal-card-club {
-                    background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(79,70,229,0.08));
-                    border-color: rgba(124,58,237,0.35);
-                    box-shadow: 0 0 40px rgba(124,58,237,0.08);
-                }
-                .portal-card-club:hover { box-shadow: 0 20px 60px rgba(124,58,237,0.2); }
-                .portal-card-icon {
-                    font-size: 40px; margin-bottom: 16px; display: block;
-                }
-                .portal-card-title {
-                    font-size: 22px; font-weight: 800; margin-bottom: 8px;
-                }
-                .portal-card-community .portal-card-title { color: #00ff87; }
-                .portal-card-club .portal-card-title { color: #a78bfa; }
-                .portal-card-subtitle {
-                    font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.6; margin-bottom: 24px;
-                }
-                .portal-card-features { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
-                .portal-card-feature {
-                    display: flex; align-items: center; gap: 10px;
-                    font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 500;
-                }
-                .portal-card-feature-dot {
-                    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-                }
-                .portal-card-community .portal-card-feature-dot { background: #00ff87; }
-                .portal-card-club .portal-card-feature-dot { background: #a78bfa; }
-                .portal-card-btn {
-                    width: 100%; padding: 12px; border-radius: 12px;
-                    font-size: 14px; font-weight: 700; border: none; cursor: pointer;
-                    transition: opacity 0.2s, transform 0.2s;
-                    letter-spacing: 0.5px;
-                }
-                .portal-card-btn:hover { opacity: 0.9; transform: scale(1.02); }
-                .portal-card-community .portal-card-btn {
-                    background: linear-gradient(135deg, #00ff87, #00c9ff);
-                    color: #080810;
-                }
-                .portal-card-club .portal-card-btn {
-                    background: linear-gradient(135deg, #7c3aed, #4f46e5);
-                    color: #fff;
-                }
-                .portal-card-glow {
-                    position: absolute; bottom: -40px; right: -40px;
-                    width: 120px; height: 120px; border-radius: 50%; filter: blur(40px);
-                    pointer-events: none;
-                }
-                .portal-card-community .portal-card-glow { background: rgba(0,255,135,0.2); }
-                .portal-card-club .portal-card-glow { background: rgba(124,58,237,0.3); }
+                .btn-primary:hover { background: #33DDFF !important; transform: translateY(-1px); }
+                .btn-secondary:hover { background: rgba(245,245,247,0.06) !important; transform: translateY(-1px); }
+                .btn-card-community:hover { background: #00D4EC !important; color: #0d0d10 !important; }
+                .btn-card-club:hover { background: rgba(208,64,239,0.12) !important; }
 
-                .portal-scroll-hint {
-                    position: relative; z-index: 1; color: rgba(255,255,255,0.3);
-                    font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 8px;
-                    animation: bounce 2s infinite;
-                }
-                @keyframes bounce {
+                @keyframes bounce-down {
                     0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(6px); }
+                    50% { transform: translateY(5px); }
+                }
+                @keyframes pulse-dot {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.5; transform: scale(1.4); }
                 }
 
-                /* ── Stats Section ── */
-                .portal-stats {
-                    padding: 80px 24px;
-                    border-top: 1px solid rgba(255,255,255,0.06);
-                    border-bottom: 1px solid rgba(255,255,255,0.06);
-                    display: flex; justify-content: center;
-                    background: rgba(255,255,255,0.02);
-                }
-                .portal-stats-inner {
-                    display: flex; gap: 0; flex-wrap: wrap; justify-content: center;
-                    max-width: 900px; width: 100%;
-                }
-                .portal-stat-card {
-                    flex: 1; min-width: 160px; text-align: center; padding: 24px 32px;
-                    border-right: 1px solid rgba(255,255,255,0.06);
-                    display: flex; flex-direction: column; gap: 8px;
-                }
-                .portal-stat-card:last-child { border-right: none; }
-                .portal-stat-number {
-                    font-family: 'Bebas Neue', cursive;
-                    font-size: 52px; line-height: 1;
-                    background: linear-gradient(135deg, #fff, #a78bfa);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                }
-                .portal-stat-label {
-                    font-size: 13px; color: rgba(255,255,255,0.45); font-weight: 500; text-transform: uppercase; letter-spacing: 1px;
-                }
-
-                /* ── Features Section ── */
-                .portal-section {
-                    padding: 100px 24px; max-width: 1100px; margin: 0 auto;
-                }
-                .portal-section-tag {
-                    display: inline-block; padding: 4px 14px; border-radius: 100px;
-                    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
-                    margin-bottom: 16px;
-                }
-                .portal-section-tag-green { background: rgba(0,255,135,0.1); color: #00ff87; }
-                .portal-section-tag-purple { background: rgba(124,58,237,0.15); color: #a78bfa; }
-                .portal-section-title {
-                    font-size: clamp(28px, 4vw, 48px); font-weight: 800; line-height: 1.15;
-                    margin-bottom: 16px;
-                }
-                .portal-section-desc {
-                    font-size: 16px; color: rgba(255,255,255,0.5); line-height: 1.7;
-                    max-width: 480px; margin-bottom: 40px;
-                }
-                .portal-two-col {
-                    display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;
-                }
                 @media (max-width: 768px) {
-                    .portal-two-col { grid-template-columns: 1fr; gap: 48px; }
-                    .portal-nav { padding: 16px 24px; }
-                    .portal-nav.scrolled { padding: 12px 24px; }
-                    .portal-nav-links { display: none; }
-                    .portal-stats-inner { gap: 0; }
-                    .portal-stat-card { min-width: 140px; }
+                    .portal-two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
+                    .portal-nav-links { display: none !important; }
+                    .portal-stats-inner { flex-wrap: wrap !important; }
+                    .portal-steps-grid { grid-template-columns: 1fr !important; }
+                    .portal-cards-wrapper { grid-template-columns: 1fr !important; }
+                    .portal-nav { padding: 14px 24px !important; }
                 }
-                .portal-feature-item {
-                    display: flex; align-items: center; gap: 14px;
-                    padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
-                    font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.8);
-                }
-                .portal-feature-icon { font-size: 22px; }
-
-                /* ── Visual Mock Card ── */
-                .portal-mock {
-                    background: rgba(255,255,255,0.04);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 20px; padding: 28px; overflow: hidden;
-                }
-                .portal-mock-header {
-                    display: flex; align-items: center; justify-content: space-between;
-                    margin-bottom: 20px;
-                }
-                .portal-mock-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
-                .portal-mock-badge {
-                    padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 700;
-                }
-                .portal-mock-badge-green { background: rgba(0,255,135,0.15); color: #00ff87; }
-                .portal-mock-badge-purple { background: rgba(124,58,237,0.2); color: #a78bfa; }
-                .portal-game-card {
-                    background: rgba(255,255,255,0.04); border: 1px solid rgba(0,255,135,0.15);
-                    border-radius: 14px; padding: 16px; margin-bottom: 12px;
-                }
-                .portal-game-vs { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
-                .portal-game-meta { display: flex; gap: 16px; font-size: 12px; color: rgba(255,255,255,0.45); }
-                .portal-slot-bar-wrap { margin-top: 12px; }
-                .portal-slot-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
-                .portal-slot-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
-                .portal-slot-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #00ff87, #00c9ff); transition: width 0.5s; }
-                .portal-player-row {
-                    display: flex; align-items: center; gap: 12px;
-                    padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-                }
-                .portal-player-avatar {
-                    width: 36px; height: 36px; border-radius: 50%;
-                    background: linear-gradient(135deg, #7c3aed, #4f46e5);
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 14px; font-weight: 700; flex-shrink: 0;
-                }
-                .portal-player-name { font-size: 14px; font-weight: 600; }
-                .portal-player-pos { font-size: 12px; color: rgba(255,255,255,0.4); }
-                .portal-player-rating {
-                    margin-left: auto; font-size: 13px; font-weight: 800;
-                    background: linear-gradient(135deg, #a78bfa, #7c3aed);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                }
-
-                /* ── How It Works ── */
-                .portal-steps {
-                    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
-                    margin-top: 48px;
-                }
-                @media (max-width: 768px) { .portal-steps { grid-template-columns: 1fr; } }
-                .portal-step {
-                    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-                    border-radius: 20px; padding: 28px; text-align: center;
-                    transition: border-color 0.3s;
-                }
-                .portal-step:hover { border-color: rgba(255,255,255,0.15); }
-                .portal-step-num {
-                    font-family: 'Bebas Neue', cursive; font-size: 48px; line-height: 1; margin-bottom: 16px;
-                }
-                .portal-step-num-green { color: #00ff87; }
-                .portal-step-num-purple { color: #a78bfa; }
-                .portal-step-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
-                .portal-step-desc { font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.6; }
-
-                /* ── CTA Section ── */
-                .portal-cta-section {
-                    padding: 100px 24px; text-align: center;
-                    background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(124,58,237,0.12) 0%, transparent 70%);
-                    border-top: 1px solid rgba(255,255,255,0.06);
-                }
-                .portal-cta-title {
-                    font-family: 'Bebas Neue', cursive;
-                    font-size: clamp(36px, 6vw, 72px); letter-spacing: 3px; margin-bottom: 16px;
-                }
-                .portal-cta-desc {
-                    color: rgba(255,255,255,0.45); font-size: 16px; margin-bottom: 40px;
-                }
-                .portal-cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-                .portal-btn-primary {
-                    padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 700;
-                    background: linear-gradient(135deg, #00ff87, #00c9ff);
-                    color: #080810; border: none; cursor: pointer;
-                    transition: transform 0.2s, box-shadow 0.2s;
-                    box-shadow: 0 0 30px rgba(0,255,135,0.3);
-                }
-                .portal-btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 40px rgba(0,255,135,0.4); }
-                .portal-btn-secondary {
-                    padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 700;
-                    background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4);
-                    color: #a78bfa; cursor: pointer; transition: transform 0.2s, background 0.2s;
-                }
-                .portal-btn-secondary:hover { transform: translateY(-3px); background: rgba(124,58,237,0.25); }
-
-                /* ── Footer ── */
-                .portal-footer {
-                    padding: 40px 48px; border-top: 1px solid rgba(255,255,255,0.06);
-                    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
-                }
-                .portal-footer-brand {
-                    font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 2px;
-                    background: linear-gradient(135deg, #fff, #a78bfa);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                }
-                .portal-footer-copy { font-size: 13px; color: rgba(255,255,255,0.3); }
-                .portal-footer-links { display: flex; gap: 24px; }
-                .portal-footer-link {
-                    font-size: 13px; color: rgba(255,255,255,0.4); cursor: pointer;
-                    text-decoration: none; transition: color 0.2s; background: none; border: none;
-                }
-                .portal-footer-link:hover { color: rgba(255,255,255,0.8); }
             `}</style>
 
-            {/* ── Navigation ── */}
-            <nav className={`portal-nav ${scrolled ? "scrolled" : ""}`}>
-                <div className="portal-nav-logo">
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" />
-                    <span className="portal-nav-brand">NUVRA</span>
+            {/* ── NAV ── */}
+            <nav style={{ ...S.nav, ...(scrolled ? S.navScrolled : {}) }}>
+                <div style={S.navLogo} onClick={() => navigate("/")}>
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={{ height: 32 }} />
+                    <span style={S.navBrand}>NUVRA</span>
                 </div>
-                <div className="portal-nav-links">
-                    <button className="portal-nav-link" onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>How It Works</button>
-                    <button className="portal-nav-link" onClick={() => document.getElementById("community-section")?.scrollIntoView({ behavior: "smooth" })}>Community</button>
-                    <button className="portal-nav-link" onClick={() => document.getElementById("club-section")?.scrollIntoView({ behavior: "smooth" })}>Nuvra Club</button>
-                    <button className="portal-nav-cta" onClick={() => navigate("/community")}>Get Started</button>
+                <div className="portal-nav-links" style={S.navLinks}>
+                    <button className="portal-nav-link" style={S.navLink}
+                        onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>
+                        How It Works
+                    </button>
+                    <button className="portal-nav-link" style={S.navLink}
+                        onClick={() => document.getElementById("community-section")?.scrollIntoView({ behavior: "smooth" })}>
+                        Community
+                    </button>
+                    <button className="portal-nav-link" style={S.navLink}
+                        onClick={() => document.getElementById("club-section")?.scrollIntoView({ behavior: "smooth" })}>
+                        Nuvra Club
+                    </button>
+                    <button
+                        className="btn-primary"
+                        style={S.navCta}
+                        onClick={() => navigate("/community")}
+                    >
+                        Get Started
+                    </button>
                 </div>
             </nav>
 
-            {/* ── Hero ── */}
-            <section className="portal-hero">
-                <div className="portal-hero-bg" />
-                <div className="portal-hero-badge">
-                    <span className="portal-hero-badge-dot" />
-                    Now Live — Football for Every Level
+            {/* ── HERO ── */}
+            <section style={S.hero}>
+                {/* Live badge */}
+                <div style={S.heroBadge}>
+                    <span style={S.heroBadgeDot} />
+                    <span>Now Live — Football for Every Level</span>
                 </div>
-                <h1 className="portal-hero-title">
+
+                {/* Title */}
+                <h1 style={S.heroTitle}>
                     THE FOOTBALL<br />
-                    <span className="portal-hero-title-green">ECOSYSTEM</span>
+                    <span style={{ color: "#00D4EC" }}>ECOSYSTEM</span>
                 </h1>
-                <p className="portal-hero-tagline">
+
+                <p style={S.heroTagline}>
                     Whether you're a casual player looking for a game tonight, or a coach managing a full squad — Nuvra has a place for you.
                 </p>
 
-                <div className="portal-cards-wrapper">
+                {/* Portal cards */}
+                <div className="portal-cards-wrapper" style={S.cardsWrapper}>
+
                     {/* Community Card */}
-                    <div className="portal-card portal-card-community" onClick={() => navigate("/community")}>
-                        <div className="portal-card-glow" />
-                        <span className="portal-card-icon">🏘️</span>
-                        <h2 className="portal-card-title">Nuvra Community</h2>
-                        <p className="portal-card-subtitle">
+                    <div
+                        className="portal-card-community"
+                        style={S.card}
+                        onClick={() => navigate("/community")}
+                    >
+                        <div style={{ ...S.cardAccentBar, background: "#00D4EC" }} />
+                        <h2 style={{ ...S.cardTitle, color: "#00D4EC" }}>NUVRA COMMUNITY</h2>
+                        <p style={S.cardSubtitle}>
                             No club? No problem. Find pickup games near you, pick your team, and book your slot.
                         </p>
-                        <div className="portal-card-features">
+                        <div style={S.cardFeatures}>
                             {["Browse open pickup games", "Join Team A or Team B", "Real-time slot availability", "Community announcements"].map(f => (
-                                <div key={f} className="portal-card-feature">
-                                    <span className="portal-card-feature-dot" />{f}
+                                <div key={f} style={S.cardFeatureRow}>
+                                    <span style={{ ...S.cardFeatureDot, background: "#00D4EC" }} />{f}
                                 </div>
                             ))}
                         </div>
-                        <button className="portal-card-btn">Join the Community →</button>
+                        <button className="btn-card-community" style={{ ...S.cardBtn, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>
+                            JOIN THE COMMUNITY <IconArrowRight />
+                        </button>
                     </div>
 
                     {/* Club Card */}
-                    <div className="portal-card portal-card-club" onClick={() => navigate("/login")}>
-                        <div className="portal-card-glow" />
-                        <span className="portal-card-icon">🏆</span>
-                        <h2 className="portal-card-title">Nuvra Club</h2>
-                        <p className="portal-card-subtitle">
+                    <div
+                        className="portal-card-club"
+                        style={S.card}
+                        onClick={() => navigate("/login")}
+                    >
+                        <div style={{ ...S.cardAccentBar, background: "#D040EF" }} />
+                        <h2 style={{ ...S.cardTitle, color: "#D040EF" }}>NUVRA CLUB</h2>
+                        <p style={S.cardSubtitle}>
                             The complete club management platform. Stats, squad, payments, and performance — all in one place.
                         </p>
-                        <div className="portal-card-features">
+                        <div style={S.cardFeatures}>
                             {["Player performance tracking", "Squad & jersey management", "Match stats & ratings", "Payment management"].map(f => (
-                                <div key={f} className="portal-card-feature">
-                                    <span className="portal-card-feature-dot" />{f}
+                                <div key={f} style={S.cardFeatureRow}>
+                                    <span style={{ ...S.cardFeatureDot, background: "#D040EF" }} />{f}
                                 </div>
                             ))}
                         </div>
-                        <button className="portal-card-btn">Access Club Portal →</button>
+                        <button className="btn-card-club" style={{ ...S.cardBtn, color: "#D040EF", borderColor: "rgba(208,64,239,0.3)" }}>
+                            ACCESS CLUB PORTAL <IconArrowRight />
+                        </button>
                     </div>
                 </div>
 
-                <div className="portal-scroll-hint">
-                    <span>Scroll to explore</span>
-                    <span>↓</span>
+                {/* Scroll hint */}
+                <div style={S.scrollHint}>
+                    <span style={{ fontSize: 12, color: "#72727e" }}>Scroll to explore</span>
+                    <span style={{ color: "#72727e", animation: "bounce-down 2s infinite" }}><IconArrowDown /></span>
                 </div>
             </section>
 
-            {/* ── Stats ── */}
-            <section className="portal-stats">
-                <div className="portal-stats-inner">
-                    <StatCard value={500} suffix="+" label="Community Players" />
-                    <StatCard value={120} suffix="+" label="Games Organised" />
-                    <StatCard value={30} suffix="+" label="Clubs on Platform" />
+            {/* ── STATS ── */}
+            <section style={S.statsSection}>
+                <div className="portal-stats-inner" style={S.statsInner}>
+                    <StatCard value={500}  suffix="+" label="Community Players" />
+                    <StatCard value={120}  suffix="+" label="Games Organised" />
+                    <StatCard value={30}   suffix="+" label="Clubs on Platform" />
                     <StatCard value={2500} suffix="+" label="Stats Recorded" />
                 </div>
             </section>
 
-            {/* ── Community Section ── */}
-            <section id="community-section" className="portal-section">
-                <div className="portal-two-col">
+            {/* ── COMMUNITY SECTION ── */}
+            <section id="community-section" style={S.section}>
+                <div className="portal-two-col" style={S.twoCol}>
                     <div>
-                        <span className="portal-section-tag portal-section-tag-green">Community</span>
-                        <h2 className="portal-section-title">Football without the commitment</h2>
-                        <p className="portal-section-desc">
-                            Not everyone wants to join a club. Nuvra Community lets you show up, pick a side, and play. No contracts. No stats pressure. Just football and good vibes.
+                        <span style={{ ...S.sectionTag, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>
+                            COMMUNITY
+                        </span>
+                        <h2 style={S.sectionTitle}>Football without<br />the commitment</h2>
+                        <p style={S.sectionDesc}>
+                            Not everyone wants to join a club. Nuvra Community lets you show up, pick a side, and play. No contracts. No stats pressure. Just football.
                         </p>
                         <div>
-                            <FeatureItem icon="📅" text="Games announced in advance with full details" />
-                            <FeatureItem icon="🪑" text="Live seat tracker — see exactly how many slots remain" />
-                            <FeatureItem icon="⚡" text="One-tap booking — in and out in under a minute" />
-                            <FeatureItem icon="📢" text="Community announcements from organisers" />
-                            <FeatureItem icon="📧" text="Email alerts when new games are posted" />
+                            <FeatureItem text="Games announced in advance with full details" />
+                            <FeatureItem text="Live seat tracker — see exactly how many slots remain" />
+                            <FeatureItem text="One-tap booking — in and out in under a minute" />
+                            <FeatureItem text="Community announcements from organisers" />
+                            <FeatureItem text="Email alerts when new games are posted" />
                         </div>
                     </div>
-                    {/* Community Preview Mock */}
-                    <div className="portal-mock">
-                        <div className="portal-mock-header">
-                            <span className="portal-mock-title">Upcoming Games</span>
-                            <span className="portal-mock-badge portal-mock-badge-green">3 Open</span>
+
+                    {/* Community Mock */}
+                    <div style={S.mockCard}>
+                        <div style={S.mockHeader}>
+                            <span style={S.mockTitle}>UPCOMING GAMES</span>
+                            <span style={{ ...S.mockBadge, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>3 OPEN</span>
                         </div>
                         {[
                             { title: "Team Alpha vs Team Beta", venue: "Cheras Futsal Arena", slots: 14, max: 20 },
-                            { title: "The Reds vs The Blues", venue: "Desa Park Turf", slots: 7, max: 20 },
+                            { title: "The Reds vs The Blues",   venue: "Desa Park Turf",     slots: 7,  max: 20 },
                         ].map((g, i) => (
-                            <div key={i} className="portal-game-card">
-                                <div className="portal-game-vs">{g.title}</div>
-                                <div className="portal-game-meta">
-                                    <span>📍 {g.venue}</span>
-                                    <span>⏰ Tonight, 9PM</span>
+                            <div key={i} style={S.gameCard}>
+                                <div style={S.gameVs}>{g.title}</div>
+                                <div style={S.gameMeta}>
+                                    <span>{g.venue}</span>
+                                    <span>Tonight, 9PM</span>
                                 </div>
-                                <div className="portal-slot-bar-wrap">
-                                    <div className="portal-slot-bar-label">
+                                <div style={{ marginTop: 10 }}>
+                                    <div style={S.slotLabel}>
                                         <span>Slots</span>
-                                        <span style={{ color: g.slots < 5 ? "#ff6b35" : "#00ff87" }}>{g.slots}/{g.max} left</span>
+                                        <span style={{ color: g.slots < 5 ? "#EF4444" : "#00D4EC" }}>{g.slots}/{g.max} left</span>
                                     </div>
-                                    <div className="portal-slot-bar">
-                                        <div className="portal-slot-bar-fill" style={{ width: `${(g.slots / g.max) * 100}%` }} />
+                                    <div style={S.slotTrack}>
+                                        <div style={{ ...S.slotFill, width: `${(g.slots / g.max) * 100}%` }} />
                                     </div>
                                 </div>
                             </div>
@@ -537,90 +277,101 @@ export default function NuvraPortal() {
                 </div>
             </section>
 
-            {/* ── Club Section ── */}
-            <section id="club-section" className="portal-section" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="portal-two-col">
-                    {/* Club Preview Mock */}
-                    <div className="portal-mock">
-                        <div className="portal-mock-header">
-                            <span className="portal-mock-title">Squad Roster</span>
-                            <span className="portal-mock-badge portal-mock-badge-purple">Active</span>
+            {/* ── CLUB SECTION ── */}
+            <section id="club-section" style={{ ...S.section, borderTop: "1px solid #222228" }}>
+                <div className="portal-two-col" style={S.twoCol}>
+                    {/* Club Mock */}
+                    <div style={S.mockCard}>
+                        <div style={S.mockHeader}>
+                            <span style={S.mockTitle}>SQUAD ROSTER</span>
+                            <span style={{ ...S.mockBadge, color: "#D040EF", borderColor: "rgba(208,64,239,0.3)" }}>ACTIVE</span>
                         </div>
                         {[
-                            { name: "Haziq Amirul", pos: "Forward", rating: "87", initial: "H" },
+                            { name: "Haziq Amirul", pos: "Forward",    rating: "87", initial: "H" },
                             { name: "Danial Razif", pos: "Midfielder", rating: "82", initial: "D" },
-                            { name: "Syafiq Nizam", pos: "Defender", rating: "79", initial: "S" },
+                            { name: "Syafiq Nizam", pos: "Defender",   rating: "79", initial: "S" },
                         ].map((p, i) => (
-                            <div key={i} className="portal-player-row">
-                                <div className="portal-player-avatar">{p.initial}</div>
+                            <div key={i} style={S.playerRow}>
+                                <div style={S.playerAvatar}>{p.initial}</div>
                                 <div>
-                                    <div className="portal-player-name">{p.name}</div>
-                                    <div className="portal-player-pos">{p.pos}</div>
+                                    <div style={S.playerName}>{p.name}</div>
+                                    <div style={S.playerPos}>{p.pos}</div>
                                 </div>
-                                <span className="portal-player-rating">{p.rating}</span>
+                                <span style={S.playerRating}>{p.rating}</span>
                             </div>
                         ))}
                     </div>
+
                     <div>
-                        <span className="portal-section-tag portal-section-tag-purple">Nuvra Club</span>
-                        <h2 className="portal-section-title">The complete club management system</h2>
-                        <p className="portal-section-desc">
+                        <span style={{ ...S.sectionTag, color: "#D040EF", borderColor: "rgba(208,64,239,0.3)" }}>
+                            NUVRA CLUB
+                        </span>
+                        <h2 style={S.sectionTitle}>The complete club<br />management system</h2>
+                        <p style={S.sectionDesc}>
                             Built for coaches and club owners who need a single platform to track every player, manage every match, and run every payment.
                         </p>
                         <div>
-                            <FeatureItem icon="📊" text="FIFA-style player cards with real attributes" />
-                            <FeatureItem icon="⚽" text="Match stats — goals, assists, ratings, cleansheets" />
-                            <FeatureItem icon="💳" text="Integrated payments via Billplz" />
-                            <FeatureItem icon="📣" text="Team announcements & scheduling" />
-                            <FeatureItem icon="🧑‍🤝‍🧑" text="Squad management & recruitment pipeline" />
+                            <FeatureItem text="FIFA-style player cards with real attributes" />
+                            <FeatureItem text="Match stats — goals, assists, ratings, cleansheets" />
+                            <FeatureItem text="Integrated payments via Billplz" />
+                            <FeatureItem text="Team announcements & scheduling" />
+                            <FeatureItem text="Squad management & recruitment pipeline" />
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* ── How It Works ── */}
-            <section id="how-it-works" style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.015)" }}>
+            {/* ── HOW IT WORKS ── */}
+            <section id="how-it-works" style={{ ...S.section, borderTop: "1px solid #222228", background: "#0f0f13" }}>
                 <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-                    <div style={{ textAlign: "center", marginBottom: 64 }}>
-                        <h2 style={{ fontSize: "clamp(28px,4vw,48px)", fontWeight: 800 }}>How It Works</h2>
-                        <p style={{ color: "rgba(255,255,255,0.4)", marginTop: 12, fontSize: 16 }}>Simple paths, powerful outcomes</p>
+                    <div style={{ textAlign: "center", marginBottom: 56 }}>
+                        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(28px,4vw,48px)", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>
+                            How It Works
+                        </h2>
+                        <p style={{ color: "#72727e", marginTop: 10, fontSize: 15 }}>Simple paths, powerful outcomes</p>
                     </div>
 
-                    <div style={{ marginBottom: 60 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
-                            <span style={{ fontSize: 20 }}>🏘️</span>
-                            <span style={{ fontWeight: 700, fontSize: 18, color: "#00ff87" }}>Community Path</span>
+                    {/* Community path */}
+                    <div style={{ marginBottom: 56 }}>
+                        <div style={S.pathLabel}>
+                            <span style={{ ...S.pathDot, background: "#00D4EC" }} />
+                            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 2, color: "#00D4EC", textTransform: "uppercase" }}>
+                                Community Path
+                            </span>
                         </div>
-                        <div className="portal-steps">
+                        <div className="portal-steps-grid" style={S.stepsGrid}>
                             {[
-                                { num: "01", title: "Sign Up Free", desc: "Create your community account in under a minute. No club needed." },
-                                { num: "02", title: "Browse Games", desc: "See all upcoming pickup games — venue, time, teams, and slots remaining." },
-                                { num: "03", title: "Book Your Slot", desc: "Pick a side and confirm your spot. You'll get an email confirmation." },
+                                { num: "01", title: "Sign Up Free",    desc: "Create your community account in under a minute. No club needed." },
+                                { num: "02", title: "Browse Games",    desc: "See all upcoming pickup games — venue, time, teams, and slots remaining." },
+                                { num: "03", title: "Book Your Slot",  desc: "Pick a side and confirm your spot. You'll get an email confirmation." },
                             ].map(s => (
-                                <div key={s.num} className="portal-step">
-                                    <div className={`portal-step-num portal-step-num-green`}>{s.num}</div>
-                                    <div className="portal-step-title">{s.title}</div>
-                                    <div className="portal-step-desc">{s.desc}</div>
+                                <div key={s.num} className="portal-step" style={S.step}>
+                                    <div style={{ ...S.stepNum, color: "#00D4EC" }}>{s.num}</div>
+                                    <div style={S.stepTitle}>{s.title}</div>
+                                    <div style={S.stepDesc}>{s.desc}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
+                    {/* Club path */}
                     <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
-                            <span style={{ fontSize: 20 }}>🏆</span>
-                            <span style={{ fontWeight: 700, fontSize: 18, color: "#a78bfa" }}>Club Path</span>
+                        <div style={S.pathLabel}>
+                            <span style={{ ...S.pathDot, background: "#D040EF" }} />
+                            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 2, color: "#D040EF", textTransform: "uppercase" }}>
+                                Club Path
+                            </span>
                         </div>
-                        <div className="portal-steps">
+                        <div className="portal-steps-grid" style={S.stepsGrid}>
                             {[
-                                { num: "01", title: "Coach Registers", desc: "Coach creates the team and sets up the club on Nuvra Club." },
-                                { num: "02", title: "Players Join", desc: "Players apply to the club and get approved by the coach." },
-                                { num: "03", title: "Manage Everything", desc: "Track stats, schedule matches, post announcements, manage payments." },
+                                { num: "01", title: "Coach Registers",      desc: "Coach creates the team and sets up the club on Nuvra Club." },
+                                { num: "02", title: "Players Join",         desc: "Players apply to the club and get approved by the coach." },
+                                { num: "03", title: "Manage Everything",    desc: "Track stats, schedule matches, post announcements, manage payments." },
                             ].map(s => (
-                                <div key={s.num} className="portal-step">
-                                    <div className={`portal-step-num portal-step-num-purple`}>{s.num}</div>
-                                    <div className="portal-step-title">{s.title}</div>
-                                    <div className="portal-step-desc">{s.desc}</div>
+                                <div key={s.num} className="portal-step" style={S.step}>
+                                    <div style={{ ...S.stepNum, color: "#D040EF" }}>{s.num}</div>
+                                    <div style={S.stepTitle}>{s.title}</div>
+                                    <div style={S.stepDesc}>{s.desc}</div>
                                 </div>
                             ))}
                         </div>
@@ -628,29 +379,399 @@ export default function NuvraPortal() {
                 </div>
             </section>
 
-            {/* ── Final CTA ── */}
-            <section className="portal-cta-section">
-                <h2 className="portal-cta-title">READY TO PLAY?</h2>
-                <p className="portal-cta-desc">Join Nuvra today — the football platform built for Malaysians.</p>
-                <div className="portal-cta-buttons">
-                    <button className="portal-btn-primary" onClick={() => navigate("/community")}>
-                        🏘️ Join Community — It's Free
+            {/* ── CTA ── */}
+            <section style={S.ctaSection}>
+                <h2 style={S.ctaTitle}>READY TO PLAY?</h2>
+                <p style={S.ctaDesc}>Join Nuvra today — the football platform built for Malaysians.</p>
+                <div style={S.ctaButtons}>
+                    <button className="btn-primary" style={S.btnPrimary} onClick={() => navigate("/community")}>
+                        JOIN COMMUNITY — IT'S FREE
                     </button>
-                    <button className="portal-btn-secondary" onClick={() => navigate("/login")}>
-                        🏆 Club Portal →
+                    <button className="btn-secondary" style={S.btnSecondary} onClick={() => navigate("/login")}>
+                        CLUB PORTAL <IconArrowRight />
                     </button>
                 </div>
             </section>
 
-            {/* ── Footer ── */}
-            <footer className="portal-footer">
-                <span className="portal-footer-brand">NUVRA SPORTS</span>
-                <div className="portal-footer-links">
-                    <button className="portal-footer-link" onClick={() => navigate("/community")}>Community</button>
-                    <button className="portal-footer-link" onClick={() => navigate("/login")}>Club Portal</button>
+            {/* ── FOOTER ── */}
+            <footer style={S.footer}>
+                <span style={S.footerBrand}>NUVRA SPORTS</span>
+                <div style={{ display: "flex", gap: 24 }}>
+                    <button className="portal-footer-link" style={S.footerLink} onClick={() => navigate("/community")}>Community</button>
+                    <button className="portal-footer-link" style={S.footerLink} onClick={() => navigate("/login")}>Club Portal</button>
                 </div>
-                <span className="portal-footer-copy">© {new Date().getFullYear()} Nuvra Sports. All rights reserved.</span>
+                <span style={S.footerCopy}>© {new Date().getFullYear()} Nuvra Sports. All rights reserved.</span>
             </footer>
         </div>
     );
 }
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
+const S = {
+    root: {
+        fontFamily: "'Inter', sans-serif",
+        background: "#0d0d10",
+        color: "#F5F5F7",
+        minHeight: "100vh",
+        overflowX: "hidden",
+    },
+
+    // Nav
+    nav: {
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "20px 48px",
+        transition: "all 0.25s ease",
+    },
+    navScrolled: {
+        background: "rgba(13,13,16,0.96)",
+        borderBottom: "1px solid #222228",
+        padding: "14px 48px",
+    },
+    navLogo: {
+        display: "flex", alignItems: "center", gap: 10,
+        cursor: "pointer",
+    },
+    navBrand: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 26, fontWeight: 700, letterSpacing: 3,
+        color: "#F5F5F7",
+    },
+    navLinks: {
+        display: "flex", gap: 28, alignItems: "center",
+    },
+    navLink: {
+        color: "#72727e", fontSize: 14, fontWeight: 500,
+        background: "none", border: "none", cursor: "pointer",
+        transition: "color 0.15s",
+    },
+    navCta: {
+        padding: "8px 20px",
+        background: "#00D4EC",
+        color: "#0d0d10",
+        border: "none",
+        borderRadius: 4,
+        fontSize: 13, fontWeight: 700,
+        cursor: "pointer",
+        transition: "background 0.15s, transform 0.15s",
+        letterSpacing: 0.5,
+    },
+
+    // Hero
+    hero: {
+        minHeight: "100vh",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        textAlign: "center", padding: "120px 24px 80px",
+        position: "relative",
+    },
+    heroBadge: {
+        display: "inline-flex", alignItems: "center", gap: 8,
+        background: "#161619", border: "1px solid #2a2a30",
+        borderRadius: 3, padding: "6px 14px",
+        fontSize: 12, fontWeight: 600, color: "#72727e",
+        marginBottom: 28, letterSpacing: 0.5,
+    },
+    heroBadgeDot: {
+        width: 6, height: 6, borderRadius: "50%",
+        background: "#00D4EC",
+        display: "inline-block",
+        animation: "pulse-dot 2s infinite",
+    },
+    heroTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: "clamp(64px, 10vw, 136px)",
+        fontWeight: 800,
+        lineHeight: 0.92,
+        letterSpacing: 4,
+        textTransform: "uppercase",
+        marginBottom: 24,
+        color: "#F5F5F7",
+    },
+    heroTagline: {
+        fontSize: "clamp(15px, 2vw, 18px)",
+        color: "#72727e",
+        maxWidth: 520, lineHeight: 1.7,
+        margin: "0 auto 48px",
+        fontWeight: 400,
+    },
+
+    // Portal cards
+    cardsWrapper: {
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(280px, 320px))",
+        gap: 16,
+        justifyContent: "center",
+        marginBottom: 40,
+    },
+    card: {
+        background: "#161619",
+        border: "1px solid #222228",
+        borderRadius: 4,
+        padding: "28px 28px 24px",
+        textAlign: "left",
+        cursor: "pointer",
+        transition: "border-color 0.2s",
+        position: "relative",
+        overflow: "hidden",
+    },
+    cardAccentBar: {
+        position: "absolute",
+        top: 0, left: 0, right: 0,
+        height: 2,
+    },
+    cardTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 22, fontWeight: 700,
+        letterSpacing: 2,
+        marginBottom: 10,
+        marginTop: 12,
+    },
+    cardSubtitle: {
+        fontSize: 13, color: "#72727e", lineHeight: 1.65, marginBottom: 20,
+    },
+    cardFeatures: {
+        display: "flex", flexDirection: "column", gap: 8, marginBottom: 24,
+    },
+    cardFeatureRow: {
+        display: "flex", alignItems: "center", gap: 10,
+        fontSize: 13, color: "#b0b0be", fontWeight: 500,
+    },
+    cardFeatureDot: {
+        width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+    },
+    cardBtn: {
+        width: "100%", padding: "11px 16px",
+        background: "transparent", border: "1px solid",
+        borderRadius: 4,
+        fontSize: 12, fontWeight: 700, letterSpacing: 0.8,
+        cursor: "pointer", transition: "background 0.2s, color 0.2s",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+    },
+
+    // Scroll hint
+    scrollHint: {
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+    },
+
+    // Stats
+    statsSection: {
+        borderTop: "1px solid #222228",
+        borderBottom: "1px solid #222228",
+        background: "#0f0f13",
+        display: "flex", justifyContent: "center",
+        padding: "64px 24px",
+    },
+    statsInner: {
+        display: "flex", flexWrap: "wrap",
+        justifyContent: "center",
+        maxWidth: 900, width: "100%",
+    },
+    statCard: {
+        flex: 1, minWidth: 160,
+        textAlign: "center", padding: "16px 32px",
+        borderRight: "1px solid #222228",
+        display: "flex", flexDirection: "column", gap: 6,
+    },
+    statNumber: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 52, fontWeight: 700, lineHeight: 1,
+        color: "#F5F5F7",
+    },
+    statLabel: {
+        fontSize: 11, color: "#72727e", fontWeight: 500,
+        textTransform: "uppercase", letterSpacing: 1.5,
+    },
+
+    // Section
+    section: {
+        padding: "88px 24px",
+        maxWidth: 1100, margin: "0 auto",
+    },
+    twoCol: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 72, alignItems: "center",
+    },
+    sectionTag: {
+        display: "inline-block",
+        padding: "3px 10px",
+        border: "1px solid",
+        borderRadius: 3,
+        fontSize: 10, fontWeight: 700,
+        textTransform: "uppercase", letterSpacing: 2,
+        marginBottom: 18,
+        fontFamily: "'Barlow Condensed', sans-serif",
+    },
+    sectionTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: "clamp(28px, 4vw, 44px)",
+        fontWeight: 700, lineHeight: 1.1,
+        letterSpacing: 1,
+        marginBottom: 16,
+        textTransform: "uppercase",
+    },
+    sectionDesc: {
+        fontSize: 15, color: "#72727e",
+        lineHeight: 1.75, maxWidth: 460, marginBottom: 32,
+    },
+    featureItem: {
+        display: "flex", alignItems: "center", gap: 14,
+        padding: "12px 0",
+        borderBottom: "1px solid #1e1e23",
+        fontSize: 14, fontWeight: 500, color: "#b0b0be",
+    },
+    featureDot: {
+        width: 4, height: 4,
+        background: "#00D4EC",
+        borderRadius: "50%", flexShrink: 0,
+    },
+
+    // Mock card
+    mockCard: {
+        background: "#161619",
+        border: "1px solid #222228",
+        borderRadius: 4,
+        padding: "24px",
+    },
+    mockHeader: {
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 18,
+    },
+    mockTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 13, fontWeight: 700,
+        color: "#72727e", letterSpacing: 2, textTransform: "uppercase",
+    },
+    mockBadge: {
+        padding: "3px 9px",
+        border: "1px solid",
+        borderRadius: 3,
+        fontSize: 10, fontWeight: 700, letterSpacing: 1,
+    },
+    gameCard: {
+        background: "#1a1a1f",
+        border: "1px solid #2a2a30",
+        borderRadius: 4,
+        padding: "14px", marginBottom: 10,
+    },
+    gameVs: {
+        fontSize: 14, fontWeight: 700, marginBottom: 6, color: "#F5F5F7",
+    },
+    gameMeta: {
+        display: "flex", gap: 16, fontSize: 12, color: "#72727e",
+    },
+    slotLabel: {
+        display: "flex", justifyContent: "space-between",
+        fontSize: 11, color: "#72727e", marginBottom: 5,
+    },
+    slotTrack: {
+        height: 3, background: "#2a2a30", borderRadius: 3, overflow: "hidden",
+    },
+    slotFill: {
+        height: "100%", borderRadius: 3, background: "#00D4EC",
+        transition: "width 0.5s",
+    },
+    playerRow: {
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "12px 0", borderBottom: "1px solid #1e1e23",
+    },
+    playerAvatar: {
+        width: 34, height: 34, borderRadius: "50%",
+        background: "#1a1a1f",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 13, fontWeight: 700, flexShrink: 0,
+        color: "#D040EF",
+        border: "1px solid rgba(208,64,239,0.25)",
+    },
+    playerName: { fontSize: 14, fontWeight: 600, color: "#F5F5F7" },
+    playerPos:  { fontSize: 12, color: "#72727e" },
+    playerRating: {
+        marginLeft: "auto",
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 20, fontWeight: 700, color: "#D040EF",
+    },
+
+    // How it works
+    pathLabel: {
+        display: "flex", alignItems: "center", gap: 10, marginBottom: 20,
+    },
+    pathDot: {
+        width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+    },
+    stepsGrid: {
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16,
+    },
+    step: {
+        background: "#161619",
+        border: "1px solid #222228",
+        borderRadius: 4,
+        padding: "24px",
+        transition: "border-color 0.2s, background 0.2s",
+    },
+    stepNum: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 44, fontWeight: 700, lineHeight: 1, marginBottom: 14,
+    },
+    stepTitle: { fontSize: 16, fontWeight: 700, marginBottom: 8, color: "#F5F5F7" },
+    stepDesc:  { fontSize: 13, color: "#72727e", lineHeight: 1.65 },
+
+    // CTA
+    ctaSection: {
+        padding: "96px 24px",
+        textAlign: "center",
+        borderTop: "1px solid #222228",
+    },
+    ctaTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: "clamp(40px, 6vw, 80px)",
+        fontWeight: 800, letterSpacing: 4,
+        textTransform: "uppercase",
+        marginBottom: 14,
+    },
+    ctaDesc: {
+        color: "#72727e", fontSize: 16, marginBottom: 40,
+    },
+    ctaButtons: {
+        display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap",
+    },
+    btnPrimary: {
+        padding: "14px 36px",
+        background: "#00D4EC",
+        color: "#0d0d10",
+        border: "none", borderRadius: 4,
+        fontSize: 14, fontWeight: 700, letterSpacing: 0.8,
+        cursor: "pointer",
+        transition: "background 0.15s, transform 0.15s",
+    },
+    btnSecondary: {
+        padding: "14px 36px",
+        background: "transparent",
+        color: "#F5F5F7",
+        border: "1px solid #2a2a30",
+        borderRadius: 4,
+        fontSize: 14, fontWeight: 700, letterSpacing: 0.8,
+        cursor: "pointer",
+        transition: "background 0.15s, transform 0.15s",
+        display: "flex", alignItems: "center", gap: 8,
+    },
+
+    // Footer
+    footer: {
+        padding: "32px 48px",
+        borderTop: "1px solid #222228",
+        display: "flex", justifyContent: "space-between",
+        alignItems: "center", flexWrap: "wrap", gap: 16,
+    },
+    footerBrand: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 20, fontWeight: 700, letterSpacing: 3, color: "#F5F5F7",
+    },
+    footerLink: {
+        fontSize: 13, color: "#72727e", cursor: "pointer",
+        background: "none", border: "none",
+        transition: "color 0.15s",
+    },
+    footerCopy: {
+        fontSize: 12, color: "#72727e",
+    },
+};

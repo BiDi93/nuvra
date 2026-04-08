@@ -3,16 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
+use App\Models\Match;
+use App\Models\Performance;
 
 class PerformanceController extends Controller
 {
     /**
      * Store a new match and performance record.
-     * This method is designed to be called from the revamped "Record Stats" page.
-     * It creates a match and a performance entry in a single transaction.
      */
     public function store(Request $request)
     {
@@ -36,51 +35,33 @@ class PerformanceController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated) {
-                // Step 1: Create or find the match
-                // This prevents creating duplicate matches for the same game
-                $match = DB::table('matches')->updateOrInsert(
-                    [
-                        'coach_id' => $validated['coach_id'],
-                        'opponent_name' => $validated['opponent_name'],
-                        'match_date' => $validated['match_date'],
-                    ],
-                    [
-                        'category' => $validated['category'],
-                        'league_name' => $validated['league_name'],
-                        'event_name' => $validated['event_name'],
-                        'venue' => $validated['venue'] ?? 'None', // Default to 'None'
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
-                
-                // Retrieve the ID of the inserted/updated match
-                // Since updateOrInsert doesn't return the model/id, we need to fetch it.
-                $matchId = DB::table('matches')->where([
+            $match = Match::updateOrCreate(
+                [
                     'coach_id' => $validated['coach_id'],
                     'opponent_name' => $validated['opponent_name'],
                     'match_date' => $validated['match_date'],
-                ])->value('id');
+                ],
+                [
+                    'category' => $validated['category'],
+                    'league_name' => $validated['league_name'],
+                    'event_name' => $validated['event_name'],
+                    'venue' => $validated['venue'] ?? 'None',
+                ]
+            );
 
-
-                // Step 2: Create or update the performance record for the player in that match
-                DB::table('performances')->updateOrInsert(
-                    [
-                        'player_id' => $validated['player_id'],
-                        'match_id' => $matchId,
-                    ],
-                    [
-                        'minutes_played' => $validated['minutes_played'],
-                        'goals' => $validated['goals'],
-                        'assists' => $validated['assists'],
-                        'rating' => $validated['rating'],
-                        'cleansheet' => $validated['cleansheet'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
-            });
+            Performance::updateOrCreate(
+                [
+                    'player_id' => $validated['player_id'],
+                    'match_id' => $match->id,
+                ],
+                [
+                    'minutes_played' => $validated['minutes_played'],
+                    'goals' => $validated['goals'],
+                    'assists' => $validated['assists'],
+                    'rating' => $validated['rating'],
+                    'cleansheet' => $validated['cleansheet'],
+                ]
+            );
 
             return response()->json(['message' => 'Stats saved successfully!']);
 
@@ -88,5 +69,11 @@ class PerformanceController extends Controller
             Log::error('Error saving performance: ' . $e->getMessage());
             return response()->json(['message' => 'An error occurred while saving the stats.'], 500);
         }
+    }
+
+    public function getMatches($coachId)
+    {
+        $matches = Match::where('coach_id', $coachId)->get();
+        return response()->json($matches);
     }
 }

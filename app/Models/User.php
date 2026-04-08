@@ -50,4 +50,28 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get the player profile associated with the user.
+     */
+    public function player()
+    {
+        return $this->hasOne(Player::class);
+    }
+
+    /**
+     * Get the coach profile associated with the user.
+     */
+    public function coach()
+    {
+        return $this->hasOne(Coach::class);
+    }
+
+    /**
+     * Get the community user profile associated with the user.
+     */
+    public function communityUser()
+    {
+        return $this->hasOne(CommunityUser::class);
+    }
 }

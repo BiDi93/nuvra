@@ -1,184 +1,168 @@
-import React, { useState } from "react";
+import React from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import DynamicBackground from "../Components/DynamicBackground";
 
 export default function CoachLayout() {
     const navigate = useNavigate();
-    const coachName = "Coach Carter";
-    const teamName = "NUVRA Varsity";
-    const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
     const handleLogout = () => {
         localStorage.removeItem("auth_token");
-        navigate("/login", { replace: true }); // 'replace: true' erases the Dashboard from history stack
+        window.location.href = "/login";
     };
 
-    // Style for sidebar links
-    const linkStyle = ({ isActive }) =>
-        `flex items-center px-4 py-4 rounded-xl font-bold transition-all whitespace-nowrap ${isActive
-            ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
-            : "text-gray-400 hover:bg-white/5 hover:text-white"
-        } ${!isSidebarHovered ? "justify-center w-auto mx-2" : "w-full gap-3"}`;
+    const navLinks = [
+        { to: "/coach-dashboard",               end: true,  icon: "⊞", label: "SQUAD" },
+        { to: "/coach-dashboard/add-stats",      end: false, icon: "📊", label: "RECORD STATS" },
+        { to: "/coach-dashboard/announcements",  end: false, icon: "📢", label: "NOTICES" },
+        { to: "/coach-dashboard/schedule",       end: false, icon: "📅", label: "SCHEDULE" },
+        { to: "/coach-dashboard/payment",        end: false, icon: "💳", label: "PAYMENT" },
+    ];
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
-            {/* SIDEBAR */}
-            <div className="w-24 flex-shrink-0 z-10" />
-            <aside
-                className={`fixed top-0 left-0 h-screen bg-[#1a1c23] flex flex-col shadow-xl z-30 transition-all duration-500 ${isSidebarHovered ? "w-72" : "w-24"}`}
-                onMouseEnter={() => setIsSidebarHovered(true)}
-                onMouseLeave={() => setIsSidebarHovered(false)}
-            >
-                <div className={`py-8 transition-all duration-500 ${isSidebarHovered ? "px-8" : "px-0 flex flex-col items-center"}`}>
-                    <div className={`flex items-center mb-1 transition-all duration-500 ${isSidebarHovered ? "gap-3" : "gap-0"}`}>
-                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-12 w-12 flex-shrink-0 object-cover object-left" />
-                        <span className={`text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>
-                            NUVRA
-                        </span>
+        <div style={S.root}>
+            <DynamicBackground />
+            <style>{`
+                * { box-sizing: border-box; }
+                ::-webkit-scrollbar { width: 5px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+                .coach-nav-link { display:flex; align-items:center; gap:10px; padding:10px 20px; background:transparent; border:none; color:rgba(255,255,255,0.4); font-size:11px; font-weight:700; letter-spacing:1.2px; cursor:pointer; font-family:inherit; text-align:left; width:100%; text-decoration:none; position:relative; transition: color 0.2s, background 0.2s; }
+                .coach-nav-link:hover { color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.03); }
+                .coach-nav-link.active { color:#fff; background:rgba(255,255,255,0.05); }
+                .coach-nav-link.active::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,#a78bfa,#7c3aed); border-radius:0 2px 2px 0; }
+            `}</style>
+
+            {/* ── LEFT SIDEBAR ── */}
+            <aside style={S.sidebar}>
+                <div style={S.brand} onClick={() => navigate("/")}>
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={S.brandLogo} />
+                    <div>
+                        <div style={S.brandText}>NUVRA</div>
+                        <div style={S.brandSub}>CLUB PORTAL</div>
                     </div>
-                    <p className={`text-gray-500 text-xs font-bold tracking-widest mt-1 transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>
-                        ADMIN PORTAL
-                    </p>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-3">
-                    <NavLink to="/coach-dashboard" end className={linkStyle}>
-                        <svg
-                            className="w-5 h-5 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                            />
-                        </svg>
-                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Squad Management</span>
-                    </NavLink>
+                <div style={S.divider} />
 
-                    <NavLink
-                        to="/coach-dashboard/add-stats"
-                        className={linkStyle}
-                    >
-                        <svg
-                            className="w-5 h-5 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                <nav style={S.sideNav}>
+                    {navLinks.map(link => (
+                        <NavLink
+                            key={link.to}
+                            to={link.to}
+                            end={link.end}
+                            className={({ isActive }) => `coach-nav-link${isActive ? " active" : ""}`}
                         >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                            />
-                        </svg>
-                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Record Match Stats</span>
-                    </NavLink>
-                    <NavLink
-                        to="/coach-dashboard/announcements"
-                        className={linkStyle}
-                    >
-                        <svg
-                            className="w-5 h-5 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"
-                            />
-                        </svg>
-                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Announcements</span>
-                    </NavLink>
-                    <NavLink
-                        to="/coach-dashboard/schedule"
-                        className={linkStyle}
-                    >
-                        <svg
-                            className="w-5 h-5 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                        </svg>
-                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Team Schedule</span>
-                    </NavLink>
-                    <NavLink
-                        to="/coach-dashboard/payment"
-                        className={linkStyle} // <--- Added missing style!
-                    >
-                        <svg
-                            className="w-5 h-5 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Payment</span>
-                    </NavLink>
+                            <span style={S.navIcon}>{link.icon}</span>
+                            <span>{link.label}</span>
+                        </NavLink>
+                    ))}
                 </nav>
 
-                <div className="p-4 border-t border-white/10">
-                    <button
-                        onClick={handleLogout}
-                        className={`flex items-center py-3 text-red-400 hover:bg-white/5 rounded-xl transition-colors font-bold text-sm ${isSidebarHovered ? "px-4 w-full gap-3" : "justify-center w-full"}`}
-                    >
-                        <svg
-                            className="w-5 h-5 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                            />
-                        </svg>
-                        <span className={`transition-all duration-500 overflow-hidden whitespace-nowrap ${!isSidebarHovered ? "opacity-0 max-w-0" : "opacity-100 max-w-xs"}`}>Sign Out</span>
-                    </button>
-                </div>
+                <div style={{ flex: 1 }} />
+
+                <div style={S.divider} />
+
+                <button style={S.logoutBtn} onClick={handleLogout}>
+                    <span>↩</span>
+                    <span>SIGN OUT</span>
+                </button>
             </aside>
 
-            {/* MAIN CONTENT AREA */}
-            <main className="flex-1 overflow-y-auto relative flex flex-col">
-                {/* HEADER */}
-                <header className="bg-white border-b border-gray-200 px-8 py-6 flex justify-between items-center sticky top-0 z-10">
-                    <div>
-                        <h2 className="text-3xl font-black text-gray-900">
-                            {teamName}
-                        </h2>
-                        <p className="text-gray-400 font-medium">
-                            Head Coach:{" "}
-                            <span className="text-gray-900">{coachName}</span>
-                        </p>
-                    </div>
-                </header>
-
-                {/* DYNAMIC CONTENT LOADS HERE */}
-                <div className="p-8 max-w-7xl mx-auto w-full">
-                    <Outlet />
-                </div>
+            {/* ── MAIN CONTENT ── */}
+            <main style={S.main}>
+                <Outlet />
             </main>
         </div>
     );
 }
+
+const S = {
+    root: {
+        display: "flex",
+        minHeight: "100vh",
+        background: "#080a12",
+        color: "#fff",
+        fontFamily: "'Inter', sans-serif",
+        position: "relative",
+        overflow: "hidden",
+    },
+    sidebar: {
+        width: 220,
+        minWidth: 220,
+        minHeight: "100vh",
+        background: "rgba(6,7,18,0.97)",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: 0, left: 0, bottom: 0,
+        zIndex: 50,
+        backdropFilter: "blur(20px)",
+    },
+    brand: {
+        padding: "24px 20px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+    },
+    brandLogo: {
+        width: 36, height: 36,
+        objectFit: "contain",
+        flexShrink: 0,
+    },
+    brandText: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 20,
+        letterSpacing: 3,
+        color: "#fff",
+        lineHeight: 1,
+    },
+    brandSub: {
+        fontSize: 8,
+        letterSpacing: 2,
+        color: "rgba(167,139,250,0.6)",
+        marginTop: 2,
+        textTransform: "uppercase",
+    },
+    divider: {
+        height: 1,
+        background: "rgba(255,255,255,0.05)",
+        margin: "4px 0",
+    },
+    sideNav: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        padding: "8px 0",
+    },
+    navIcon: {
+        fontSize: 14,
+        width: 20,
+        textAlign: "center",
+        flexShrink: 0,
+    },
+    logoutBtn: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "14px 20px",
+        background: "transparent",
+        border: "none",
+        color: "rgba(255,100,100,0.5)",
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 1.2,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        width: "100%",
+        transition: "color 0.2s",
+    },
+    main: {
+        marginLeft: 220,
+        flex: 1,
+        position: "relative",
+        zIndex: 10,
+        minHeight: "100vh",
+    },
+};

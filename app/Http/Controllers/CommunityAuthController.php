@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Models\CommunityUser;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class CommunityAuthController extends Controller
 {
@@ -14,30 +15,34 @@ class CommunityAuthController extends Controller
     {
         $request->validate([
             'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:community_users,email',
+            'email'    => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
         ]);
 
-        $user = DB::table('community_users')->insertGetId([
-            'name'       => $request->name,
-            'email'      => $request->email,
-            'password'   => Hash::make($request->password),
-            'role'       => 'player',
-            'phone'      => $request->phone ?? null,
-            'created_at' => now(),
-            'updated_at' => now(),
+        // Create unified User
+        $user = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => Hash::make($request->password),
+            'role'     => 'community_player',
+            'phone'    => $request->phone ?? null,
         ]);
 
-        $token = Str::random(60);
-
-        DB::table('community_users')->where('id', $user)->update([
-            'remember_token' => $token,
+        // Create Community Profile
+        CommunityUser::create([
+            'user_id' => $user->id,
+            'name'    => $user->name,
+            'email'   => $user->email,
+            'role'    => 'player',
+            'phone'   => $user->phone,
         ]);
+
+        $token = $user->createToken('community_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Registration successful! Welcome to the Nuvra Community.',
             'token'   => $token,
-            'user'    => DB::table('community_users')->where('id', $user)->first(),
+            'user'    => $user,
         ], 201);
     }
 
@@ -49,18 +54,12 @@ class CommunityAuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = DB::table('community_users')->where('email', $request->email)->first();
-
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (!Auth::attempt($request->only('email', 'password'))) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        $token = Str::random(60);
-
-        DB::table('community_users')->where('id', $user->id)->update([
-            'remember_token' => $token,
-            'updated_at'     => now(),
-        ]);
+        $user = Auth::user();
+        $token = $user->createToken('community_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
@@ -77,32 +76,14 @@ class CommunityAuthController extends Controller
     // ── Logout ────────────────────────────────────────────────────────────────
     public function logout(Request $request)
     {
-        $token = $request->bearerToken();
-
-        if ($token) {
-            DB::table('community_users')->where('remember_token', $token)->update([
-                'remember_token' => null,
-                'updated_at'     => now(),
-            ]);
-        }
-
+        $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
     // ── Get Current User (me) ─────────────────────────────────────────────────
     public function me(Request $request)
     {
-        $token = $request->bearerToken();
-
-        if (! $token) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        $user = DB::table('community_users')->where('remember_token', $token)->first();
-
-        if (! $user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
+        $user = $request->user();
 
         return response()->json([
             'id'    => $user->id,
