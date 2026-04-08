@@ -111,11 +111,11 @@ function PaymentModal({ game, side, onClose, onSuccess }) {
 function TeamLogo({ name, color }) {
     return (
         <div style={{
-            width: 32, height: 32, borderRadius: 8,
+            width: 36, height: 36, borderRadius: 10,
             background: `linear-gradient(135deg, ${color}, #080a12)`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, fontWeight: 900, color: "#fff",
-            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: 18, fontWeight: 900, color: "#fff",
+            fontFamily: "'Inter', sans-serif",
             border: `1px solid ${color}44`,
             flexShrink: 0
         }}>
@@ -135,7 +135,7 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
     return (
         <div style={T.wrap}>
             <div style={T.header}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <TeamLogo name={teamName} color={side === "team_a" ? "#00D4EC" : "#D040EF"} />
                     <span style={T.teamName}>{teamName}</span>
                 </div>
@@ -150,8 +150,8 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
                         ...T.seat,
                         background: i < filled
                             ? `linear-gradient(135deg, ${color}, ${isFull ? "#ff4444" : "#00D4EC"})`
-                            : "rgba(255,255,255,0.04)",
-                        border: i < filled ? "none" : "1px solid rgba(255,255,255,0.07)",
+                            : "rgba(255,255,255,0.05)",
+                        border: i < filled ? "none" : "1px solid rgba(255,255,255,0.08)",
                     }} />
                 ))}
             </div>
@@ -478,53 +478,55 @@ export default function GameDetail() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
     topBar: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", marginBottom: 24 },
-    backBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
+    backBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 700, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
     topBarRight: { display: "flex", gap: 12, alignItems: "center" },
-    statusBadge: { padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 1 },
-    cancelBtn: { padding: "6px 12px", borderRadius: 6, border: "1px solid rgba(255,68,68,0.3)", background: "rgba(255,68,68,0.08)", color: "#ff6b6b", fontSize: 10, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
+    statusBadge: { padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 800, letterSpacing: 1, fontFamily: "'Inter', sans-serif" },
+    cancelBtn: { padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,68,68,0.3)", background: "rgba(255,68,68,0.08)", color: "#ff6b6b", fontSize: 11, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
 
-    gameHeader: { marginBottom: 20 },
-    sectionLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, letterSpacing: 3, color: "rgba(255,255,255,0.3)", marginBottom: 10 },
-    gameTitle: { fontSize: "clamp(22px, 3vw, 36px)", fontWeight: 800, lineHeight: 1.2, marginBottom: 12 },
-    gameMeta: { display: "flex", flexWrap: "wrap", gap: 16, fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 10, alignItems: "center" },
-    gameDesc: { fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, maxWidth: 600 },
-    priceBadge: { padding: "3px 10px", borderRadius: 4, background: "rgba(0,201,255,0.1)", border: "1px solid rgba(0,201,255,0.25)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 },
-    freeBadge:  { padding: "3px 10px", borderRadius: 4, background: "rgba(0,212,236,0.08)", border: "1px solid rgba(0,212,236,0.2)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 0.5 },
+    gameHeader: { marginBottom: 28 },
+    sectionLabel: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 800, letterSpacing: 2, color: "rgba(255,255,255,0.35)", marginBottom: 12 },
+    gameTitle: { fontSize: "clamp(26px, 4vw, 42px)", fontWeight: 900, lineHeight: 1.1, marginBottom: 16, fontFamily: "'Inter', sans-serif" },
+    gameMeta: { display: "flex", flexWrap: "wrap", gap: 20, fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 14, alignItems: "center", fontFamily: "'Inter', sans-serif" },
+    gameDesc: { fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.8, maxWidth: 700, fontFamily: "'Inter', sans-serif" },
+    priceBadge: { padding: "4px 12px", borderRadius: 6, background: "rgba(0,201,255,0.12)", border: "1px solid rgba(0,201,255,0.3)", color: "#00D4EC", fontSize: 12, fontWeight: 800, letterSpacing: 0.5 },
+    freeBadge:  { padding: "4px 12px", borderRadius: 6, background: "rgba(0,212,236,0.1)", border: "1px solid rgba(0,212,236,0.25)", color: "#00D4EC", fontSize: 12, fontWeight: 800, letterSpacing: 0.5 },
 
-    bookingBanner: { borderRadius: 10, padding: "14px 20px", fontSize: 13, fontWeight: 600, marginBottom: 24, letterSpacing: 0.2 },
-    bookingBannerConfirmed: { background: "rgba(0,212,236,0.07)", border: "1px solid rgba(0,212,236,0.2)", color: "#00D4EC" },
-    bookingBannerPending:   { background: "rgba(255,107,53,0.07)", border: "1px solid rgba(255,107,53,0.2)", color: "#ff9966" },
+    bookingBanner: { borderRadius: 12, padding: "16px 24px", fontSize: 14, fontWeight: 600, marginBottom: 28, letterSpacing: 0.2, fontFamily: "'Inter', sans-serif" },
+    bookingBannerConfirmed: { background: "rgba(0,212,236,0.08)", border: "1px solid rgba(0,212,236,0.25)", color: "#00D4EC" },
+    bookingBannerPending:   { background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.25)", color: "#ff9966" },
 
-    nudgeBox: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,212,236,0.04)", border: "1px solid rgba(0,212,236,0.12)", borderRadius: 8, padding: "12px 20px", marginBottom: 24 },
-    nudgeBtn: { padding: "7px 16px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 10, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
+    nudgeBox: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,212,236,0.05)", border: "1px solid rgba(0,212,236,0.15)", borderRadius: 10, padding: "14px 24px", marginBottom: 28 },
+    nudgeBtn: { padding: "10px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 12, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
 
-    sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-    sectionTitle:  { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "rgba(255,255,255,0.5)" },
-    teamsGrid: { display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 20, alignItems: "start", marginBottom: 32 },
-    vsDivider: { display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 60 },
-    vsChip: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: 3, color: "#00D4EC", border: "1px solid rgba(0,212,236,0.2)", borderRadius: 4, padding: "6px 10px" },
+    sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+    sectionTitle:  { fontSize: 13, fontWeight: 900, letterSpacing: 2, color: "rgba(255,255,255,0.6)", fontFamily: "'Inter', sans-serif" },
+    teamsGrid: { display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 24, alignItems: "start", marginBottom: 40 },
+    vsDivider: { display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 80 },
+    vsChip: { fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#00D4EC", border: "1px solid rgba(0,212,236,0.3)", background: "rgba(0,212,236,0.05)", borderRadius: 8, padding: "8px 12px" },
 };
 
 const T = {
-    wrap:     { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 20, display: "flex", flexDirection: "column", gap: 14 },
+    wrap:     { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 24, display: "flex", flexDirection: "column", gap: 16 },
     header:   { display: "flex", justifyContent: "space-between", alignItems: "center" },
     teamName: {
-        fontFamily: "'Barlow Condensed', sans-serif",
+        fontFamily: "'Inter', sans-serif",
         fontSize: 18,
         fontWeight: 800,
         textTransform: "uppercase",
         letterSpacing: 0.5,
+        color: "#fff",
     },
-    badge:    { fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 4, letterSpacing: 0.5 },
-    seatGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 5 },
-    seat:     { height: 22, borderRadius: 4, transition: "all 0.3s" },
-    barRow:   { display: "flex", alignItems: "center", gap: 10 },
-    barTrack: { flex: 1, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" },
+    badge:    { fontSize: 11, fontWeight: 800, padding: "4px 10px", borderRadius: 6, letterSpacing: 0.5, fontFamily: "'Inter', sans-serif" },
+    seatGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 },
+    seat:     { height: 24, borderRadius: 6, transition: "all 0.3s" },
+    barRow:   { display: "flex", alignItems: "center", gap: 12 },
+    barTrack: { flex: 1, height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" },
     barFill:  { height: "100%", borderRadius: 2, transition: "width 0.6s ease" },
-    barLabel: { fontSize: 10, color: "rgba(255,255,255,0.35)", whiteSpace: "nowrap", fontWeight: 700 },
-    joinBtn:  { padding: "10px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, cursor: "pointer", fontFamily: "Inter, sans-serif" },
+    barLabel: { fontSize: 11, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap", fontWeight: 700, fontFamily: "'Inter', sans-serif" },
+    joinBtn:  { padding: "12px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 12, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
     joinBtnDisabled: { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.2)", cursor: "not-allowed" },
 };
+
 
 // ── Payment Modal Styles ───────────────────────────────────────────────────────
 const M = {

@@ -167,7 +167,7 @@ const styles = {
     container: { position: "relative", zIndex: 1, width: "100%", maxWidth: 420 },
     header: { textAlign: "center", marginBottom: 32 },
     iconWrap: { fontSize: 48, marginBottom: 12 },
-    title: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 48, letterSpacing: 3, lineHeight: 1 },
+    title: { fontFamily: "'Inter', sans-serif", fontSize: 42, fontWeight: 900, letterSpacing: 1, lineHeight: 1 },
     subtitle: { color: "var(--text-muted)", fontSize: 14, marginTop: 8, fontWeight: 500 },
     card: {
         padding: 40,
