@@ -48,7 +48,7 @@ function SlotBar({ filled, max }) {
 }
 
 // ── Game Card (Grid style) ────────────────────────────────────────────────────
-function GameCard({ game, onClick }) {
+function GameCard({ game, onClick, isAdmin }) {
     const totalA = game.team_a_count ?? 0;
     const totalB = game.team_b_count ?? 0;
     const filled = totalA + totalB;
@@ -101,7 +101,7 @@ function GameCard({ game, onClick }) {
                     style={{ ...S.joinBtn, ...(isOpen ? {} : S.joinBtnDisabled) }}
                     onClick={(e) => { e.stopPropagation(); onClick(); }}
                 >
-                    {isOpen ? "VIEW & JOIN" : game.status === "full" ? "GAME FULL" : game.status.toUpperCase()}
+                    {isAdmin ? "VIEW →" : isOpen ? "VIEW & JOIN →" : game.status === "full" ? "GAME FULL" : game.status.toUpperCase()}
                 </button>
             </div>
         </div>
@@ -269,6 +269,7 @@ export default function CommunityFeed() {
                                 key={game.id}
                                 game={game}
                                 onClick={() => navigate(`/community/games/${game.id}`)}
+                                isAdmin={user?.role === "admin"}
                             />
                         ))}
                     </div>

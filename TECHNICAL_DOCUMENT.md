@@ -1,5 +1,5 @@
 # NUVRA — Technical Documentation
-> Version 1.0 | April 2026
+> Version 2.0 | April 2026
 
 ---
 
@@ -13,8 +13,9 @@
 6. [Backend — Controllers & Functions](#6-backend--controllers--functions)
 7. [Frontend — Pages & Components](#7-frontend--pages--components)
 8. [Authentication System](#8-authentication-system)
-9. [Third-Party Integrations](#9-third-party-integrations)
-10. [File Structure](#10-file-structure)
+9. [Payment Flows](#9-payment-flows)
+10. [Third-Party Integrations](#10-third-party-integrations)
+11. [File Structure](#11-file-structure)
 
 ---
 
@@ -25,16 +26,16 @@ NUVRA adalah platform pengurusan sukan bola sepak yang terdiri daripada **dua mo
 | Modul | Pengguna | Fungsi |
 |-------|----------|--------|
 | **Nuvra Club** | Pemain & Jurulatih | Pengurusan squad, rekod prestasi, jadual, bayaran, pengumuman |
-| **Nuvra Community** | Orang awam | Daftar untuk pickup game, tempah slot, ikuti pengumuman komuniti |
+| **Nuvra Community** | Orang awam | Daftar untuk pickup game, tempah slot, buat bayaran, ikuti pengumuman komuniti |
 
 ### User Roles
 
-| Role | Akses |
-|------|-------|
-| **Coach** | Urus squad, rekod stats, luluskan pemain, post pengumuman, lihat bayaran |
-| **Player** | Lihat profil, stats, jadual, buat bayaran, lihat rakan sepasukan |
-| **Community Admin** | Cipta game, post pengumuman komuniti |
-| **Community Player** | Daftar game, pilih team side, lihat pengumuman |
+| Role | Modul | Akses |
+|------|-------|-------|
+| `coach` | Club | Urus squad, rekod stats, luluskan pemain, post pengumuman, lihat bayaran |
+| `player` | Club | Lihat profil, stats, jadual, buat bayaran, lihat rakan sepasukan |
+| `community_admin` | Community | Cipta game, set harga, upload QR bayaran, approve/reject bookings, post pengumuman |
+| `community_player` | Community | Daftar game, pilih team, upload resit bayaran, lihat status booking |
 
 ---
 
@@ -59,75 +60,62 @@ NUVRA adalah platform pengurusan sukan bola sepak yang terdiri daripada **dua mo
 | Vite | 7.0.7 | Build tool |
 | Recharts | 3.6.0 | Graf & carta |
 | FullCalendar React | 6.1.20 | Kalendar interaktif |
+| React Hot Toast | — | Toast notifications |
 
 ### Third-Party
 | Servis | Kegunaan |
 |--------|----------|
-| **Billplz** | Payment gateway (monthly fees) |
+| **Billplz** | Payment gateway (monthly club fees) |
 | **Google OAuth** | Social login untuk pemain |
 | **Laravel Mail** | Email notifikasi untuk community games |
+| **Laravel Storage** | Simpan resit bayaran & QR code images |
 
 ---
 
 ## 3. Application Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     BROWSER (React SPA)                 │
-│   NuvraPortal → Login → Dashboard / Community Portal   │
-└────────────────────────┬────────────────────────────────┘
-                         │ HTTP / API calls (Axios)
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                   LARAVEL BACKEND                        │
-│                                                         │
-│   routes/web.php  ──▶  SPA catch-all (React)           │
-│   routes/api.php  ──▶  API Endpoints                   │
-│                                                         │
-│   Controllers:                                          │
-│   ├─ PlayerController                                   │
-│   ├─ CoachController                                    │
-│   ├─ AuthController (Google OAuth)                      │
-│   ├─ TeamController                                     │
-│   ├─ PerformanceController                              │
-│   ├─ AnnouncementController                             │
-│   ├─ ScheduleController                                 │
-│   ├─ PaymentControllerBillplz                           │
-│   ├─ CommunityAuthController                            │
-│   ├─ CommunityGameController                            │
-│   └─ CommunityAnnouncementController                    │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                     DATABASE                             │
-│   Club: users, coaches, players, attributes,            │
-│         matches, performances, payments,                │
-│         announcements, schedules, teams                 │
-│                                                         │
-│   Community: community_users, community_games,          │
-│              community_bookings, community_announcements│
-└─────────────────────────────────────────────────────────┘
-```
-
-### Request Flow (Club Portal)
-```
-User buka browser
-  → React Router load halaman
-  → Check localStorage untuk auth_token
-  → Jika ada token: call GET /api/player/me
-  → Laravel verify token → return player data
-  → React render dashboard dengan data
-```
-
-### Request Flow (Community Portal)
-```
-User buka /community
-  → CommunityHome.jsx check localStorage community_token
-  → Jika tiada: redirect ke login/register
-  → Login: POST /api/community/login → dapat token
-  → GET /api/community/games → list semua games
-  → POST /api/community/games/{id}/join → tempah slot
+┌──────────────────────────────────────────────────────────────┐
+│                      BROWSER (React SPA)                     │
+│                                                              │
+│   NuvraPortal ──┬──▶ Club Portal (Login → Dashboard)        │
+│                 └──▶ Community Portal (/community/...)       │
+└───────────────────────────┬──────────────────────────────────┘
+                            │  HTTP / API calls
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      LARAVEL BACKEND                         │
+│                                                              │
+│  routes/web.php  ──▶  SPA catch-all + Google OAuth          │
+│  routes/api.php  ──▶  REST API Endpoints                    │
+│                                                              │
+│  Controllers:                                                │
+│  ├─ Club:      PlayerController, CoachController             │
+│  │             AuthController, TeamController                │
+│  │             PerformanceController, AnnouncementController │
+│  │             ScheduleController, PaymentControllerBillplz  │
+│  │                                                           │
+│  └─ Community: CommunityAuthController                       │
+│                CommunityGameController                       │
+│                CommunityAnnouncementController               │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                ┌───────────┴───────────┐
+                ▼                       ▼
+   ┌────────────────────┐   ┌──────────────────────────┐
+   │   CLUB DATABASE    │   │   COMMUNITY DATABASE     │
+   │                    │   │                          │
+   │  users             │   │  community_users         │
+   │  coaches           │   │  community_games         │
+   │  players           │   │  community_bookings      │
+   │  attributes        │   │  community_announcements │
+   │  matches           │   └──────────────────────────┘
+   │  performances      │
+   │  payments          │   ┌──────────────────────────┐
+   │  announcements     │   │   FILE STORAGE           │
+   │  schedules         │   │  storage/public/receipts │
+   │  teams             │   │  storage/public/payment-qr│
+   └────────────────────┘   └──────────────────────────┘
 ```
 
 ---
@@ -137,284 +125,442 @@ User buka /community
 ### Entity Relationship Diagram
 
 ```
-coaches ──────────────────────────────────────────────────┐
-  │                                                        │
-  ├──< players >──────< attributes (1:1)                  │
-  │       │                                               │
-  │       ├──< performances >──< matches >< ──────────────┘
-  │       │
-  │       └──< payments
-  │
-  ├──< announcements
-  ├──< schedules
-  └──< teams (as head_coach)
+╔══════════════════════════════════════════════════════════════════╗
+║                    CLUB MODULE — ERD                             ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║   ┌─────────┐    1      N ┌──────────┐   N      1 ┌──────────┐ ║
+║   │  users  │────────────▶│ players  │────────────▶│ coaches  │ ║
+║   └─────────┘  user_id    └────┬─────┘  coach_id   └────┬─────┘ ║
+║        │                      │                         │       ║
+║        │               1 ◀────┘                     1 ◀─┘       ║
+║        │          ┌──────────────┐              ┌──────────────┐ ║
+║        │          │  attributes  │              │    teams     │ ║
+║        │          │  (1 : 1)     │              │ (head_coach) │ ║
+║        │          └──────────────┘              └──────────────┘ ║
+║        │                                                         ║
+║        └── (via user_id) ──────────────────────────────┐        ║
+║                                                         ▼        ║
+║   coaches ─────────────────────────────────────── coaches        ║
+║      │                                              (user_id)    ║
+║      │ 1                                                         ║
+║      ├─── N ┌──────────────────┐                                 ║
+║      │      │  announcements   │                                 ║
+║      │      └──────────────────┘                                 ║
+║      │                                                           ║
+║      ├─── N ┌──────────────────┐                                 ║
+║      │      │    schedules     │                                 ║
+║      │      └──────────────────┘                                 ║
+║      │                                                           ║
+║      └─── N ┌──────────────────┐                                 ║
+║             │     matches      │                                 ║
+║             └────────┬─────────┘                                 ║
+║                      │ 1                                         ║
+║                      │                                           ║
+║   players ──── N ────┤                                           ║
+║      │               │                                           ║
+║      └───────── N ───▼─────────                                  ║
+║                 ┌──────────────┐                                 ║
+║                 │ performances │ (player × match)                ║
+║                 └──────────────┘                                 ║
+║                                                                  ║
+║   players ────── N ┌──────────┐                                  ║
+║                    │ payments │                                  ║
+║                    └──────────┘                                  ║
+╚══════════════════════════════════════════════════════════════════╝
 
-community_users
-  ├──< community_games (as creator)
-  ├──< community_bookings >──< community_games
-  └──< community_announcements
+
+╔══════════════════════════════════════════════════════════════════╗
+║                  COMMUNITY MODULE — ERD                          ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║   ┌─────────┐    1       1 ┌──────────────────┐                 ║
+║   │  users  │◀─────────────│ community_users  │                 ║
+║   └─────────┘  user_id     └────────┬─────────┘                 ║
+║   (Sanctum auth)                    │                            ║
+║                                     │ 1                          ║
+║                         ┌───────────┼───────────┐               ║
+║                         ▼           ▼            ▼               ║
+║                   ┌──────────┐  ┌──────────┐  ┌────────────┐   ║
+║                   │ games    │  │ bookings │  │ announce-  │   ║
+║                   │(as admin)│  │          │  │ ments      │   ║
+║                   └────┬─────┘  └────┬─────┘  └────────────┘   ║
+║                        │ 1           │                           ║
+║                        │             │ N                         ║
+║                        └──── 1 ◀─────┘                          ║
+║                         game_id                                  ║
+║                                                                  ║
+║   community_bookings                                             ║
+║   ├── game_id       ──▶ community_games                          ║
+║   ├── community_user_id ──▶ community_users                      ║
+║   ├── team_side     (team_a | team_b)                            ║
+║   ├── status        (payment_submitted | confirmed | cancelled)  ║
+║   └── receipt_path  (uploaded image)                             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║               CROSS-MODULE LINK — users table                    ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║              ┌──────────────────────────┐                        ║
+║              │          users           │                        ║
+║              │  (central auth table)    │                        ║
+║              │  role: player            │                        ║
+║              │        coach             │                        ║
+║              │        community_player  │                        ║
+║              │        community_admin   │                        ║
+║              └──────┬──────┬───────┬───┘                        ║
+║                     │      │       │                             ║
+║              user_id│      │       │user_id                     ║
+║                     ▼      ▼       ▼                             ║
+║              ┌───────┐  ┌───────┐  ┌─────────────────┐         ║
+║              │players│  │coaches│  │ community_users  │         ║
+║              └───────┘  └───────┘  └─────────────────┘         ║
+║                                                                  ║
+║  Semua profil dikaitkan kepada users untuk Sanctum auth.         ║
+╚══════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
 ### Table Structures
 
-#### `users`
-Pengguna utama sistem (Google OAuth & manual registration).
+---
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `name` | string | NOT NULL | Nama penuh |
-| `email` | string | UNIQUE, NOT NULL | Emel |
-| `email_verified_at` | timestamp | nullable | Pengesahan emel |
-| `password` | string | nullable | Hashed password |
-| `google_id` | string | nullable | ID dari Google OAuth |
-| `avatar` | string | nullable | URL gambar profil (Google) |
-| `role` | string | nullable | `'player'` atau `'coach'` |
-| `remember_token` | string | nullable | — |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+#### `users`
+> Jadual auth pusat — semua pengguna (club & community) ada rekod di sini.
+
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ role                │ enum          │ player | coach |                     │
+│                     │               │ community_player | community_admin   │
+│ name                │ string        │ Nama penuh                           │
+│ email               │ string UNIQUE │ Emel login                           │
+│ phone               │ string        │ nullable — Nombor telefon            │
+│ email_verified_at   │ timestamp     │ nullable                             │
+│ password            │ string        │ nullable — Hashed (null if Google)   │
+│ google_id           │ string        │ nullable — Google OAuth ID           │
+│ avatar              │ string        │ nullable — URL gambar (Google)       │
+│ remember_token      │ string        │ nullable                             │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `coaches`
-Jurulatih yang mengurus squad.
+> Jurulatih yang mengurus squad.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `name` | string | NOT NULL | Nama jurulatih |
-| `email` | string | UNIQUE, NOT NULL | Emel login |
-| `password` | string | NOT NULL | Hashed password |
-| `team_name` | string | NOT NULL | Nama pasukan |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ user_id             │ bigint FK     │ → users.id (cascade) nullable        │
+│ name                │ string        │ Nama jurulatih                       │
+│ email               │ string UNIQUE │ Emel login                           │
+│ password            │ string        │ Hashed password                      │
+│ team_name           │ string        │ Nama pasukan                         │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `players`
-Pemain yang berdaftar di bawah jurulatih.
+> Pemain berdaftar di bawah jurulatih.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `coach_id` | bigint | FK → coaches.id, nullable, cascade | Jurulatih yang mengurus |
-| `name` | string | NOT NULL | Nama pemain |
-| `age` | integer | nullable | Umur |
-| `address` | text | nullable | Alamat |
-| `email` | string | UNIQUE, nullable | Emel login |
-| `date_of_birth` | date | nullable | Tarikh lahir |
-| `position` | string | NOT NULL | Posisi (Striker, Goalkeeper, dll) |
-| `jersey_number` | integer | nullable | Nombor jersi |
-| `height_cm` | integer | nullable | Tinggi (cm) |
-| `weight_kg` | integer | nullable | Berat (kg) |
-| `strong_foot` | enum | nullable | `'left'`, `'right'`, `'both'` |
-| `password` | string | NOT NULL | Hashed password |
-| `profile_image` | string | nullable | Path gambar profil |
-| `status` | string | DEFAULT `'pending'` | `'pending'`, `'active'`, `'rejected'` |
-| `photo_url` | string | nullable | URL gambar (alternatif) |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ user_id             │ bigint FK     │ → users.id (cascade) nullable        │
+│ coach_id            │ bigint FK     │ → coaches.id (cascade) nullable      │
+│ name                │ string        │ Nama pemain                          │
+│ email               │ string UNIQUE │ nullable — Emel login                │
+│ password            │ string        │ Hashed password                      │
+│ age                 │ integer       │ nullable                             │
+│ date_of_birth       │ date          │ nullable                             │
+│ address             │ text          │ nullable                             │
+│ position            │ string        │ Striker, GK, Defender, dll           │
+│ jersey_number       │ integer       │ nullable                             │
+│ height_cm           │ integer       │ nullable                             │
+│ weight_kg           │ integer       │ nullable                             │
+│ strong_foot         │ enum          │ nullable — left | right | both       │
+│ profile_image       │ string        │ nullable — Path gambar profil        │
+│ photo_url           │ string        │ nullable — URL alternatif            │
+│ status              │ string        │ pending | active | rejected          │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `attributes`
-Stats FIFA-style untuk setiap pemain (one-to-one dengan players).
+> FIFA-style stats — satu rekod per pemain (1:1 dengan players).
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `player_id` | bigint | FK → players.id, cascade | Pemain |
-| `pace` | integer | DEFAULT 50 | Laju (0–100) |
-| `shooting` | integer | DEFAULT 50 | Tembakan (0–100) |
-| `passing` | integer | DEFAULT 50 | Hantaran (0–100) |
-| `dribbling` | integer | DEFAULT 50 | Dribbling (0–100) |
-| `defending` | integer | DEFAULT 50 | Pertahanan (0–100) |
-| `physical` | integer | DEFAULT 50 | Fizikal (0–100) |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ player_id           │ bigint FK     │ → players.id (cascade)               │
+│ pace                │ integer       │ DEFAULT 50 — range 0–100             │
+│ shooting            │ integer       │ DEFAULT 50                           │
+│ passing             │ integer       │ DEFAULT 50                           │
+│ dribbling           │ integer       │ DEFAULT 50                           │
+│ defending           │ integer       │ DEFAULT 50                           │
+│ physical            │ integer       │ DEFAULT 50                           │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `matches`
-Rekod perlawanan pasukan.
+> Rekod perlawanan — dicipta oleh jurulatih.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `coach_id` | bigint | FK → coaches.id, cascade | Jurulatih |
-| `opponent_name` | string | NOT NULL | Nama lawan |
-| `match_date` | date | NOT NULL | Tarikh perlawanan |
-| `match_time` | time | nullable | Masa perlawanan |
-| `venue` | string | DEFAULT `'Home'` | Tempat |
-| `league_type` | string | DEFAULT `'League'` | `'League'`, `'Friendly'`, `'Cup'` |
-| `category` | string | nullable | Kategori umur/division |
-| `league_name` | string | nullable | Nama liga |
-| `event_name` | string | nullable | Nama event |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ coach_id            │ bigint FK     │ → coaches.id (cascade)               │
+│ opponent_name       │ string        │ Nama lawan                           │
+│ match_date          │ date          │ Tarikh perlawanan                    │
+│ match_time          │ time          │ nullable                             │
+│ venue               │ string        │ DEFAULT 'Home'                       │
+│ league_type         │ string        │ League | Friendly | Cup              │
+│ category            │ string        │ nullable — Kategori umur/division    │
+│ league_name         │ string        │ nullable                             │
+│ event_name          │ string        │ nullable                             │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `performances`
-Stats seseorang pemain dalam satu perlawanan.
+> Stats seseorang pemain dalam satu perlawanan (player × match).
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `player_id` | bigint | FK → players.id, cascade | Pemain |
-| `match_id` | bigint | FK → matches.id, cascade | Perlawanan |
-| `minutes_played` | integer | DEFAULT 0 | Minit bermain |
-| `goals` | integer | DEFAULT 0 | Gol |
-| `assists` | integer | DEFAULT 0 | Assist |
-| `rating` | decimal(3,1) | nullable | Rating (contoh: 8.5) |
-| `cleansheet` | boolean | DEFAULT false | Cleansheet (untuk GK/DEF) |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ player_id           │ bigint FK     │ → players.id (cascade)               │
+│ match_id            │ bigint FK     │ → matches.id (cascade)               │
+│ minutes_played      │ integer       │ DEFAULT 0                            │
+│ goals               │ integer       │ DEFAULT 0                            │
+│ assists             │ integer       │ DEFAULT 0                            │
+│ rating              │ decimal(3,1)  │ nullable — contoh: 8.5               │
+│ cleansheet          │ boolean       │ DEFAULT false (untuk GK/DEF)         │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `announcements`
-Pengumuman daripada jurulatih kepada squad.
+> Pengumuman daripada jurulatih kepada squad.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `coach_id` | bigint | FK → coaches.id, cascade | Jurulatih |
-| `title` | string | NOT NULL | Tajuk pengumuman |
-| `content` | text | NOT NULL | Isi pengumuman |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ coach_id            │ bigint FK     │ → coaches.id (cascade)               │
+│ title               │ string        │ Tajuk pengumuman                     │
+│ content             │ text          │ Isi kandungan                        │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `schedules`
-Jadual aktiviti pasukan (latihan, perlawanan, mesyuarat).
+> Jadual aktiviti pasukan (latihan, perlawanan, mesyuarat).
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `coach_id` | bigint | FK → coaches.id, cascade | Jurulatih |
-| `title` | string | NOT NULL | Contoh: "vs Cyberjaya FC", "Fitness Training" |
-| `type` | string | NOT NULL | `'match'`, `'training'`, `'meeting'` |
-| `start_time` | datetime | NOT NULL | Masa mula |
-| `end_time` | datetime | nullable | Masa tamat |
-| `location` | string | nullable | Lokasi |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ coach_id            │ bigint FK     │ → coaches.id (cascade)               │
+│ title               │ string        │ Contoh: "vs Cyberjaya FC"            │
+│ type                │ string        │ match | training | meeting           │
+│ start_time          │ datetime      │ Masa mula                            │
+│ end_time            │ datetime      │ nullable — Masa tamat                │
+│ location            │ string        │ nullable — Lokasi                    │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `payments`
-Rekod bayaran bulanan pemain.
+> Rekod bayaran bulanan pemain (via Billplz).
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `player_id` | bigint | FK → players.id, cascade | Pemain |
-| `month_year` | string | NOT NULL | Contoh: `"Feb 2026"` |
-| `amount` | decimal(8,2) | NOT NULL | Jumlah bayaran |
-| `status` | string | DEFAULT `'completed'` | Status bayaran |
-| `transaction_id` | string | nullable | ID transaksi Billplz |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ player_id           │ bigint FK     │ → players.id (cascade)               │
+│ month_year          │ string        │ Contoh: "Feb 2026"                   │
+│ amount              │ decimal(8,2)  │ Jumlah bayaran                       │
+│ status              │ string        │ DEFAULT 'completed'                  │
+│ transaction_id      │ string        │ nullable — ID transaksi Billplz      │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `teams`
-Maklumat pasukan/kelab.
+> Maklumat pasukan/kelab.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `name` | string | NOT NULL | Nama pasukan |
-| `slug` | string | UNIQUE, nullable | URL-friendly name |
-| `based_location` | string | nullable | Lokasi berpangkalan |
-| `established_year` | string | nullable | Tahun ditubuhkan |
-| `logo` | string | nullable | Path logo pasukan |
-| `primary_color` | string | DEFAULT `'#000000'` | Warna utama pasukan |
-| `home_venue` | string | nullable | Stadium/padang home |
-| `head_coach_id` | bigint | FK → coaches.id, set null | Ketua jurulatih |
-| `bio` | text | nullable | Penerangan pasukan |
-| `social_link` | string | nullable | Link media sosial |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ name                │ string        │ Nama pasukan                         │
+│ slug                │ string UNIQUE │ nullable — URL-friendly name         │
+│ based_location      │ string        │ nullable                             │
+│ established_year    │ string        │ nullable                             │
+│ logo                │ string        │ nullable — Path logo                 │
+│ primary_color       │ string        │ DEFAULT '#000000'                    │
+│ home_venue          │ string        │ nullable                             │
+│ head_coach_id       │ bigint FK     │ → coaches.id (set null)              │
+│ bio                 │ text          │ nullable                             │
+│ social_link         │ string        │ nullable                             │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `community_users`
-Pengguna modul Community (sistem auth berasingan).
+> Profil pengguna modul Community — dikaitkan kepada `users` untuk Sanctum auth.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `name` | string | NOT NULL | Nama |
-| `email` | string | UNIQUE, NOT NULL | Emel login |
-| `password` | string | NOT NULL | Hashed password |
-| `role` | enum | DEFAULT `'player'` | `'player'`, `'admin'` |
-| `phone` | string | nullable | Nombor telefon |
-| `avatar` | string | nullable | Gambar profil |
-| `remember_token` | string | nullable | Token auth custom |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ user_id             │ bigint FK     │ → users.id (cascade) nullable        │
+│ name                │ string        │ Nama                                 │
+│ email               │ string UNIQUE │ Emel                                 │
+│ password            │ string        │ Hashed password                      │
+│ role                │ enum          │ DEFAULT 'player' — player | admin    │
+│ phone               │ string        │ nullable                             │
+│ avatar              │ string        │ nullable                             │
+│ remember_token      │ string        │ nullable                             │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `community_games`
-Game pickup yang dibuka untuk orang awam.
+> Game pickup yang dibuka oleh admin kepada orang awam.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `title` | string | NOT NULL | Tajuk game |
-| `description` | text | nullable | Penerangan |
-| `venue` | string | NOT NULL | Lokasi |
-| `game_date` | datetime | NOT NULL | Tarikh & masa |
-| `team_a_name` | string | DEFAULT `'Team A'` | Nama Team A |
-| `team_b_name` | string | DEFAULT `'Team B'` | Nama Team B |
-| `max_slots_per_team` | unsigned int | DEFAULT 20 | Max pemain setiap team |
-| `status` | enum | DEFAULT `'open'` | `'open'`, `'full'`, `'cancelled'`, `'completed'` |
-| `created_by` | bigint | FK → community_users.id, cascade | Admin yang cipta |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ title               │ string        │ Tajuk game                           │
+│ description         │ text          │ nullable                             │
+│ venue               │ string        │ Lokasi                               │
+│ game_date           │ datetime      │ Tarikh & masa game                   │
+│ team_a_name         │ string        │ DEFAULT 'Team A'                     │
+│ team_b_name         │ string        │ DEFAULT 'Team B'                     │
+│ max_slots_per_team  │ unsigned int  │ DEFAULT 20 — Max pemain setiap team  │
+│ price_per_player    │ decimal(8,2)  │ DEFAULT 0 — 0 = Free                 │
+│ payment_qr_path     │ string        │ nullable — Path QR code image        │
+│ status              │ enum          │ open | full | cancelled | completed  │
+│ created_by          │ bigint FK     │ → community_users.id (cascade)       │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### `community_bookings`
-Rekod tempahan slot pemain dalam sesuatu game.
+> Rekod tempahan slot pemain — termasuk status bayaran dan resit.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `game_id` | bigint | FK → community_games.id, cascade | Game |
-| `community_user_id` | bigint | FK → community_users.id, cascade | Pemain |
-| `team_side` | enum | NOT NULL | `'team_a'`, `'team_b'` |
-| `status` | enum | DEFAULT `'confirmed'` | `'confirmed'`, `'cancelled'` |
-| — | — | UNIQUE(game_id, community_user_id) | Satu pemain satu slot |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ game_id             │ bigint FK     │ → community_games.id (cascade)       │
+│ community_user_id   │ bigint FK     │ → community_users.id (cascade)       │
+│ team_side           │ enum          │ team_a | team_b                      │
+│ status              │ enum          │ payment_submitted | confirmed |       │
+│                     │               │ cancelled                            │
+│ receipt_path        │ string        │ nullable — Path resit pembayaran     │
+│ —                   │ UNIQUE        │ (game_id, community_user_id)         │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
+
+> **Booking Status Flow:**
+> ```
+> [FREE GAME]  JOIN click ──────────────────────────▶  confirmed
+>
+> [PAID GAME]  JOIN click + upload resit ──────────▶  payment_submitted
+>                                                           │
+>                                          ┌────────────────┤
+>                                          ▼                ▼
+>                                       confirmed        cancelled
+>                                    (admin approve)  (admin reject)
+> ```
 
 ---
 
 #### `community_announcements`
-Pengumuman dari admin kepada komuniti.
+> Pengumuman daripada admin kepada semua komuniti.
 
-| Column | Type | Constraint | Keterangan |
-|--------|------|-----------|------------|
-| `id` | bigint | PK, auto-increment | — |
-| `title` | string | NOT NULL | Tajuk |
-| `body` | text | NOT NULL | Kandungan |
-| `created_by` | bigint | FK → community_users.id, cascade | Admin |
-| `created_at` | timestamp | — | — |
-| `updated_at` | timestamp | — | — |
+```
+┌─────────────────────┬───────────────┬──────────────────────────────────────┐
+│ Column              │ Type          │ Notes                                │
+├─────────────────────┼───────────────┼──────────────────────────────────────┤
+│ id                  │ bigint PK     │ Auto-increment                       │
+│ title               │ string        │ Tajuk pengumuman                     │
+│ body                │ text          │ Kandungan                            │
+│ created_by          │ bigint FK     │ → community_users.id (cascade)       │
+│ created_at          │ timestamp     │ —                                    │
+│ updated_at          │ timestamp     │ —                                    │
+└─────────────────────┴───────────────┴──────────────────────────────────────┘
+```
 
 ---
 
 #### Laravel System Tables
 | Table | Kegunaan |
 |-------|----------|
-| `personal_access_tokens` | Sanctum API tokens |
+| `personal_access_tokens` | Sanctum Bearer tokens (semua modul) |
 | `sessions` | Session management |
 | `cache` | Application cache |
 | `jobs` | Queue jobs |
@@ -426,7 +572,7 @@ Pengumuman dari admin kepada komuniti.
 
 ### Base URL: `/api`
 
-#### Authentication & Player
+#### Authentication & Player (Club)
 
 | Method | Endpoint | Auth | Fungsi |
 |--------|----------|------|--------|
@@ -459,7 +605,7 @@ Pengumuman dari admin kepada komuniti.
 | `POST` | `/schedule` | — | Cipta jadual baharu |
 | `DELETE` | `/schedule/{id}` | — | Padam jadual |
 | `GET` | `/coach/{id}/payments/{month}` | — | Status bayaran bulanan squad |
-| `GET` | `/coach/{id}/matches` | — | Senarai perlawanan (untuk dropdown) |
+| `GET` | `/coach/{id}/matches` | — | Senarai perlawanan |
 
 #### Performance
 
@@ -467,7 +613,7 @@ Pengumuman dari admin kepada komuniti.
 |--------|----------|------|--------|
 | `POST` | `/performances` | — | Rekod stats pemain dalam perlawanan |
 
-#### Payments (Billplz)
+#### Payments — Club (Billplz)
 
 | Method | Endpoint | Auth | Fungsi |
 |--------|----------|------|--------|
@@ -478,29 +624,37 @@ Pengumuman dari admin kepada komuniti.
 
 | Method | Endpoint | Auth | Fungsi |
 |--------|----------|------|--------|
-| `POST` | `/community/register` | — | Daftar akaun komuniti |
-| `POST` | `/community/login` | — | Login komuniti |
-| `POST` | `/community/logout` | Token | Logout komuniti |
-| `GET` | `/community/me` | Token | Dapatkan pengguna komuniti semasa |
+| `POST` | `/community/register` | — | Daftar akaun komuniti (cipta User + CommunityUser) |
+| `POST` | `/community/login` | — | Login komuniti, return Sanctum token |
+| `POST` | `/community/logout` | Sanctum | Logout, padam token |
+| `GET` | `/community/me` | Sanctum | Dapatkan pengguna komuniti semasa |
 
 #### Community Games
 
 | Method | Endpoint | Auth | Fungsi |
 |--------|----------|------|--------|
-| `GET` | `/community/games` | — | Senarai semua game (public) |
-| `GET` | `/community/games/{id}` | — | Detail satu game + roster |
-| `POST` | `/community/games` | Admin token | Cipta game baharu |
-| `PATCH` | `/community/games/{id}/cancel` | Admin token | Batalkan game |
-| `POST` | `/community/games/{id}/join` | Token | Tempah slot dalam game |
-| `DELETE` | `/community/games/{id}/leave` | Token | Batalkan tempahan |
+| `GET` | `/community/games` | — | Senarai semua game open/full (public) |
+| `GET` | `/community/games/{id}` | — | Detail satu game + roster + QR URL |
+| `POST` | `/community/games` | Admin | Cipta game baru + upload QR (FormData) |
+| `PATCH` | `/community/games/{id}/cancel` | Admin | Batalkan game |
+| `POST` | `/community/games/{id}/join` | Sanctum | Tempah slot — free (terus confirmed) atau paid (upload resit) |
+| `DELETE` | `/community/games/{id}/leave` | Sanctum | Batalkan tempahan (free games sahaja) |
+| `GET` | `/community/games/{id}/bookings` | Admin | Senarai semua bookings + receipt URLs |
+
+#### Community Bookings — Payment Approval
+
+| Method | Endpoint | Auth | Fungsi |
+|--------|----------|------|--------|
+| `PATCH` | `/community/bookings/{id}/approve` | Admin | Luluskan booking → status: confirmed |
+| `PATCH` | `/community/bookings/{id}/reject` | Admin | Tolak booking → status: cancelled, slot freed |
 
 #### Community Announcements
 
 | Method | Endpoint | Auth | Fungsi |
 |--------|----------|------|--------|
-| `GET` | `/community/announcements` | — | Senarai semua pengumuman |
-| `POST` | `/community/announcements` | Admin token | Cipta pengumuman |
-| `DELETE` | `/community/announcements/{id}` | Admin token | Padam pengumuman |
+| `GET` | `/community/announcements` | Sanctum | Senarai semua pengumuman komuniti |
+| `POST` | `/community/announcements` | Admin | Cipta pengumuman |
+| `DELETE` | `/community/announcements/{id}` | Admin | Padam pengumuman |
 
 #### OAuth (Web Routes)
 
@@ -517,18 +671,18 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `index()` | Return senarai semua pemain dari DB |
-| `store()` | Cipta rekod pemain baru (nama, email, position, coach_id, dll) |
-| `show($id)` | Return profil pemain + attributes + performance history + match history |
+| `index()` | Return senarai semua pemain |
+| `store()` | Cipta rekod pemain baru |
+| `show($id)` | Return profil pemain + attributes + performance history |
 | `me()` | Identify pemain dari Bearer token → return profil lengkap |
-| `update($id)` | Kemaskini nama / password / gambar profil pemain |
-| `updateAttributes($id)` | Kemaskini FIFA stats (pace, shooting, passing, dribbling, defending, physical) |
-| `login()` | Semak email & password di jadual `players` atau `coaches`, return token |
-| `register()` | Cipta user baru di jadual `users` (untuk Google auth flow) |
-| `submitApplication()` | Kemaskini user dengan coach_id dan position, set status `'pending'` |
+| `update($id)` | Kemaskini nama / password / gambar profil |
+| `updateAttributes($id)` | Kemaskini FIFA stats |
+| `login()` | Semak email & password, return token |
+| `register()` | Cipta user baru (untuk Google auth flow) |
+| `submitApplication()` | Set coach_id, position, status pending |
 | `getTeammates($id)` | Return semua pemain di bawah coach yang sama |
 | `getTeams()` | Return senarai semua coaches & nama pasukan |
-| `getCoachPlayers($coachId)` | Return semua pemain aktif di bawah coach tertentu |
+| `getCoachPlayers($coachId)` | Return semua pemain aktif di bawah coach |
 
 ---
 
@@ -536,11 +690,11 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `login()` | Authenticate jurulatih, return dummy token (sistem legacy) |
-| `getMyTeam($coachId)` | Return semua pemain aktif + attributes di bawah coach |
-| `addPlayer()` | Tambah pemain baharu terus ke dalam squad (status: active) |
-| `getPendingRequests($coachId)` | Return semua permohonan pemain yang `status = 'pending'` |
-| `handleRequest()` | Terima `action: approve/decline` → kemaskini `players.status` |
+| `login()` | Authenticate jurulatih, return token |
+| `getMyTeam($coachId)` | Return semua pemain aktif + attributes |
+| `addPlayer()` | Tambah pemain terus ke squad (status: active) |
+| `getPendingRequests($coachId)` | Return permohonan status pending |
+| `handleRequest()` | approve/decline → kemaskini players.status |
 
 ---
 
@@ -548,8 +702,8 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `redirectToGoogle()` | Guna Socialite untuk redirect user ke Google login |
-| `handleGoogleCallback()` | Terima data dari Google, cipta/kemaskini user, redirect ke `/onboarding` atau `/dashboard` |
+| `redirectToGoogle()` | Redirect user ke Google login via Socialite |
+| `handleGoogleCallback()` | Terima data Google, cipta/kemaskini user, redirect ke onboarding atau dashboard |
 
 ---
 
@@ -557,7 +711,7 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `getCoachTeam($coachId)` | Return rekod team yang dikaitkan dengan coach (dari jadual `teams`) |
+| `getCoachTeam($coachId)` | Return rekod team yang dikaitkan dengan coach |
 
 ---
 
@@ -565,9 +719,7 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `store()` | Cipta match (atau cari yang sedia ada), kemudian simpan performance stats pemain. Guna `updateOrInsert` untuk elak duplikasi match. Semua dalam satu DB transaction. |
-
-**Data yang direkod:** `coach_id`, `opponent_name`, `match_date`, `category`, `league_name`, `event_name`, `venue`, `player_id`, `minutes_played`, `goals`, `assists`, `rating`, `cleansheet`
+| `store()` | Cipta match (atau cari yang sedia ada), simpan performance stats. Semua dalam satu DB transaction. |
 
 ---
 
@@ -575,8 +727,8 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `index($coachId)` | Return semua pengumuman untuk coach tertentu (terbaru dahulu) |
-| `store()` | Simpan pengumuman baru dengan `coach_id`, `title`, `content` |
+| `index($coachId)` | Return semua pengumuman untuk coach (terbaru dahulu) |
+| `store()` | Simpan pengumuman baru |
 
 ---
 
@@ -584,9 +736,9 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `index($coachId)` | Return semua jadual untuk coach (latihan, perlawanan, mesyuarat) |
-| `store()` | Cipta jadual baru dengan jenis (`match`, `training`, `meeting`), masa, lokasi |
-| `destroy($id)` | Padam jadual berdasarkan ID |
+| `index($coachId)` | Return semua jadual untuk coach |
+| `store()` | Cipta jadual baru |
+| `destroy($id)` | Padam jadual |
 
 ---
 
@@ -594,10 +746,10 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `createBill()` | Cipta bil Billplz untuk pemain (jumlah tetap RM50), return URL pembayaran |
-| `verifyPayment()` | Semak status bil dengan Billplz API, jika berjaya simpan ke jadual `payments` |
-| `getMyPayments($id)` | Return sejarah bayaran pemain (month_year, amount, status, transaction_id) |
-| `getTeamPayments($coachId, $month)` | Return status bayaran semua pemain squad untuk bulan tertentu |
+| `createBill()` | Cipta bil Billplz (RM50 fixed), return URL pembayaran |
+| `verifyPayment()` | Semak status bil dengan Billplz API, simpan ke payments |
+| `getMyPayments($id)` | Return sejarah bayaran pemain |
+| `getTeamPayments($coachId, $month)` | Return status bayaran squad untuk bulan tertentu |
 
 ---
 
@@ -605,10 +757,10 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `register()` | Daftar community user baru (name, email, password, phone) |
-| `login()` | Authenticate, simpan random token ke `remember_token`, return token |
-| `logout()` | Clear `remember_token` dari DB |
-| `me()` | Cari user berdasarkan `remember_token` dalam request header |
+| `register()` | Cipta User (Sanctum) + CommunityUser profile. Return Sanctum token + community_users data (id, role) |
+| `login()` | Auth via Laravel Auth, cipta Sanctum token. Fetch CommunityUser untuk return role dan community id yang betul |
+| `logout()` | Padam Sanctum token semasa |
+| `me()` | Return profil user semasa via $request->user() |
 
 ---
 
@@ -616,13 +768,16 @@ Pengumuman dari admin kepada komuniti.
 
 | Function | Fungsi |
 |----------|--------|
-| `index()` | Return semua game (status: open/full) dengan kiraan slot Team A & Team B |
-| `show($id)` | Return detail game + senarai pemain dalam setiap team |
-| `store()` | Cipta game baru (admin sahaja), hantar email notifikasi ke semua community users |
-| `cancel($id)` | Tukar status game kepada `'cancelled'` (admin sahaja) |
-| `join($id)` | Pemain pilih team side, check kapasiti, simpan ke `community_bookings`. Tukar status game ke `'full'` jika penuh |
-| `leave($id)` | Tukar booking status ke `'cancelled'`, jika game was `'full'` tukar balik ke `'open'` |
-| `notifyPlayers()` | Helper: hantar email ke semua community users tentang game baru |
+| `resolveUser()` | Helper — ambil CommunityUser profile dari Sanctum-authenticated user |
+| `index()` | Return semua game open/full + slot counts + payment_qr_url |
+| `show($id)` | Return detail game + roster (team_a, team_b) + booking_status setiap pemain |
+| `store()` | Admin cipta game — accept FormData dengan price_per_player + QR image upload |
+| `cancel($id)` | Admin batalkan game → status: cancelled |
+| `join($id)` | Free game → confirmed terus. Paid game → wajib upload resit → payment_submitted. Slot dikira terus (payment_submitted + confirmed = locked) |
+| `leave($id)` | Batalkan booking sendiri — hanya untuk free game (confirmed). Paid game tidak boleh self-cancel |
+| `bookings($id)` | Admin — return semua bookings (payment_submitted + confirmed) dengan receipt_url |
+| `approveBooking($bookingId)` | Admin luluskan → status: confirmed |
+| `rejectBooking($bookingId)` | Admin tolak → status: cancelled, slot freed, game reopen jika perlu |
 
 ---
 
@@ -642,8 +797,8 @@ Pengumuman dari admin kepada komuniti.
 
 | File | Fungsi |
 |------|--------|
-| `Layouts/DashboardLayout.jsx` | Layout utama untuk player dashboard. Mengandungi sidebar navigasi dengan SVG icons, player avatar, logout. Verify auth token on mount, redirect ke login jika tiada token atau pending/rejected. |
-| `Layouts/CoachLayouts.jsx` | Layout untuk coach portal. Sidebar dengan navigasi khusus coach (squad, stats, schedule, payment, announcements). |
+| `Layouts/DashboardLayout.jsx` | Layout player — sidebar navigasi, avatar, logout. Verify auth token on mount. |
+| `Layouts/CoachLayouts.jsx` | Layout coach — sidebar navigasi khusus coach. |
 
 ---
 
@@ -651,12 +806,12 @@ Pengumuman dari admin kepada komuniti.
 
 | File | Fungsi |
 |------|--------|
-| `Pages/NuvraPortal.jsx` | Landing page utama NUVRA. Tunjuk hero section, dua portal card (Community & Club), stats count-up, feature sections (Community & Club), How It Works, CTA. |
-| `Pages/Login.jsx` | Halaman login/register untuk player & coach. Toggle antara login dan register form. |
-| `Pages/Authentication/AuthPage.jsx` | Auth page flow selepas Google OAuth. |
-| `Pages/Authentication/GoogleCallback.jsx` | Handle redirect dari Google, extract token, redirect ke dashboard atau onboarding. |
-| `Pages/Onboarding.jsx` | Form untuk pemain pilih pasukan (coach) dan posisi selepas Google login. Hantar ke `/api/player/onboarding`. |
-| `Pages/WaitingRoom.jsx` | Halaman tunggu kelulusan jurulatih. Papar status `pending`. |
+| `Pages/NuvraPortal.jsx` | Landing page utama NUVRA. Hero section, dua portal card, stats, features, CTA. |
+| `Pages/Login.jsx` | Login/register untuk player & coach. |
+| `Pages/Authentication/AuthPage.jsx` | Auth flow selepas Google OAuth. |
+| `Pages/Authentication/GoogleCallback.jsx` | Handle redirect Google, extract token, redirect ke dashboard atau onboarding. |
+| `Pages/Onboarding.jsx` | Form pilih pasukan & posisi selepas Google login. |
+| `Pages/WaitingRoom.jsx` | Halaman tunggu kelulusan jurulatih (status: pending). |
 
 ---
 
@@ -664,11 +819,11 @@ Pengumuman dari admin kepada komuniti.
 
 | File | Fungsi |
 |------|--------|
-| `Pages/Modules/Overview.jsx` | Dashboard pemain. Tunjuk FIFA card, stats keseluruhan (gol, assist, minit, rating), performance history. |
-| `Pages/Modules/PlayerShedule.jsx` | Jadual aktiviti pemain. Tunjuk tarikh latihan, perlawanan, mesyuarat dari jurulatih. |
-| `Pages/Modules/PlayerPayment.jsx` | Sejarah dan status bayaran bulanan. Ada butang bayar yang redirect ke Billplz. |
-| `Pages/Modules/Announcements.jsx` | Senarai pengumuman dari jurulatih. |
-| `Pages/Modules/Settings.jsx` | Tetapan profil pemain. Boleh tukar nama, password, gambar profil. |
+| `Pages/Modules/Overview.jsx` | Dashboard pemain — FIFA card, stats (gol, assist, minit, rating), performance history. |
+| `Pages/Modules/PlayerShedule.jsx` | Jadual aktiviti — latihan, perlawanan, mesyuarat dari jurulatih. |
+| `Pages/Modules/PlayerPayment.jsx` | Sejarah & status bayaran bulanan. Butang bayar redirect ke Billplz. |
+| `Pages/Modules/Announcements.jsx` | Pengumuman dari jurulatih. |
+| `Pages/Modules/Settings.jsx` | Tetapan profil — tukar nama, password, gambar. |
 
 ---
 
@@ -676,14 +831,14 @@ Pengumuman dari admin kepada komuniti.
 
 | File | Fungsi |
 |------|--------|
-| `Pages/CoachModules/SquadManagement.jsx` | Urus squad — lihat semua pemain, kemaskini jersey number, filter by position, lihat profil individu. |
-| `Pages/CoachModules/RecordStats.jsx` | Form rekod stats perlawanan. Pilih pemain, masukkan match details, rekod gol/assist/rating/cleansheet. |
-| `Pages/CoachModules/CoachSchedule.jsx` | Urus jadual dengan FullCalendar. Tambah/padam event (match, training, meeting). |
-| `Pages/CoachModules/CoachPayment.jsx` | Lihat status bayaran semua pemain untuk bulan tertentu. |
+| `Pages/CoachModules/SquadManagement.jsx` | Urus squad — lihat pemain, kemaskini jersey number, filter posisi. |
+| `Pages/CoachModules/RecordStats.jsx` | Form rekod stats perlawanan — gol, assist, rating, cleansheet. |
+| `Pages/CoachModules/CoachSchedule.jsx` | Urus jadual dengan FullCalendar. |
+| `Pages/CoachModules/CoachPayment.jsx` | Status bayaran semua pemain untuk bulan tertentu. |
 | `Pages/CoachModules/CoachAnnouncements.jsx` | Buat dan lihat pengumuman kepada squad. |
-| `Pages/CoachModules/PendingRequest.jsx` | Senarai permohonan pemain pending. Butang approve / decline. |
-| `Pages/CoachAddStats.jsx` | Alternatif form untuk tambah stats. |
-| `Pages/CoachPlayerView.jsx` | Pandangan jurulatih pada profil seseorang pemain (FIFA card + stats history). |
+| `Pages/CoachModules/PendingRequest.jsx` | Permohonan pemain pending — approve / decline. |
+| `Pages/CoachAddStats.jsx` | Alternatif form tambah stats. |
+| `Pages/CoachPlayerView.jsx` | Pandangan coach pada profil pemain (FIFA card + stats history). |
 
 ---
 
@@ -691,12 +846,12 @@ Pengumuman dari admin kepada komuniti.
 
 | File | Fungsi |
 |------|--------|
-| `Pages/Community/CommunityHome.jsx` | Halaman utama community. Navigation bar, papar game-game terbuka, link ke announcements. |
-| `Pages/Community/CommunityFeed.jsx` | Feed aktiviti komuniti. |
+| `Pages/Community/CommunityHome.jsx` | Login/register page untuk community portal. |
+| `Pages/Community/CommunityFeed.jsx` | Feed — senarai game open, card setiap game dengan slot counts. |
 | `Pages/Community/CommunityAnnouncements.jsx` | Senarai pengumuman komuniti. |
-| `Pages/Community/GameDetail.jsx` | Detail satu game — venue, masa, roster Team A & Team B, butang Join/Leave. |
-| `Pages/Community/Admin/CreateGame.jsx` | Form admin untuk cipta game baru (title, venue, date, team names, max slots). |
-| `Pages/Community/Admin/PostAnnouncement.jsx` | Form admin untuk post pengumuman komuniti. |
+| `Pages/Community/GameDetail.jsx` | Detail game — venue, masa, price badge, seat grid, PaymentModal (paid games), booking status banner, AdminBookingsPanel (admin). |
+| `Pages/Community/Admin/CreateGame.jsx` | Admin form cipta game — title, venue, date, team names, max slots, price per player, QR code upload. |
+| `Pages/Community/Admin/PostAnnouncement.jsx` | Admin form post pengumuman komuniti. |
 
 ---
 
@@ -705,90 +860,188 @@ Pengumuman dari admin kepada komuniti.
 | File | Fungsi |
 |------|--------|
 | `Components/ProtectedRoute.jsx` | Route guard — semak localStorage token, redirect ke login jika tiada. |
-| `Components/DynamicBackground.jsx` | Ambient animated background (dua glow orbs). |
-| `Components/PageLoader.jsx` | Loading screen dengan spinner semasa app load. |
+| `Components/DynamicBackground.jsx` | Animated ambient background (glow orbs). |
+| `Components/PageLoader.jsx` | Loading screen semasa page load. |
+
+---
+
+### Key Inline Components (dalam GameDetail.jsx)
+
+| Component | Fungsi |
+|-----------|--------|
+| `PaymentModal` | Modal untuk join game berbayar — tunjuk QR, jumlah, mandatory receipt upload |
+| `SlotVisual` | Seat grid visual — tunjuk slot penuh/kosong, progress bar, butang join |
+| `AdminBookingsPanel` | Admin panel — senarai bookings mengikut status (payment_submitted, confirmed), butang approve/reject, link ke resit |
 
 ---
 
 ## 8. Authentication System
 
-NUVRA menggunakan **tiga sistem auth yang berbeza**:
+NUVRA menggunakan **Sanctum sebagai auth engine** untuk semua modul, dengan profil berasingan:
 
-### 1. Club Player Auth (Laravel Sanctum)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SANCTUM (users table)                     │
+│             personal_access_tokens                          │
+└─────────┬───────────────────────┬───────────────────────────┘
+          │                       │
+          ▼                       ▼
+   ┌──────────────┐        ┌─────────────────┐
+   │   Club Auth  │        │ Community Auth  │
+   │              │        │                 │
+   │ players      │        │ community_users │
+   │ coaches      │        │ (role:          │
+   │              │        │  player/admin)  │
+   └──────────────┘        └─────────────────┘
+```
+
+### 1. Club Player Auth
 ```
 POST /api/login
-  ← email + password
-  → Bearer token (Sanctum personal_access_token)
-  → Simpan dalam localStorage sebagai "auth_token"
-  → Setiap request: Authorization: Bearer <token>
+  ← email + password (players atau coaches table)
+  → Bearer token (Sanctum)
+  → Simpan: localStorage "auth_token"
 ```
 
-### 2. Coach Auth (Custom Token)
+### 2. Coach Auth
 ```
 POST /api/coach/login
   ← email + password
-  → Custom dummy token
-  → Simpan dalam localStorage sebagai "coach_token"
-  → Coach ID digunakan untuk semua API calls
+  → Token
+  → Simpan: localStorage "coach_token"
 ```
 
-### 3. Community Auth (Custom Remember Token)
+### 3. Community Auth (Sanctum)
 ```
 POST /api/community/login
   ← email + password
-  → Random string token simpan dalam community_users.remember_token
-  → Return token kepada client
-  → Simpan dalam localStorage sebagai "community_token"
-  → Semak: cari user where remember_token = token dalam header
+  → Sanctum token (via User model)
+  → Fetch community_users profile → return community id & role
+  → Simpan: localStorage "community_token" + "community_user"
+
+Setiap request:
+  Authorization: Bearer <community_token>
+  → auth:sanctum middleware verify
+  → resolveUser() fetch community_users by user_id
 ```
 
 ### 4. Google OAuth (Socialite)
 ```
-GET /auth/google
-  → Redirect ke Google consent page
-
+GET /auth/google → Google consent page
 GET /auth/google/callback
-  → Terima data (name, email, google_id, avatar)
-  → Cari atau cipta user dalam jadual `users`
-  → Jika baru: redirect ke /onboarding
-  → Jika sedia ada: redirect ke /dashboard
+  → Terima: name, email, google_id, avatar
+  → findOrCreate user dalam users table
+  → Jika baru: redirect /onboarding
+  → Jika sedia ada: redirect /dashboard
 ```
 
-### Player Status Flow
+### Player Status Flow (Club)
 ```
 Daftar → status: "pending"
-          ↓
-Coach review → approve → status: "active" → boleh login
-               decline → status: "rejected" → diblok
+    ↓
+Coach review
+    ├── approve → status: "active"  → boleh login
+    └── decline → status: "rejected" → diblok
 ```
 
 ---
 
-## 9. Third-Party Integrations
+## 9. Payment Flows
 
-### Billplz (Payment Gateway)
+### Community Game Payment Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PAID GAME FLOW                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Player klik JOIN TEAM                                          │
+│         │                                                       │
+│         ▼                                                       │
+│  PaymentModal terbuka                                           │
+│  ├── Tunjuk QR code (DuitNow/bank)                             │
+│  ├── Tunjuk jumlah: RM X.XX                                    │
+│  └── Upload resit (mandatory)                                  │
+│         │                                                       │
+│         ▼                                                       │
+│  POST /games/{id}/join (FormData: team_side + receipt)         │
+│         │                                                       │
+│         ▼                                                       │
+│  Booking dicipta: status = payment_submitted                   │
+│  Slot DIKIRA terus (slot locked)                               │
+│  Resit disimpan: storage/public/receipts/                      │
+│         │                                                       │
+│         ▼                                                       │
+│  Player nampak: "Receipt submitted. Awaiting admin approval."  │
+│                                                                 │
+│         ┌───────────── Admin review ─────────────────┐         │
+│         │                                            │         │
+│         ▼                                            ▼         │
+│  PATCH /bookings/{id}/approve           PATCH /bookings/{id}/reject
+│         │                                            │         │
+│         ▼                                            ▼         │
+│  status: confirmed                        status: cancelled    │
+│  Player: "You're in!"                     Slot freed           │
+│                                           Game reopen jika full│
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    FREE GAME FLOW                               │
+├─────────────────────────────────────────────────────────────────┤
+│  Player klik JOIN → Slot confirmed terus. Tiada modal.         │
+│  Player boleh cancel sendiri (DELETE /games/{id}/leave).       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Club Monthly Payment Flow (Billplz)
+
+```
+Player klik "Bayar"
+    │
+    ▼
+POST /api/payment/create-bill
+    │ (RM 50 fixed)
+    ▼
+Billplz API: cipta bil → return payment URL
+    │
+    ▼
+Player redirect ke Billplz → buat bayaran
+    │
+    ▼
+POST /api/payment/verify
+    │
+    ▼
+Semak Billplz API → simpan ke payments table
+    │
+    ▼
+Player: payment history dikemaskini
+```
+
+---
+
+## 10. Third-Party Integrations
+
+### Billplz (Club Payment Gateway)
 - **Sandbox URL**: `https://www.billplz-sandbox.com/api/v3`
-- **Endpoint yang digunakan**: `POST /bills` (cipta bil), `GET /bills/{id}` (semak status)
-- **Flow**:
-  1. Player klik "Bayar" → frontend call `POST /api/payment/create-bill`
-  2. Backend cipta bil di Billplz, return `url` pembayaran
-  3. Player redirect ke Billplz untuk bayar
-  4. Selepas bayar, frontend call `POST /api/payment/verify`
-  5. Backend semak status dengan Billplz API, simpan ke `payments` table
+- **Endpoints**: `POST /bills` (cipta bil), `GET /bills/{id}` (semak status)
+- **Config**: `.env` — `BILLPLZ_API_KEY`, `BILLPLZ_COLLECTION_ID`
 
 ### Google OAuth (Socialite)
 - **Config**: `config/services.php` — `google.client_id`, `google.client_secret`, `google.redirect`
 - **Scope**: email, profile (nama, gambar)
-- **Flow**: Redirect → Consent → Callback → Create/Update user
+
+### Laravel Storage (File Uploads)
+- **Community QR codes**: `storage/app/public/payment-qr/`
+- **Community receipts**: `storage/app/public/receipts/`
+- **Served via**: `public/storage` symlink (`php artisan storage:link`)
 
 ### Laravel Mail (Email Notifications)
-- Digunakan dalam `CommunityGameController::store()`
-- Hantar email ke semua `community_users` apabila game baru dicipta
-- **Content**: Title game, venue, tarikh, link untuk join
+- Digunakan dalam `CommunityGameController::store()` (sedia ada, currently disabled)
+- Hantar email ke semua `community_users` bila game baru dicipta
 
 ---
 
-## 10. File Structure
+## 11. File Structure
 
 ```
 nuvra-app/
@@ -810,11 +1063,12 @@ nuvra-app/
 │   │
 │   └── Models/
 │       ├── User.php
+│       ├── CommunityUser.php
 │       └── Team.php
 │
 ├── database/
 │   └── migrations/
-│       ├── create_users_table.php
+│       ├── 0001_01_01_000000_create_users_table.php
 │       ├── create_players_table.php
 │       ├── create_coaches_table.php
 │       ├── create_attributes_table.php
@@ -824,21 +1078,31 @@ nuvra-app/
 │       ├── create_schedules_table.php
 │       ├── create_payments_table.php
 │       ├── create_teams_table.php
+│       ├── add_google_fields_to_users_table.php
+│       ├── add_role_to_users_table.php          ← role enum + phone
+│       ├── link_profiles_to_users_table.php     ← user_id FK ke players, coaches, community_users
 │       ├── create_community_users_table.php
 │       ├── create_community_games_table.php
 │       ├── create_community_bookings_table.php
-│       └── create_community_announcements_table.php
+│       ├── create_community_announcements_table.php
+│       ├── add_payment_fields_to_community_games.php     ← price_per_player, payment_qr_path
+│       └── add_payment_fields_to_community_bookings.php  ← receipt_path, status expanded
 │
 ├── routes/
 │   ├── api.php          ← Semua API endpoints
-│   └── web.php          ← SPA catch-all + Google OAuth routes
+│   └── web.php          ← SPA catch-all + Google OAuth
+│
+├── storage/
+│   └── app/public/
+│       ├── receipts/    ← Resit bayaran community (uploaded by players)
+│       └── payment-qr/  ← QR code images (uploaded by admin per game)
 │
 ├── resources/
 │   ├── css/
-│   │   └── app.css      ← Design tokens, base styles
+│   │   └── app.css
 │   │
 │   └── js/
-│       ├── app.jsx       ← React entry point + Router setup
+│       ├── app.jsx
 │       │
 │       ├── Components/
 │       │   ├── ProtectedRoute.jsx
@@ -846,8 +1110,8 @@ nuvra-app/
 │       │   └── PageLoader.jsx
 │       │
 │       ├── Layouts/
-│       │   ├── DashboardLayout.jsx   ← Player sidebar layout
-│       │   └── CoachLayouts.jsx      ← Coach sidebar layout
+│       │   ├── DashboardLayout.jsx
+│       │   └── CoachLayouts.jsx
 │       │
 │       └── Pages/
 │           ├── NuvraPortal.jsx
@@ -861,14 +1125,14 @@ nuvra-app/
 │           │   ├── AuthPage.jsx
 │           │   └── GoogleCallback.jsx
 │           │
-│           ├── Modules/              ← Player pages
+│           ├── Modules/                 ← Player pages
 │           │   ├── Overview.jsx
 │           │   ├── PlayerShedule.jsx
 │           │   ├── PlayerPayment.jsx
 │           │   ├── Announcements.jsx
 │           │   └── Settings.jsx
 │           │
-│           ├── CoachModules/         ← Coach pages
+│           ├── CoachModules/            ← Coach pages
 │           │   ├── SquadManagement.jsx
 │           │   ├── RecordStats.jsx
 │           │   ├── CoachSchedule.jsx
@@ -876,21 +1140,23 @@ nuvra-app/
 │           │   ├── CoachAnnouncements.jsx
 │           │   └── PendingRequest.jsx
 │           │
-│           └── Community/            ← Community module
-│               ├── CommunityHome.jsx
-│               ├── CommunityFeed.jsx
+│           └── Community/               ← Community module
+│               ├── CommunityHome.jsx    ← Login/register
+│               ├── CommunityFeed.jsx    ← Game listing
 │               ├── CommunityAnnouncements.jsx
-│               ├── GameDetail.jsx
+│               ├── GameDetail.jsx       ← Seat grid, PaymentModal, AdminBookingsPanel
 │               └── Admin/
-│                   ├── CreateGame.jsx
+│                   ├── CreateGame.jsx   ← Price + QR upload
 │                   └── PostAnnouncement.jsx
 │
 ├── public/
+│   ├── storage → ../storage/app/public  ← Symlink untuk file uploads
 │   └── images/logoImage/NUVRA_LOGO.png
 │
 ├── config/
 │   └── services.php     ← Billplz & Google OAuth credentials
 │
+├── .env                 ← Credentials (tidak di-commit)
 ├── package.json
 ├── composer.json
 ├── tailwind.config.js
@@ -899,5 +1165,5 @@ nuvra-app/
 
 ---
 
-*Document ini disediakan berdasarkan analisis penuh codebase NUVRA pada April 2026.*
-*Untuk sebarang pertanyaan teknikal, rujuk fail controller atau migration yang berkaitan.*
+*Document ini dikemaskini berdasarkan analisis penuh codebase NUVRA — April 2026 (v2.0).*
+*Merangkumi: payment flow baru untuk Community module, Sanctum auth fix, database schema terkini.*
