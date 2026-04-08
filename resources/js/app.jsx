@@ -38,6 +38,7 @@ import CoachPayment from "./Pages/CoachModules/CoachPayment.jsx";
 
 // --- NUVRA PORTAL & COMMUNITY ---
 import NuvraPortal from "./Pages/NuvraPortal.jsx";
+import CommunityLayout from "./Layouts/CommunityLayout.jsx";
 import CommunityHome from "./Pages/Community/CommunityHome.jsx";
 import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
 import GameDetail from "./Pages/Community/GameDetail.jsx";
@@ -72,11 +73,14 @@ function App() {
                     2. COMMUNITY ROUTES (separate auth)
                    ========================================= */}
                 <Route path="/community" element={<CommunityHome />} />
-                <Route path="/community/feed" element={<CommunityFeed />} />
-                <Route path="/community/games/:id" element={<GameDetail />} />
-                <Route path="/community/announcements" element={<CommunityAnnouncements />} />
-                <Route path="/community/admin/create-game" element={<CreateGame />} />
-                <Route path="/community/admin/post-announcement" element={<PostAnnouncement />} />
+                
+                <Route path="/community" element={<CommunityLayout />}>
+                    <Route path="feed" element={<CommunityFeed />} />
+                    <Route path="games/:id" element={<GameDetail />} />
+                    <Route path="announcements" element={<CommunityAnnouncements />} />
+                    <Route path="admin/create-game" element={<CreateGame />} />
+                    <Route path="admin/post-announcement" element={<PostAnnouncement />} />
+                </Route>
 
                 {/* =========================================
                     3. PROTECTED ROUTES — Club Portal

@@ -107,6 +107,23 @@ function PaymentModal({ game, side, onClose, onSuccess }) {
     );
 }
 
+// ── Team Logo Helper ────────────────────────────────────────────────────────
+function TeamLogo({ name, color }) {
+    return (
+        <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: `linear-gradient(135deg, ${color}, #080a12)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 16, fontWeight: 900, color: "#fff",
+            fontFamily: "'Barlow Condensed', sans-serif",
+            border: `1px solid ${color}44`,
+            flexShrink: 0
+        }}>
+            {name?.[0]?.toUpperCase() || "T"}
+        </div>
+    );
+}
+
 // ── Seat Grid Visual ──────────────────────────────────────────────────────────
 function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus }) {
     const remaining = max - filled;
@@ -118,7 +135,10 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
     return (
         <div style={T.wrap}>
             <div style={T.header}>
-                <span style={T.teamName}>{teamName}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <TeamLogo name={teamName} color={side === "team_a" ? "#00D4EC" : "#D040EF"} />
+                    <span style={T.teamName}>{teamName}</span>
+                </div>
                 <span style={{ ...T.badge, color, background: color + "15", border: `1px solid ${color}33` }}>
                     {isFull ? "FULL" : `${remaining} left`}
                 </span>
@@ -335,9 +355,7 @@ export default function GameDetail() {
     const sc = statusColors[game.status] || statusColors.open;
 
     return (
-        <div style={S.root}>
-            <PageLoader />
-            <DynamicBackground />
+        <>
             <Toaster position="top-right" reverseOrder={false} />
             <style>{`* { box-sizing: border-box; } ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }`}</style>
 
@@ -351,125 +369,89 @@ export default function GameDetail() {
                 />
             )}
 
-            {/* LEFT SIDEBAR */}
-            <aside style={S.sidebar}>
-                <div style={S.brand} onClick={() => navigate("/")}>
-                    <div style={S.brandText}>THE GRID</div>
-                    <div style={S.brandSub}>FOOTBALL COMMUNITY</div>
+            {/* TOP BAR */}
+            <div style={S.topBar}>
+                <button style={S.backBtn} onClick={() => navigate("/community/feed")}>← BACK TO FEED</button>
+                <div style={S.topBarRight}>
+                    <span style={{ ...S.statusBadge, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}` }}>
+                        {game.status.toUpperCase()}
+                    </span>
+                    {isAdmin && game.status === "open" && (
+                        <button style={S.cancelBtn} onClick={handleAdminCancel}>CANCEL GAME</button>
+                    )}
                 </div>
-                <nav style={S.sideNav}>
-                    {[
-                        { icon: "⊞", label: "DASHBOARD",     path: "/community/feed" },
-                        { icon: "📅", label: "FIXTURES",      path: null },
-                        { icon: "📢", label: "ANNOUNCEMENTS", path: "/community/announcements" },
-                        { icon: "👥", label: "COMMUNITY",     path: null },
-                    ].map(item => (
-                        <button key={item.label} style={S.navItem} onClick={() => item.path && navigate(item.path)}>
-                            <span style={S.navIcon}>{item.icon}</span>
-                            <span>{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
-                <div style={{ flex: 1 }} />
-                {user ? (
-                    <div style={S.userBox}>
-                        <div style={S.userAvatar}>{user.name?.[0]?.toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={S.userName}>{user.name}</div>
-                            <div style={S.userRole}>{user.role?.toUpperCase() || "MEMBER"}</div>
-                        </div>
-                    </div>
-                ) : (
-                    <button style={S.signInBtn} onClick={() => navigate("/community")}>SIGN IN</button>
-                )}
-            </aside>
+            </div>
 
-            {/* MAIN */}
-            <main style={S.main}>
-                {/* Top bar */}
-                <div style={S.topBar}>
-                    <button style={S.backBtn} onClick={() => navigate("/community/feed")}>← BACK TO FEED</button>
-                    <div style={S.topBarRight}>
-                        <span style={{ ...S.statusBadge, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}` }}>
-                            {game.status.toUpperCase()}
-                        </span>
-                        {isAdmin && game.status === "open" && (
-                            <button style={S.cancelBtn} onClick={handleAdminCancel}>CANCEL GAME</button>
-                        )}
-                    </div>
+            {/* Game header */}
+            <div style={S.gameHeader}>
+                <div style={S.sectionLabel}>THE GRID // MATCH DETAIL</div>
+                <h1 style={S.gameTitle}>{game.title}</h1>
+                <div style={S.gameMeta}>
+                    <span>📍 {game.venue}</span>
+                    <span>📅 {gameDate.toLocaleDateString("en-MY", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+                    <span>⏰ {gameDate.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}</span>
+                    {isPaid && <span style={S.priceBadge}>💳 RM {parseFloat(game.price_per_player).toFixed(2)} / person</span>}
+                    {!isPaid && <span style={S.freeBadge}>🆓 FREE</span>}
                 </div>
+                {game.description && <p style={S.gameDesc}>{game.description}</p>}
+            </div>
 
-                {/* Game header */}
-                <div style={S.gameHeader}>
-                    <div style={S.sectionLabel}>THE GRID // MATCH DETAIL</div>
-                    <h1 style={S.gameTitle}>{game.title}</h1>
-                    <div style={S.gameMeta}>
-                        <span>📍 {game.venue}</span>
-                        <span>📅 {gameDate.toLocaleDateString("en-MY", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
-                        <span>⏰ {gameDate.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}</span>
-                        {isPaid && <span style={S.priceBadge}>💳 RM {parseFloat(game.price_per_player).toFixed(2)} / person</span>}
-                        {!isPaid && <span style={S.freeBadge}>🆓 FREE</span>}
-                    </div>
-                    {game.description && <p style={S.gameDesc}>{game.description}</p>}
+            {/* Player booking status banner */}
+            {!isAdmin && token && userJoined && (
+                <div style={{
+                    ...S.bookingBanner,
+                    ...(bookingStatus === "confirmed" ? S.bookingBannerConfirmed : S.bookingBannerPending),
+                }}>
+                    {bookingStatus === "confirmed" && (
+                        <>✅ <strong>You're in!</strong> Your slot is confirmed. See you on the pitch.</>
+                    )}
+                    {bookingStatus === "payment_submitted" && (
+                        <>📨 <strong>Receipt submitted.</strong> Waiting for admin to verify your payment.</>
+                    )}
                 </div>
+            )}
 
-                {/* Player booking status banner */}
-                {!isAdmin && token && userJoined && (
-                    <div style={{
-                        ...S.bookingBanner,
-                        ...(bookingStatus === "confirmed" ? S.bookingBannerConfirmed : S.bookingBannerPending),
-                    }}>
-                        {bookingStatus === "confirmed" && (
-                            <>✅ <strong>You're in!</strong> Your slot is confirmed. See you on the pitch.</>
-                        )}
-                        {bookingStatus === "payment_submitted" && (
-                            <>📨 <strong>Receipt submitted.</strong> Waiting for admin to verify your payment.</>
-                        )}
-                    </div>
-                )}
-
-                {/* Sign-in nudge for guests */}
-                {!token && game.status === "open" && (
-                    <div style={S.nudgeBox}>
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>⚽ Want to play?</span>
-                        <button style={S.nudgeBtn} onClick={() => navigate("/community")}>SIGN IN TO JOIN</button>
-                    </div>
-                )}
-
-                {/* Teams layout */}
-                <div style={S.sectionHeader}>
-                    <span style={S.sectionTitle}>SQUAD SLOTS</span>
+            {/* Sign-in nudge for guests */}
+            {!token && game.status === "open" && (
+                <div style={S.nudgeBox}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>⚽ Want to play?</span>
+                    <button style={S.nudgeBtn} onClick={() => navigate("/community")}>SIGN IN TO JOIN</button>
                 </div>
-                <div style={S.teamsGrid}>
-                    <SlotVisual
-                        filled={team_a.length}
-                        max={game.max_slots_per_team}
-                        teamName={game.team_a_name}
-                        side="team_a"
-                        onJoin={(side) => isPaid ? setModal(side) : joinFree(side)}
-                        disabled={!token || isAdmin || userJoined}
-                        gameStatus={game.status}
-                    />
-                    <div style={S.vsDivider}>
-                        <div style={S.vsChip}>VS</div>
-                    </div>
-                    <SlotVisual
-                        filled={team_b.length}
-                        max={game.max_slots_per_team}
-                        teamName={game.team_b_name}
-                        side="team_b"
-                        onJoin={(side) => isPaid ? setModal(side) : joinFree(side)}
-                        disabled={!token || isAdmin || userJoined}
-                        gameStatus={game.status}
-                    />
-                </div>
+            )}
 
-                {/* Admin bookings panel */}
-                {isAdmin && (
-                    <AdminBookingsPanel gameId={id} token={token} onAction={fetchGame} />
-                )}
-            </main>
-        </div>
+            {/* Teams layout */}
+            <div style={S.sectionHeader}>
+                <span style={S.sectionTitle}>SQUAD SLOTS</span>
+            </div>
+            <div style={S.teamsGrid}>
+                <SlotVisual
+                    filled={team_a.length}
+                    max={game.max_slots_per_team}
+                    teamName={game.team_a_name}
+                    side="team_a"
+                    onJoin={(side) => isPaid ? setModal(side) : joinFree(side)}
+                    disabled={!token || isAdmin || userJoined}
+                    gameStatus={game.status}
+                />
+                <div style={S.vsDivider}>
+                    <div style={S.vsChip}>VS</div>
+                </div>
+                <SlotVisual
+                    filled={team_b.length}
+                    max={game.max_slots_per_team}
+                    teamName={game.team_b_name}
+                    side="team_b"
+                    onJoin={(side) => isPaid ? setModal(side) : joinFree(side)}
+                    disabled={!token || isAdmin || userJoined}
+                    gameStatus={game.status}
+                />
+            </div>
+
+            {/* Admin bookings panel */}
+            {isAdmin && (
+                <AdminBookingsPanel gameId={id} token={token} onAction={fetchGame} />
+            )}
+        </>
     );
 
     // Free game join (no receipt needed)
@@ -495,21 +477,6 @@ export default function GameDetail() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
-    root: { display: "flex", minHeight: "100vh", background: "#080a12", color: "#fff", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden" },
-    sidebar: { width: 210, minWidth: 210, minHeight: "100vh", background: "rgba(6,7,18,0.95)", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50, backdropFilter: "blur(20px)" },
-    brand: { padding: "28px 20px 20px", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)", marginBottom: 8 },
-    brandText: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, letterSpacing: 3, color: "#fff", lineHeight: 1 },
-    brandSub: { fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.3)", marginTop: 3, textTransform: "uppercase" },
-    sideNav: { display: "flex", flexDirection: "column", gap: 2, padding: "8px 0" },
-    navItem: { display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "inherit", textAlign: "left", width: "100%" },
-    navIcon: { fontSize: 14, width: 20, textAlign: "center" },
-    userBox: { display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.05)" },
-    userAvatar: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #00D4EC, #D040EF)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#080810", flexShrink: 0 },
-    userName: { fontSize: 12, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-    userRole: { fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.3)", marginTop: 1 },
-    signInBtn: { margin: "12px 16px 20px", padding: "10px", borderRadius: 6, border: "1px solid rgba(0,212,236,0.3)", background: "rgba(0,212,236,0.05)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 1.5, cursor: "pointer", fontFamily: "inherit" },
-
-    main: { marginLeft: 210, flex: 1, padding: "0 32px 60px", position: "relative", zIndex: 10 },
     topBar: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 0 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", marginBottom: 24 },
     backBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 800, letterSpacing: 1, cursor: "pointer", fontFamily: "inherit" },
     topBarRight: { display: "flex", gap: 12, alignItems: "center" },
@@ -541,7 +508,13 @@ const S = {
 const T = {
     wrap:     { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 20, display: "flex", flexDirection: "column", gap: 14 },
     header:   { display: "flex", justifyContent: "space-between", alignItems: "center" },
-    teamName: { fontSize: 15, fontWeight: 800 },
+    teamName: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 18,
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
     badge:    { fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 4, letterSpacing: 0.5 },
     seatGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 5 },
     seat:     { height: 22, borderRadius: 4, transition: "all 0.3s" },
