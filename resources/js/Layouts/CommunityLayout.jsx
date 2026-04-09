@@ -94,6 +94,7 @@ export default function CommunityLayout() {
                         </div>
                         <div style={S.userInfo}>
                             <div style={S.userName}>{user.name}</div>
+                            <button style={S.logoutBtn} onClick={logout}>Sign out</button>
                         </div>
                     </div>
                 ) : (
@@ -231,6 +232,19 @@ const S = {
         fontSize: 14,
         fontWeight: 600,
         color: "rgba(255,255,255,0.8)",
+    },
+    logoutBtn: {
+        marginTop: 4,
+        background: "none",
+        border: "none",
+        color: "rgba(255,255,255,0.3)",
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        padding: 0,
+        textAlign: "left",
+        transition: "color 0.2s",
     },
     signInBtn: {
         margin: "24px",

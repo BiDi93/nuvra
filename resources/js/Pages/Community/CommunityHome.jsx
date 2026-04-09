@@ -66,13 +66,10 @@ export default function CommunityHome() {
 
 
 
-            {/* Back to portal */}
-            <button style={styles.backBtn} onClick={() => navigate("/")}>← Back to Nuvra</button>
-
             <div style={styles.container}>
                 {/* Header */}
                 <div style={styles.header}>
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={styles.iconWrap} />
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={styles.iconWrap} onClick={() => navigate("/")} />
                     <h1 style={styles.title}>Nuvra Community</h1>
                     <p style={styles.subtitle}>Football for everyone — no club required</p>
                 </div>
@@ -157,16 +154,9 @@ const styles = {
         padding: "80px 24px",
         position: "relative",
     },
-    backBtn: {
-        position: "fixed", top: 20, left: 24, zIndex: 100,
-        background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-        color: "rgba(255,255,255,0.6)", padding: "8px 16px", borderRadius: 8,
-        fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-        fontFamily: "inherit",
-    },
     container: { position: "relative", zIndex: 1, width: "100%", maxWidth: 420 },
     header: { textAlign: "center", marginBottom: 32 },
-    iconWrap: { height: 56, width: "auto", marginBottom: 16, objectFit: "contain", display: "block", margin: "0 auto 16px" },
+    iconWrap: { height: 56, width: "auto", objectFit: "contain", display: "block", margin: "0 auto 16px", cursor: "pointer" },
     title: { fontFamily: "'Inter', sans-serif", fontSize: 42, fontWeight: 900, letterSpacing: 1, lineHeight: 1 },
     subtitle: { color: "var(--text-muted)", fontSize: 14, marginTop: 8, fontWeight: 500 },
     card: {

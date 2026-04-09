@@ -80,11 +80,18 @@ function GameCard({ game, onClick, isAdmin }) {
             <div style={S.cardInner}>
                 <div style={S.cardTitle}>{game.title}</div>
                 
-                <div style={S.teamRow}>
-                    <TeamLogo name={game.team_a_name} color="#00D4EC" />
-                    <div style={S.teamInfo}>
+                <div style={S.matchupRow}>
+                    <div style={S.teamSide}>
+                        <TeamLogo name={game.team_a_name} color="#00D4EC" />
                         <div style={S.teamName}>{game.team_a_name}</div>
+                    </div>
+                    <div style={S.vsBlock}>
+                        <div style={S.vsText}>VS</div>
                         <div style={S.gameTime}>{timeStr}</div>
+                    </div>
+                    <div style={{ ...S.teamSide, alignItems: "flex-end" }}>
+                        <TeamLogo name={game.team_b_name} color="#D040EF" />
+                        <div style={S.teamName}>{game.team_b_name}</div>
                     </div>
                 </div>
 
@@ -96,39 +103,6 @@ function GameCard({ game, onClick, isAdmin }) {
                 >
                     {isAdmin ? "VIEW →" : isOpen ? "VIEW & JOIN →" : game.status === "full" ? "GAME FULL" : game.status.toUpperCase()}
                 </button>
-            </div>
-        </div>
-    );
-}
-
-// ── Top Players Card ──────────────────────────────────────────────────────────
-function TopPlayersCard() {
-    const players = [
-        { name: "Amirul H.", goals: 24, pct: 90 },
-        { name: "Sara L.", goals: 18, pct: 70 },
-        { name: "Chen W.", goals: 15, pct: 55 },
-    ];
-
-    return (
-        <div style={S.card}>
-            <div style={S.cardInner}>
-                <div style={S.cardTitle}>TOP PLAYERS</div>
-                <div style={S.playerList}>
-                    {players.map((p, i) => (
-                        <div key={i} style={S.playerRow}>
-                            <div style={S.playerAvatar}>{p.name[0]}</div>
-                            <div style={S.playerInfo}>
-                                <div style={S.playerMeta}>
-                                    <span>{i+1}. {p.name}</span>
-                                    <span>{p.goals} Goals</span>
-                                </div>
-                                <div style={S.playerBarTrack}>
-                                    <div style={{ ...S.playerBarFill, width: `${p.pct}%` }} />
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
             </div>
         </div>
     );
@@ -204,7 +178,6 @@ export default function CommunityFeed() {
                             isAdmin={user?.role === "admin"}
                         />
                     ))}
-                    <TopPlayersCard />
                 </div>
             )}
         </>
@@ -274,24 +247,40 @@ const S = {
         fontWeight: 700,
         color: "#fff",
     },
-    teamRow: {
+    matchupRow: {
         display: "flex",
         alignItems: "center",
-        gap: 16,
+        justifyContent: "space-between",
+        gap: 8,
     },
-    teamInfo: {
+    teamSide: {
         display: "flex",
         flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 8,
+        flex: 1,
+    },
+    vsBlock: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        flexShrink: 0,
+    },
+    vsText: {
+        fontSize: 13,
+        fontWeight: 900,
+        color: "rgba(255,255,255,0.25)",
+        letterSpacing: 1,
     },
     teamName: {
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: 700,
         color: "#fff",
     },
     gameTime: {
-        fontSize: 13,
+        fontSize: 11,
         color: "rgba(255,255,255,0.4)",
-        marginTop: 2,
     },
     joinBtn: {
         padding: "14px",
@@ -308,52 +297,6 @@ const S = {
     joinBtnDisabled: {
         background: "#444",
         color: "rgba(255,255,255,0.3)",
-    },
-    /* Top Players Card Styles */
-    playerList: {
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-    },
-    playerRow: {
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-    },
-    playerAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: "50%",
-        background: "#444",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 14,
-        fontWeight: 800,
-    },
-    playerInfo: {
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-    },
-    playerMeta: {
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: 13,
-        fontWeight: 600,
-        color: "rgba(255,255,255,0.8)",
-    },
-    playerBarTrack: {
-        height: 4,
-        background: "rgba(255,255,255,0.1)",
-        borderRadius: 2,
-        overflow: "hidden",
-    },
-    playerBarFill: {
-        height: "100%",
-        background: "#00D4EC",
-        borderRadius: 2,
     },
     emptyState: {
         textAlign: "center",
