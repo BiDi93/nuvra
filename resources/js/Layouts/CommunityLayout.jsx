@@ -9,7 +9,6 @@ const API = "/api/community";
 function NavItem({ icon, label, active, onClick }) {
     return (
         <button style={{ ...S.navItem, ...(active ? S.navItemActive : {}) }} onClick={onClick}>
-            {active && <div style={S.navActiveLine} />}
             <span style={S.navIcon}>{icon}</span>
             <span style={S.navLabel}>{label}</span>
         </button>
@@ -50,48 +49,52 @@ export default function CommunityLayout() {
 
             {/* ── LEFT SIDEBAR ── */}
             <aside style={S.sidebar}>
-                {/* Brand */}
+                {/* Brand / Logo */}
                 <div style={S.brand} onClick={() => navigate("/")}>
-                    <div style={S.brandText}>NUVRA</div>
-                    <div style={S.brandSub}>FOOTBALL COMMUNITY</div>
+                    <div style={S.logoContainer}>
+                        <img 
+                            src="/images/logoImage/NUVRA_LOGO.png" 
+                            alt="Nuvra Logo" 
+                            style={S.logoImg} 
+                        />
+                        <div style={S.brandTextCol}>
+                            <div style={S.brandText}>NUVRA</div>
+                            <div style={S.brandSubText}>FOOTBALL COMMUNITY</div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Nav */}
                 <nav style={S.sideNav}>
                     <NavItem 
-                        icon="⊞" 
+                        icon={<span style={{fontSize: 18}}>⊞</span>} 
                         label="DASHBOARD" 
                         active={isActive("/community/feed")} 
                         onClick={() => navigate("/community/feed")} 
                     />
                     <NavItem 
-                        icon="📢" 
+                        icon={<span style={{fontSize: 18}}>📢</span>} 
                         label="ANNOUNCEMENTS" 
                         active={isActive("/community/announcements")} 
                         onClick={() => navigate("/community/announcements")} 
                     />
-                    {user?.role === "admin" && (
-                        <NavItem 
-                            icon="+" 
-                            label="POST GAME" 
-                            active={isActive("/community/admin/create-game")} 
-                            onClick={() => navigate("/community/admin/create-game")} 
-                        />
-                    )}
                 </nav>
 
-                {/* Spacer */}
                 <div style={{ flex: 1 }} />
 
                 {/* User section */}
                 {user ? (
                     <div style={S.userBox}>
-                        <div style={S.userAvatar}>{user.name?.[0]?.toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={S.userName}>{user.name}</div>
-                            <div style={S.userRole}>{user.role?.toUpperCase() || "MEMBER"}</div>
+                        <div style={S.userAvatar}>
+                            {user.avatar_url ? (
+                                <img src={user.avatar_url} alt="" style={S.avatarImg} />
+                            ) : (
+                                user.name?.[0]?.toUpperCase()
+                            )}
                         </div>
-                        <button style={S.logoutBtn} onClick={logout} title="Sign out">↩</button>
+                        <div style={S.userInfo}>
+                            <div style={S.userName}>{user.name}</div>
+                        </div>
                     </div>
                 ) : (
                     <button style={S.signInBtn} onClick={() => navigate("/community")}>
@@ -113,21 +116,17 @@ const S = {
     root: {
         display: "flex",
         minHeight: "100vh",
-        background: "#080a12",
+        background: "#121212",
         color: "#fff",
         fontFamily: "'Inter', sans-serif",
         position: "relative",
-        overflow: "hidden",
     },
 
     /* SIDEBAR */
     sidebar: {
-        width: 210,
-        minWidth: 210,
-        maxWidth: 210,
-        minHeight: "100vh",
-        background: "rgba(6,7,18,0.95)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        width: 260,
+        minWidth: 260,
+        background: "#222222",
         display: "flex",
         flexDirection: "column",
         position: "fixed",
@@ -135,137 +134,122 @@ const S = {
         left: 0,
         bottom: 0,
         zIndex: 50,
-        backdropFilter: "blur(20px)",
     },
     brand: {
-        padding: "28px 20px 20px",
+        padding: "32px 24px",
         cursor: "pointer",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        marginBottom: 8,
+    },
+    logoContainer: {
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+    },
+    logoImg: {
+        width: 40,
+        height: 40,
+        objectFit: "contain",
+    },
+    brandTextCol: {
+        display: "flex",
+        flexDirection: "column",
     },
     brandText: {
-        fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: 22,
-        letterSpacing: 3,
-        color: "#fff",
+        fontSize: 24,
+        fontWeight: 900,
+        letterSpacing: 2,
         lineHeight: 1,
     },
-    brandSub: {
+    brandSubText: {
         fontSize: 9,
-        letterSpacing: 2,
-        color: "rgba(255,255,255,0.3)",
-        marginTop: 3,
+        fontWeight: 700,
+        letterSpacing: 1,
+        color: "rgba(255,255,255,0.4)",
+        marginTop: 4,
         textTransform: "uppercase",
     },
     sideNav: {
+        padding: "0 12px",
         display: "flex",
         flexDirection: "column",
-        gap: 2,
-        padding: "8px 0",
+        gap: 4,
     },
     navItem: {
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "10px 20px",
+        gap: 12,
+        padding: "12px 20px",
         background: "transparent",
         border: "none",
-        color: "rgba(255,255,255,0.4)",
-        fontSize: 11,
+        color: "rgba(255,255,255,0.5)",
+        fontSize: 14,
         fontWeight: 700,
-        letterSpacing: 1.2,
         cursor: "pointer",
         fontFamily: "inherit",
+        borderRadius: 12,
+        transition: "all 0.2s ease",
         textAlign: "left",
-        position: "relative",
-        transition: "color 0.2s, background 0.2s",
-        borderRadius: 0,
-        width: "100%",
     },
     navItemActive: {
+        background: "#333333",
         color: "#fff",
-        background: "rgba(255,255,255,0.04)",
     },
     navIcon: {
-        fontSize: 14,
-        width: 20,
-        textAlign: "center",
-    },
-    navLabel: {
-        flex: 1,
-    },
-    navActiveLine: {
-        position: "absolute",
-        left: 0, top: 0, bottom: 0,
-        width: 3,
-        background: "linear-gradient(180deg, #00D4EC, #D040EF)",
-        borderRadius: "0 2px 2px 0",
-    },
-    userBox: {
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "16px 20px",
-        borderTop: "1px solid rgba(255,255,255,0.05)",
-    },
-    userAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: "50%",
-        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 13,
+        width: 24,
+    },
+    userBox: {
+        padding: "24px",
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+    },
+    userAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        background: "#444",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 14,
         fontWeight: 800,
-        color: "#080810",
-        flexShrink: 0,
+        overflow: "hidden",
+    },
+    avatarImg: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+    },
+    userInfo: {
+        flex: 1,
+        minWidth: 0,
     },
     userName: {
-        fontSize: 12,
-        fontWeight: 700,
-        color: "#fff",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-    },
-    userRole: {
-        fontSize: 9,
-        letterSpacing: 1,
-        color: "rgba(255,255,255,0.3)",
-        marginTop: 1,
-    },
-    logoutBtn: {
-        background: "none",
-        border: "none",
-        color: "rgba(255,255,255,0.3)",
-        fontSize: 16,
-        cursor: "pointer",
-        padding: "2px 4px",
-        transition: "color 0.2s",
-        flexShrink: 0,
+        fontSize: 14,
+        fontWeight: 600,
+        color: "rgba(255,255,255,0.8)",
     },
     signInBtn: {
-        margin: "12px 16px 20px",
-        padding: "10px",
-        borderRadius: 6,
-        border: "1px solid rgba(0,212,236,0.3)",
-        background: "rgba(0,212,236,0.05)",
-        color: "#00D4EC",
-        fontSize: 11,
+        margin: "24px",
+        padding: "12px",
+        borderRadius: 12,
+        border: "none",
+        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
+        color: "#000",
+        fontSize: 13,
         fontWeight: 800,
-        letterSpacing: 1.5,
         cursor: "pointer",
-        fontFamily: "inherit",
     },
 
     /* MAIN */
     main: {
-        marginLeft: 210,
+        marginLeft: 260,
         flex: 1,
-        padding: "0 32px 48px",
-        position: "relative",
-        zIndex: 10,
+        background: "#121212",
         minHeight: "100vh",
+        padding: "40px",
     },
 };

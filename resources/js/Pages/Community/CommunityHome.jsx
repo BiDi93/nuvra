@@ -72,7 +72,7 @@ export default function CommunityHome() {
             <div style={styles.container}>
                 {/* Header */}
                 <div style={styles.header}>
-                    <div style={styles.iconWrap}>🏘️</div>
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={styles.iconWrap} />
                     <h1 style={styles.title}>Nuvra Community</h1>
                     <p style={styles.subtitle}>Football for everyone — no club required</p>
                 </div>
@@ -166,7 +166,7 @@ const styles = {
     },
     container: { position: "relative", zIndex: 1, width: "100%", maxWidth: 420 },
     header: { textAlign: "center", marginBottom: 32 },
-    iconWrap: { fontSize: 48, marginBottom: 12 },
+    iconWrap: { height: 56, width: "auto", marginBottom: 16, objectFit: "contain", display: "block", margin: "0 auto 16px" },
     title: { fontFamily: "'Inter', sans-serif", fontSize: 42, fontWeight: 900, letterSpacing: 1, lineHeight: 1 },
     subtitle: { color: "var(--text-muted)", fontSize: 14, marginTop: 8, fontWeight: 500 },
     card: {
