@@ -1,13 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import DynamicBackground from '../../Components/DynamicBackground';
-import PageLoader from '../../Components/PageLoader';
+
+// Curated vellar league images for the hero panel
+const HERO_IMAGES = [
+    "/images/vellar_league/R6SA4597.JPG",
+    "/images/vellar_league/R6SA4601.JPG",
+    "/images/vellar_league/R6SA4603.JPG",
+    "/images/vellar_league/LSBS0014.JPG",
+    "/images/vellar_league/LSBS0016.JPG",
+    "/images/vellar_league/LSBS0008.JPG",
+    "/images/vellar_league/R6SA4599.JPG",
+    "/images/vellar_league/R6SA4602.JPG",
+];
 
 const AuthPage = () => {
     const navigate = useNavigate();
+    const [imgIndex, setImgIndex] = useState(0);
+    const [fade, setFade] = useState(true);
     const [view, setView] = useState('selection');
     const [role, setRole] = useState('player');
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setFade(false);
+            setTimeout(() => {
+                setImgIndex(i => (i + 1) % HERO_IMAGES.length);
+                setFade(true);
+            }, 600);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -63,188 +86,471 @@ const AuthPage = () => {
         }
     };
 
-    const accentColor = role === 'player' ? 'var(--brand-cyan)' : 'var(--brand-magenta)';
-    const btnGradient = role === 'player'
-        ? 'linear-gradient(135deg, #00ff87, #00c9ff)'
-        : 'linear-gradient(135deg, #a78bfa, #7c3aed)';
-    const btnTextColor = role === 'player' ? '#080810' : '#fff';
-
-    const inputCls = "w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] text-white rounded-lg p-3 outline-none focus:border-[rgba(255,255,255,0.3)] transition placeholder-gray-600";
-    const labelCls = "block text-xs font-bold text-gray-400 uppercase mb-1 tracking-wider";
+    const isPlayer = role === 'player';
+    const accentColor = isPlayer ? '#00D4EC' : '#D040EF';
+    const btnGradient = isPlayer
+        ? 'linear-gradient(135deg, #00D4EC, #D040EF)'
+        : 'linear-gradient(135deg, #D040EF, #00D4EC)';
 
     return (
-        <div className="portal-root min-h-screen flex flex-col text-white relative">
-            <PageLoader />
-            <DynamicBackground />
+        <div style={S.root}>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap');
+                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+                input::placeholder { color: rgba(255,255,255,0.2); }
+                input:focus { border-color: rgba(255,255,255,0.3) !important; outline: none; }
+                .auth-input { transition: border-color 0.2s; }
+                .auth-btn-ghost:hover { background: rgba(255,255,255,0.08) !important; }
+                .auth-link:hover { color: #fff !important; }
+                .back-btn:hover { color: rgba(255,255,255,0.8) !important; }
+            `}</style>
 
-            {/* HEADER */}
-            <header className="flex-none flex items-center px-8 py-5 z-50 relative">
-                <div onClick={() => setView('selection')} className="cursor-pointer flex items-center gap-3">
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-9 w-9 object-contain" />
-                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, letterSpacing: 3 }}>
-                        NUVRA
-                    </span>
+            {/* ── LEFT: Hero Image Panel ── */}
+            <div style={S.heroPanelWrap}>
+                <div style={{ ...S.heroPanel, backgroundImage: `url(${HERO_IMAGES[imgIndex]})`, opacity: fade ? 1 : 0, transition: 'opacity 0.6s ease' }}>
+                    {/* gradient overlays */}
+                    <div style={S.heroOverlay} />
+                    <div style={S.heroOverlayBottom} />
+
+                    {/* Logo top-left */}
+                    <div style={S.heroLogo} onClick={() => navigate('/')} role="button">
+                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={S.heroLogoImg} />
+
+                    </div>
+
+                    {/* Tagline bottom */}
+                    <div style={S.heroTagline}>
+                        <h2 style={S.heroTaglineHeading}>Play Together.<br />Grow Together.</h2>
+                        <p style={S.heroTaglineSub}>The all-in-one platform for football clubs and their players.</p>
+                    </div>
                 </div>
-            </header>
+            </div>
 
-            {/* MAIN */}
-            <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-                <div className="glass-panel w-full max-w-md p-8">
+            {/* ── RIGHT: Form Panel ── */}
+            <div style={S.formPanel}>
+                <div style={S.formInner}>
 
-                    {/* VIEW 1: SELECTION */}
+                    {/* Mobile logo (hidden on desktop via media query workaround) */}
+                    <div style={S.mobileLogo} onClick={() => navigate('/')} role="button">
+                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={{ height: 32, objectFit: 'contain' }} />
+                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, letterSpacing: 3 }}>NUVRA</span>
+                    </div>
+
+                    {/* ── SELECTION VIEW ── */}
                     {view === 'selection' && (
-                        <div>
-                            <div className="text-center mb-8">
-                                <span className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: accentColor }}>
-                                    {role === 'player' ? 'For Players' : 'For Clubs'}
-                                </span>
-                                <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 36, letterSpacing: 2 }}>
-                                    Join Nuvra
-                                </h2>
-                                <p className="text-gray-400 mt-2 text-sm">
-                                    {role === 'player' ? "Join the squad today." : "Create your team workspace."}
+                        <div style={S.viewWrap}>
+                            <div style={S.viewHeader}>
+                                <div style={{ ...S.rolePill, background: `${accentColor}18`, color: accentColor, borderColor: `${accentColor}33` }}>
+                                    {isPlayer ? 'Player Portal' : 'Club Portal'}
+                                </div>
+                                <h1 style={S.viewTitle}>Join Nuvra</h1>
+                                <p style={S.viewSubtitle}>
+                                    {isPlayer ? "Your squad is waiting." : "Manage your club, your way."}
                                 </p>
                             </div>
 
-                            <div className="space-y-3">
-                                <button
-                                    onClick={handleGoogleLogin}
-                                    className="w-full flex items-center justify-center gap-3 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] text-white font-bold py-3 px-4 rounded-xl hover:bg-[rgba(255,255,255,0.08)] transition"
-                                >
-                                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="G" />
-                                    {role === 'player' ? 'Continue with Google' : 'Club Sign up with Google'}
+                            <div style={S.btnStack}>
+                                <button className="auth-btn-ghost" style={S.googleBtn} onClick={handleGoogleLogin}>
+                                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
+                                    {isPlayer ? 'Continue with Google' : 'Sign up with Google'}
                                 </button>
-                                <button
-                                    onClick={() => setView('signup')}
-                                    className="w-full font-bold py-3 px-4 rounded-xl transition"
-                                    style={{ background: btnGradient, color: btnTextColor }}
-                                >
+                                <button style={{ ...S.primaryBtn, background: btnGradient }} onClick={() => setView('signup')}>
                                     Sign up with Email
                                 </button>
                             </div>
 
-                            <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.08)]">
-                                {role === 'player' ? (
-                                    <p className="text-sm text-gray-400 text-center">
-                                        Manage a club?{' '}
-                                        <button onClick={() => setRole('coach')} className="font-bold hover:text-white transition" style={{ color: 'var(--brand-magenta)' }}>
-                                            Access Club Portal
-                                        </button>
-                                    </p>
-                                ) : (
-                                    <p className="text-sm text-gray-400 text-center">
-                                        Are you a Player?{' '}
-                                        <button onClick={() => setRole('player')} className="font-bold hover:text-white transition" style={{ color: 'var(--brand-cyan)' }}>
-                                            Go to Player Portal
-                                        </button>
-                                    </p>
-                                )}
+                            <div style={S.divider}>
+                                <div style={S.dividerLine} />
+                                <span style={S.dividerText}>or</span>
+                                <div style={S.dividerLine} />
                             </div>
 
-                            <div className="mt-4 text-center">
-                                <p className="text-sm text-gray-500">
-                                    Already have an account?{' '}
-                                    <button onClick={() => setView('login')} className="text-white font-bold hover:text-gray-300 transition">
-                                        Log in
-                                    </button>
-                                </p>
-                            </div>
+                            <p style={S.switchText}>
+                                {isPlayer ? (
+                                    <>Manage a club?{' '}
+                                        <button className="auth-link" style={{ ...S.inlineLink, color: '#D040EF' }} onClick={() => setRole('coach')}>
+                                            Access Club Portal
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>Are you a player?{' '}
+                                        <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={() => setRole('player')}>
+                                            Go to Player Portal
+                                        </button>
+                                    </>
+                                )}
+                            </p>
+
+                            <p style={S.switchText}>
+                                Already have an account?{' '}
+                                <button className="auth-link" style={S.inlineLink} onClick={() => setView('login')}>
+                                    Log in
+                                </button>
+                            </p>
                         </div>
                     )}
 
-                    {/* VIEW 2: SIGN UP */}
+                    {/* ── SIGN UP VIEW ── */}
                     {view === 'signup' && (
-                        <div>
-                            <button onClick={() => setView('selection')} className="text-gray-500 hover:text-white mb-6 flex items-center gap-2 text-sm font-bold transition">
-                                ← Back
-                            </button>
-                            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, letterSpacing: 2, marginBottom: 24 }}>
-                                Create {role === 'coach' ? 'Club' : 'Player'} Account
-                            </h2>
-                            <form onSubmit={handleRegister} className="space-y-4">
-                                <div>
-                                    <label className={labelCls}>Full Name</label>
-                                    <input type="text" className={inputCls} placeholder="Your Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+                        <div style={S.viewWrap}>
+                            <button className="back-btn" style={S.backBtn} onClick={() => setView('selection')}>← Back</button>
+                            <div style={S.viewHeader}>
+                                <div style={{ ...S.rolePill, background: `${accentColor}18`, color: accentColor, borderColor: `${accentColor}33` }}>
+                                    {isPlayer ? 'Player' : 'Club Admin'}
                                 </div>
-                                <div>
-                                    <label className={labelCls}>Email Address</label>
-                                    <input type="email" className={inputCls} placeholder="you@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Password</label>
-                                    <input type="password" className={inputCls} placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Confirm Password</label>
-                                    <input type="password" className={inputCls} placeholder="••••••••" value={formData.password_confirmation} onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })} required />
-                                </div>
-                                <button type="submit" className="w-full font-bold py-3 px-4 rounded-xl mt-2 transition" style={{ background: btnGradient, color: btnTextColor }}>
+                                <h1 style={S.viewTitle}>Create Account</h1>
+                            </div>
+                            <form onSubmit={handleRegister} style={S.form}>
+                                <Field label="Full Name" type="text" placeholder="Your Name"
+                                    value={formData.name} onChange={v => setFormData({ ...formData, name: v })} />
+                                <Field label="Email Address" type="email" placeholder="you@example.com"
+                                    value={formData.email} onChange={v => setFormData({ ...formData, email: v })} />
+                                <Field label="Password" type="password" placeholder="Min. 8 characters"
+                                    value={formData.password} onChange={v => setFormData({ ...formData, password: v })} />
+                                <Field label="Confirm Password" type="password" placeholder="••••••••"
+                                    value={formData.password_confirmation} onChange={v => setFormData({ ...formData, password_confirmation: v })} />
+                                <button type="submit" style={{ ...S.primaryBtn, background: btnGradient, marginTop: 8 }}>
                                     Create Account
                                 </button>
                             </form>
                         </div>
                     )}
 
-                    {/* VIEW 3: LOGIN */}
+                    {/* ── LOGIN VIEW ── */}
                     {view === 'login' && (
-                        <div>
-                            <button onClick={() => setView('selection')} className="text-gray-500 hover:text-white mb-6 flex items-center gap-2 text-sm font-bold transition">
-                                ← Back
-                            </button>
-                            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, letterSpacing: 2, marginBottom: 24 }}>
-                                Welcome Back
-                            </h2>
+                        <div style={S.viewWrap}>
+                            <button className="back-btn" style={S.backBtn} onClick={() => setView('selection')}>← Back</button>
+                            <div style={S.viewHeader}>
+                                <h1 style={S.viewTitle}>Welcome Back</h1>
+                                <p style={S.viewSubtitle}>Sign in to your Nuvra account.</p>
+                            </div>
 
-                            <button
-                                onClick={handleGoogleLogin}
-                                className="w-full flex items-center justify-center gap-3 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] text-white font-bold py-3 px-4 rounded-xl hover:bg-[rgba(255,255,255,0.08)] transition mb-5"
-                            >
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="G" />
+                            <button className="auth-btn-ghost" style={S.googleBtn} onClick={handleGoogleLogin}>
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
                                 Log in with Google
                             </button>
 
-                            <div className="relative flex items-center justify-center mb-5">
-                                <div className="w-full border-t border-[rgba(255,255,255,0.08)]"></div>
-                                <span className="absolute bg-[rgba(8,8,10,0.9)] px-3 text-xs font-bold text-gray-600 uppercase tracking-widest">or</span>
+                            <div style={S.divider}>
+                                <div style={S.dividerLine} />
+                                <span style={S.dividerText}>or</span>
+                                <div style={S.dividerLine} />
                             </div>
 
-                            <form onSubmit={handleLogin} className="space-y-4">
-                                <div>
-                                    <label className={labelCls}>Email Address</label>
-                                    <input type="email" className={inputCls} placeholder="you@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Password</label>
-                                    <input type="password" className={inputCls} placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
-                                </div>
-                                <button type="submit" className="w-full bg-white text-gray-900 font-bold py-3 px-4 rounded-xl mt-2 hover:bg-gray-100 transition">
+                            <form onSubmit={handleLogin} style={S.form}>
+                                <Field label="Email Address" type="email" placeholder="you@example.com"
+                                    value={formData.email} onChange={v => setFormData({ ...formData, email: v })} />
+                                <Field label="Password" type="password" placeholder="••••••••"
+                                    value={formData.password} onChange={v => setFormData({ ...formData, password: v })} />
+                                <button type="submit" style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 8 }}>
                                     Log In
                                 </button>
                             </form>
 
-                            <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.08)] text-center">
-                                <p className="text-sm text-gray-500">
-                                    Don't have an account?{' '}
-                                    <button onClick={() => setView('selection')} className="text-white font-bold hover:text-gray-300 transition">
-                                        Sign up
-                                    </button>
-                                </p>
-                            </div>
+                            <p style={{ ...S.switchText, marginTop: 24 }}>
+                                No account yet?{' '}
+                                <button className="auth-link" style={S.inlineLink} onClick={() => setView('selection')}>
+                                    Sign up
+                                </button>
+                            </p>
                         </div>
                     )}
 
-                    <p className="text-xs text-gray-600 text-center mt-8">
-                        By using Nuvra, you agree to our Terms of Service.
-                    </p>
+                    <p style={S.terms}>By using Nuvra, you agree to our Terms of Service.</p>
                 </div>
             </div>
-
-            {/* FOOTER */}
-            <footer className="flex-none py-5 text-center text-xs text-[rgba(255,255,255,0.2)] relative z-10">
-                © 2026 Nuvra Inc. All rights reserved.
-            </footer>
         </div>
     );
+};
+
+function Field({ label, type, placeholder, value, onChange }) {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={S.fieldLabel}>{label}</label>
+            <input
+                className="auth-input"
+                type={type}
+                placeholder={placeholder}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                style={S.input}
+                required
+            />
+        </div>
+    );
+}
+
+const S = {
+    root: {
+        display: 'flex',
+        minHeight: '100vh',
+        fontFamily: "'Inter', sans-serif",
+        background: '#080810',
+        color: '#fff',
+    },
+
+    /* ── Hero Panel ── */
+    heroPanelWrap: {
+        flex: '0 0 55%',
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    heroPanel: {
+        position: 'absolute',
+        inset: 0,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center top',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: 40,
+    },
+    heroOverlay: {
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.6) 100%)',
+        pointerEvents: 'none',
+    },
+    heroOverlayBottom: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '50%',
+        background: 'linear-gradient(to top, rgba(8,8,16,0.95) 0%, transparent 100%)',
+        pointerEvents: 'none',
+    },
+    heroLogo: {
+        position: 'relative',
+        zIndex: 2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        cursor: 'pointer',
+    },
+    heroLogoImg: {
+        height: 'auto',
+        width: '250px',
+        objectFit: 'contain',
+    },
+    heroLogoText: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 26,
+        fontWeight: 900,
+        letterSpacing: 4,
+        color: '#fff',
+    },
+    heroTagline: {
+        position: 'relative',
+        zIndex: 2,
+    },
+    heroTaglinePill: {
+        display: 'inline-block',
+        padding: '4px 12px',
+        borderRadius: 20,
+        background: 'rgba(0,212,236,0.15)',
+        border: '1px solid rgba(0,212,236,0.3)',
+        color: '#00D4EC',
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: 2,
+        marginBottom: 16,
+    },
+    heroTaglineHeading: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 52,
+        fontWeight: 900,
+        lineHeight: 1.05,
+        letterSpacing: 1,
+        marginBottom: 12,
+        color: '#fff',
+    },
+    heroTaglineSub: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.55)',
+        fontWeight: 500,
+        maxWidth: 360,
+        lineHeight: 1.6,
+    },
+
+    /* ── Form Panel ── */
+    formPanel: {
+        flex: '0 0 45%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0d0d17',
+        borderLeft: '1px solid rgba(255,255,255,0.05)',
+        overflowY: 'auto',
+    },
+    formInner: {
+        width: '100%',
+        maxWidth: 380,
+        padding: '48px 40px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+    },
+    mobileLogo: {
+        display: 'none',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 32,
+        cursor: 'pointer',
+        color: '#fff',
+    },
+
+    /* ── View content ── */
+    viewWrap: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+    },
+    viewHeader: {
+        marginBottom: 28,
+    },
+    rolePill: {
+        display: 'inline-block',
+        padding: '4px 12px',
+        borderRadius: 20,
+        border: '1px solid',
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: 1.5,
+        marginBottom: 14,
+    },
+    viewTitle: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 38,
+        fontWeight: 900,
+        letterSpacing: 1,
+        color: '#fff',
+        lineHeight: 1.1,
+        marginBottom: 8,
+    },
+    viewSubtitle: {
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.4)',
+        fontWeight: 500,
+    },
+
+    /* ── Buttons ── */
+    btnStack: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        marginBottom: 20,
+    },
+    googleBtn: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        padding: '13px 20px',
+        borderRadius: 12,
+        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'rgba(255,255,255,0.04)',
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 600,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        marginBottom: 12,
+    },
+    primaryBtn: {
+        width: '100%',
+        padding: '14px 20px',
+        borderRadius: 12,
+        border: 'none',
+        color: '#080810',
+        fontSize: 14,
+        fontWeight: 800,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        letterSpacing: 0.3,
+    },
+    backBtn: {
+        background: 'none',
+        border: 'none',
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        padding: 0,
+        marginBottom: 24,
+        textAlign: 'left',
+        transition: 'color 0.2s',
+    },
+
+    /* ── Divider ── */
+    divider: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        margin: '4px 0 20px',
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        background: 'rgba(255,255,255,0.07)',
+    },
+    dividerText: {
+        fontSize: 11,
+        fontWeight: 700,
+        color: 'rgba(255,255,255,0.25)',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+
+    /* ── Form Fields ── */
+    form: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+    },
+    fieldLabel: {
+        fontSize: 11,
+        fontWeight: 700,
+        color: 'rgba(255,255,255,0.35)',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    input: {
+        width: '100%',
+        padding: '12px 16px',
+        borderRadius: 10,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.09)',
+        color: '#fff',
+        fontSize: 14,
+        fontFamily: 'inherit',
+    },
+
+    /* ── Footer text ── */
+    switchText: {
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.35)',
+        marginTop: 16,
+        textAlign: 'center',
+    },
+    inlineLink: {
+        background: 'none',
+        border: 'none',
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        padding: 0,
+        transition: 'color 0.2s',
+    },
+    terms: {
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.15)',
+        textAlign: 'center',
+        marginTop: 32,
+    },
 };
 
 export default AuthPage;
