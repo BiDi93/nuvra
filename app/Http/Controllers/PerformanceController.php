@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
-use App\Models\Match as MatchRecord;
+use App\Models\FootballMatch as MatchRecord;
 use App\Models\Performance;
 
 class PerformanceController extends Controller

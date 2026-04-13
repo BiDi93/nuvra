@@ -13,7 +13,7 @@ use App\Models\Player;
 use App\Models\Coach;
 use App\Models\Attribute;
 use App\Models\Performance;
-use App\Models\Match;
+use App\Models\FootballMatch;
 
 class PlayerController extends Controller
 {
@@ -128,35 +128,39 @@ class PlayerController extends Controller
 
     public function show($id)
     {
-        $player = Player::with(['attributes', 'performances.match'])->find($id);
-        if (!$player) return response()->json(['message' => 'Not found'], 404);
+        try {
+            $player = Player::with(['attributes', 'performances.match'])->find($id);
+            if (!$player) return response()->json(['message' => 'Player not found'], 404);
 
-        $history = $player->performances->map(function ($perf) {
-            return array_merge($perf->toArray(), [
-                'opponent_name' => $perf->match->opponent_name,
-                'match_date' => $perf->match->match_date,
-                'venue' => $perf->match->venue,
-                'league_name' => $perf->match->league_name,
+            $history = $player->performances->filter(fn($p) => $p->match !== null)->map(function ($perf) {
+                return array_merge($perf->toArray(), [
+                    'opponent_name' => $perf->match->opponent_name,
+                    'match_date'    => $perf->match->match_date,
+                    'venue'         => $perf->match->venue,
+                    'league_name'   => $perf->match->league_name,
+                ]);
+            })->values();
+
+            $attributes = $player->attributes ?: [
+                'pace' => 50, 'shooting' => 50, 'passing' => 50,
+                'dribbling' => 50, 'defending' => 50, 'physical' => 50
+            ];
+
+            $avgRating = $player->performances->avg('rating') ?: 0;
+
+            return response()->json([
+                'profile'    => $player,
+                'stats'      => [
+                    'total_matches'  => $player->performances->count(),
+                    'total_goals'    => $player->performances->sum('goals'),
+                    'average_rating' => round($avgRating, 1),
+                ],
+                'attributes' => $attributes,
+                'history'    => $history,
             ]);
-        });
-
-        $attributes = $player->attributes ?: [
-            'pace' => 50, 'shooting' => 50, 'passing' => 50, 
-            'dribbling' => 50, 'defending' => 50, 'physical' => 50
-        ];
-
-        $avgRating = $player->performances->avg('rating') ?: 0;
-
-        return response()->json([
-            'profile' => $player,
-            'stats' => [
-                'total_matches' => $player->performances->count(),
-                'total_goals' => $player->performances->sum('goals'),
-                'average_rating' => round($avgRating, 1)
-            ],
-            'attributes' => $attributes,
-            'history' => $history
-        ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
     }
 
     // Get Full Profile for Logged-In User
@@ -174,14 +178,14 @@ class PlayerController extends Controller
             return response()->json(['message' => 'Player profile not found'], 404);
         }
 
-        $history = $player->performances->map(function ($perf) {
+        $history = $player->performances->filter(fn($p) => $p->match !== null)->map(function ($perf) {
             return array_merge($perf->toArray(), [
                 'opponent_name' => $perf->match->opponent_name,
-                'match_date' => $perf->match->match_date,
-                'venue' => $perf->match->venue,
-                'league_name' => $perf->match->league_name,
+                'match_date'    => $perf->match->match_date,
+                'venue'         => $perf->match->venue,
+                'league_name'   => $perf->match->league_name,
             ]);
-        });
+        })->values();
 
         $attributes = $player->attributes ?: [
             'pace' => 50, 'shooting' => 50, 'passing' => 50, 

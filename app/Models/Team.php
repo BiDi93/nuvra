@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Player;
-use App\Models\Match as MatchModel;
+use App\Models\FootballMatch as MatchModel;
     
 
 class Team extends Model
