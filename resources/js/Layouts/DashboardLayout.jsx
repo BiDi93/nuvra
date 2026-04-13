@@ -55,20 +55,26 @@ export default function DashboardLayout() {
 
         axios.get("/api/player/me", { headers: { Authorization: `Bearer ${token}` } })
             .then(res => {
-                const player = res.data;
-                if (player.status === "pending") { navigate("/waiting-room"); return; }
-                if (player.status === "rejected") {
-                    alert("Your application was declined.");
+                const status = res.data.profile?.status;
+                if (status === "pending") {
+                    localStorage.setItem("player_status", "pending");
+                    navigate("/waiting-room");
+                    return;
+                }
+                if (status === "rejected") {
                     localStorage.removeItem("auth_token");
+                    localStorage.removeItem("player_status");
                     navigate("/login");
                     return;
                 }
-                setData(player);
+                localStorage.setItem("player_status", "active");
+                setData(res.data);
                 setLoading(false);
             })
             .catch(err => {
                 if (err.response?.status === 401) {
                     localStorage.removeItem("auth_token");
+                    localStorage.removeItem("player_status");
                     navigate("/login");
                 }
             });
@@ -76,6 +82,7 @@ export default function DashboardLayout() {
 
     const handleLogout = () => {
         localStorage.removeItem("auth_token");
+        localStorage.removeItem("player_status");
         localStorage.removeItem("currentUser");
         window.location.href = "/login";
     };

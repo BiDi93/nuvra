@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
-use App\Models\Match;
+use App\Models\Match as MatchRecord;
 use App\Models\Performance;
 
 class PerformanceController extends Controller
@@ -35,7 +35,7 @@ class PerformanceController extends Controller
         ]);
 
         try {
-            $match = Match::updateOrCreate(
+            $match = MatchRecord::updateOrCreate(
                 [
                     'coach_id' => $validated['coach_id'],
                     'opponent_name' => $validated['opponent_name'],
@@ -73,7 +73,7 @@ class PerformanceController extends Controller
 
     public function getMatches($coachId)
     {
-        $matches = Match::where('coach_id', $coachId)->get();
+        $matches = MatchRecord::where('coach_id', $coachId)->get();
         return response()->json($matches);
     }
 }

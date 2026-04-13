@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-// Curated vellar league images for the hero panel
 const HERO_IMAGES = [
     "/images/vellar_league/R6SA4597.JPG",
     "/images/vellar_league/R6SA4601.JPG",
@@ -18,9 +17,18 @@ const AuthPage = () => {
     const navigate = useNavigate();
     const [imgIndex, setImgIndex] = useState(0);
     const [fade, setFade] = useState(true);
-    const [view, setView] = useState('selection');
-    const [role, setRole] = useState('player');
+    const [view, setView] = useState('login');     // 'login' | 'signup'
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        password_confirmation: '',
+    });
+
+    // Hero image slideshow
     useEffect(() => {
         const interval = setInterval(() => {
             setFade(false);
@@ -31,66 +39,77 @@ const AuthPage = () => {
         }, 3000);
         return () => clearInterval(interval);
     }, []);
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        password_confirmation: ''
+
+    const field = (key) => ({
+        value: formData[key],
+        onChange: v => { setError(''); setFormData(f => ({ ...f, [key]: v })); },
     });
 
     const handleGoogleLogin = () => {
-        window.location.href = "/auth/google";
+        window.location.href = '/auth/google';
     };
 
+    // ── LOGIN ──────────────────────────────────────────────────
     const handleLogin = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
         try {
             const res = await axios.post('/api/login', {
                 email: formData.email,
-                password: formData.password
+                password: formData.password,
             });
-            const { token, role: userRole, status } = res.data;
+            const { token, role: userRole, status, coach_id } = res.data;
             localStorage.setItem('auth_token', token);
+            localStorage.setItem('player_role', userRole);
+
             if (userRole === 'coach') {
+                if (coach_id) localStorage.setItem('coach_id', coach_id);
                 navigate('/coach-dashboard');
+            } else if (status === 'pending') {
+                localStorage.setItem('player_status', 'pending');
+                navigate('/waiting-room');
+            } else if (status === 'active') {
+                localStorage.setItem('player_status', 'active');
+                navigate('/dashboard');
             } else {
-                if (status === 'pending') {
-                    navigate('/waiting-room');
-                } else if (status === 'active') {
-                    navigate('/dashboard');
-                } else {
-                    alert("Your account status is: " + status);
-                }
+                setError(`Account status: ${status}`);
             }
-        } catch (error) {
-            console.error(error);
-            alert("Invalid email or password.");
+        } catch {
+            setError('Invalid email or password.');
+        } finally {
+            setLoading(false);
         }
     };
 
+    // ── REGISTER ───────────────────────────────────────────────
     const handleRegister = async (e) => {
         e.preventDefault();
+        if (formData.password !== formData.password_confirmation) {
+            setError('Passwords do not match.');
+            return;
+        }
+        setLoading(true);
+        setError('');
         try {
-            const payload = { ...formData, role };
-            const res = await axios.post('/api/register', payload);
+            const res = await axios.post('/api/register', { ...formData, role: 'player' });
             const { token, user_id } = res.data;
             localStorage.setItem('auth_token', token);
-            if (role === 'coach') {
-                navigate('/coach-dashboard');
-            } else {
-                navigate(`/onboarding?token=${token}&user_id=${user_id}`);
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Registration failed. Email might already be taken.");
+            navigate(`/onboarding?token=${token}&user_id=${user_id}`);
+        } catch (err) {
+            console.error('Register error:', err.response?.data ?? err.message);
+            const msg = err.response?.data?.message
+                ?? err.response?.data?.errors
+                ?? err.message
+                ?? 'Registration failed.';
+            setError(typeof msg === 'object' ? JSON.stringify(msg) : msg);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const isPlayer = role === 'player';
-    const accentColor = isPlayer ? '#00D4EC' : '#D040EF';
-    const btnGradient = isPlayer
-        ? 'linear-gradient(135deg, #00D4EC, #D040EF)'
-        : 'linear-gradient(135deg, #D040EF, #00D4EC)';
+    const switchToSignup = () => { setError(''); setView('signup'); };
+    const switchToLogin  = () => { setError(''); setView('login'); };
 
     return (
         <div style={S.root}>
@@ -105,20 +124,15 @@ const AuthPage = () => {
                 .back-btn:hover { color: rgba(255,255,255,0.8) !important; }
             `}</style>
 
-            {/* ── LEFT: Hero Image Panel ── */}
+            {/* ── LEFT: Hero ── */}
             <div style={S.heroPanelWrap}>
-                <div style={{ ...S.heroPanel, backgroundImage: `url(${HERO_IMAGES[imgIndex]})`, opacity: fade ? 1 : 0, transition: 'opacity 0.6s ease' }}>
-                    {/* gradient overlays */}
-                    <div style={S.heroOverlay} />
-                    <div style={S.heroOverlayBottom} />
-
-                    {/* Logo top-left */}
+                <div style={{ ...S.heroBg, backgroundImage: `url(${HERO_IMAGES[imgIndex]})`, opacity: fade ? 1 : 0, transition: 'opacity 0.6s ease' }} />
+                <div style={S.heroOverlay} />
+                <div style={S.heroOverlayBottom} />
+                <div style={S.heroContent}>
                     <div style={S.heroLogo} onClick={() => navigate('/')} role="button">
                         <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={S.heroLogoImg} />
-
                     </div>
-
-                    {/* Tagline bottom */}
                     <div style={S.heroTagline}>
                         <h2 style={S.heroTaglineHeading}>Play Together.<br />Grow Together.</h2>
                         <p style={S.heroTaglineSub}>The all-in-one platform for football clubs and their players.</p>
@@ -130,126 +144,87 @@ const AuthPage = () => {
             <div style={S.formPanel}>
                 <div style={S.formInner}>
 
-                    {/* Mobile logo (hidden on desktop via media query workaround) */}
-                    <div style={S.mobileLogo} onClick={() => navigate('/')} role="button">
-                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={{ height: 32, objectFit: 'contain' }} />
-                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, letterSpacing: 3 }}>NUVRA</span>
-                    </div>
-
-                    {/* ── SELECTION VIEW ── */}
-                    {view === 'selection' && (
-                        <div style={S.viewWrap}>
-                            <div style={S.viewHeader}>
-                                <div style={{ ...S.rolePill, background: `${accentColor}18`, color: accentColor, borderColor: `${accentColor}33` }}>
-                                    {isPlayer ? 'Player Portal' : 'Club Portal'}
-                                </div>
-                                <h1 style={S.viewTitle}>Join Nuvra</h1>
-                                <p style={S.viewSubtitle}>
-                                    {isPlayer ? "Your squad is waiting." : "Manage your club, your way."}
-                                </p>
-                            </div>
-
-                            <div style={S.btnStack}>
-                                <button className="auth-btn-ghost" style={S.googleBtn} onClick={handleGoogleLogin}>
-                                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
-                                    {isPlayer ? 'Continue with Google' : 'Sign up with Google'}
-                                </button>
-                                <button style={{ ...S.primaryBtn, background: btnGradient }} onClick={() => setView('signup')}>
-                                    Sign up with Email
-                                </button>
-                            </div>
-
-                            <div style={S.divider}>
-                                <div style={S.dividerLine} />
-                                <span style={S.dividerText}>or</span>
-                                <div style={S.dividerLine} />
-                            </div>
-
-                            <p style={S.switchText}>
-                                {isPlayer ? (
-                                    <>Manage a club?{' '}
-                                        <button className="auth-link" style={{ ...S.inlineLink, color: '#D040EF' }} onClick={() => setRole('coach')}>
-                                            Access Club Portal
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>Are you a player?{' '}
-                                        <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={() => setRole('player')}>
-                                            Go to Player Portal
-                                        </button>
-                                    </>
-                                )}
-                            </p>
-
-                            <p style={S.switchText}>
-                                Already have an account?{' '}
-                                <button className="auth-link" style={S.inlineLink} onClick={() => setView('login')}>
-                                    Log in
-                                </button>
-                            </p>
-                        </div>
-                    )}
-
-                    {/* ── SIGN UP VIEW ── */}
-                    {view === 'signup' && (
-                        <div style={S.viewWrap}>
-                            <button className="back-btn" style={S.backBtn} onClick={() => setView('selection')}>← Back</button>
-                            <div style={S.viewHeader}>
-                                <div style={{ ...S.rolePill, background: `${accentColor}18`, color: accentColor, borderColor: `${accentColor}33` }}>
-                                    {isPlayer ? 'Player' : 'Club Admin'}
-                                </div>
-                                <h1 style={S.viewTitle}>Create Account</h1>
-                            </div>
-                            <form onSubmit={handleRegister} style={S.form}>
-                                <Field label="Full Name" type="text" placeholder="Your Name"
-                                    value={formData.name} onChange={v => setFormData({ ...formData, name: v })} />
-                                <Field label="Email Address" type="email" placeholder="you@example.com"
-                                    value={formData.email} onChange={v => setFormData({ ...formData, email: v })} />
-                                <Field label="Password" type="password" placeholder="Min. 8 characters"
-                                    value={formData.password} onChange={v => setFormData({ ...formData, password: v })} />
-                                <Field label="Confirm Password" type="password" placeholder="••••••••"
-                                    value={formData.password_confirmation} onChange={v => setFormData({ ...formData, password_confirmation: v })} />
-                                <button type="submit" style={{ ...S.primaryBtn, background: btnGradient, marginTop: 8 }}>
-                                    Create Account
-                                </button>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* ── LOGIN VIEW ── */}
+                    {/* ══════════════════════════════════════
+                        LOGIN VIEW
+                    ══════════════════════════════════════ */}
                     {view === 'login' && (
                         <div style={S.viewWrap}>
-                            <button className="back-btn" style={S.backBtn} onClick={() => setView('selection')}>← Back</button>
                             <div style={S.viewHeader}>
-                                <h1 style={S.viewTitle}>Welcome Back</h1>
-                                <p style={S.viewSubtitle}>Sign in to your Nuvra account.</p>
+                                <h1 style={S.viewTitle}>Sign In</h1>
+                                <p style={S.viewSubtitle}>Welcome back. Sign in to continue.</p>
                             </div>
 
+                            {/* Google */}
                             <button className="auth-btn-ghost" style={S.googleBtn} onClick={handleGoogleLogin}>
                                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
-                                Log in with Google
+                                Continue with Google
                             </button>
 
-                            <div style={S.divider}>
-                                <div style={S.dividerLine} />
-                                <span style={S.dividerText}>or</span>
-                                <div style={S.dividerLine} />
-                            </div>
+                            <Divider />
 
+                            {/* Email / Password */}
                             <form onSubmit={handleLogin} style={S.form}>
-                                <Field label="Email Address" type="email" placeholder="you@example.com"
-                                    value={formData.email} onChange={v => setFormData({ ...formData, email: v })} />
-                                <Field label="Password" type="password" placeholder="••••••••"
-                                    value={formData.password} onChange={v => setFormData({ ...formData, password: v })} />
-                                <button type="submit" style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 8 }}>
-                                    Log In
+                                <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
+                                <Field label="Password" type="password" placeholder="••••••••" {...field('password')} />
+                                {error && <p style={S.errorMsg}>{error}</p>}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                                >
+                                    {loading ? 'Signing in…' : 'Sign In'}
                                 </button>
                             </form>
 
                             <p style={{ ...S.switchText, marginTop: 24 }}>
-                                No account yet?{' '}
-                                <button className="auth-link" style={S.inlineLink} onClick={() => setView('selection')}>
+                                Don't have an account?{' '}
+                                <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToSignup}>
                                     Sign up
+                                </button>
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ══════════════════════════════════════
+                        SIGN UP VIEW
+                    ══════════════════════════════════════ */}
+                    {view === 'signup' && (
+                        <div style={S.viewWrap}>
+                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
+
+                            <div style={S.viewHeader}>
+                                <h1 style={S.viewTitle}>Create Account</h1>
+                                <p style={S.viewSubtitle}>Join your squad on Nuvra.</p>
+                            </div>
+
+                            {/* Google sign up */}
+                            <button className="auth-btn-ghost" style={{ ...S.googleBtn, marginBottom: 0 }} onClick={handleGoogleLogin}>
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
+                                Sign up with Google
+                            </button>
+
+                            <Divider />
+
+                            {/* Email sign up form */}
+                            <form onSubmit={handleRegister} style={S.form}>
+                                <Field label="Full Name" type="text" placeholder="Your Name" {...field('name')} />
+                                <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
+                                <Field label="Password" type="password" placeholder="Min. 8 characters" {...field('password')} />
+                                <Field label="Confirm Password" type="password" placeholder="••••••••" {...field('password_confirmation')} />
+                                {error && <p style={S.errorMsg}>{error}</p>}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                                >
+                                    {loading ? 'Creating account…' : 'Create Account'}
+                                </button>
+                            </form>
+
+                            <p style={{ ...S.switchText, marginTop: 20 }}>
+                                Already have an account?{' '}
+                                <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToLogin}>
+                                    Sign in
                                 </button>
                             </p>
                         </div>
@@ -261,6 +236,18 @@ const AuthPage = () => {
         </div>
     );
 };
+
+/* ── Sub-components ─────────────────────────────────────────── */
+
+function Divider() {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: 1, textTransform: 'uppercase' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+        </div>
+    );
+}
 
 function Field({ label, type, placeholder, value, onChange }) {
     return (
@@ -279,6 +266,7 @@ function Field({ label, type, placeholder, value, onChange }) {
     );
 }
 
+/* ── Styles ─────────────────────────────────────────────────── */
 const S = {
     root: {
         display: 'flex',
@@ -288,269 +276,95 @@ const S = {
         color: '#fff',
     },
 
-    /* ── Hero Panel ── */
-    heroPanelWrap: {
-        flex: '0 0 55%',
-        position: 'relative',
-        overflow: 'hidden',
-    },
-    heroPanel: {
-        position: 'absolute',
-        inset: 0,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center top',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: 40,
-    },
+    /* Hero */
+    heroPanelWrap: { flex: '0 0 55%', position: 'relative', overflow: 'hidden', background: '#080810' },
+    heroBg: { position: 'absolute', inset: 0, backgroundSize: 'cover', backgroundPosition: 'center top' },
     heroOverlay: {
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.6) 100%)',
-        pointerEvents: 'none',
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.6) 100%)',
+        pointerEvents: 'none', zIndex: 2,
     },
     heroOverlayBottom: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '50%',
-        background: 'linear-gradient(to top, rgba(8,8,16,0.95) 0%, transparent 100%)',
-        pointerEvents: 'none',
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%',
+        background: 'linear-gradient(to top, rgba(8,8,16,0.9) 0%, transparent 100%)',
+        pointerEvents: 'none', zIndex: 3,
     },
-    heroLogo: {
-        position: 'relative',
-        zIndex: 2,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        cursor: 'pointer',
+    heroContent: {
+        position: 'absolute', inset: 0, zIndex: 10,
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 50,
     },
-    heroLogoImg: {
-        height: 'auto',
-        width: '250px',
-        objectFit: 'contain',
-    },
-    heroLogoText: {
-        fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: 26,
-        fontWeight: 900,
-        letterSpacing: 4,
-        color: '#fff',
-    },
-    heroTagline: {
-        position: 'relative',
-        zIndex: 2,
-    },
-    heroTaglinePill: {
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: 20,
-        background: 'rgba(0,212,236,0.15)',
-        border: '1px solid rgba(0,212,236,0.3)',
-        color: '#00D4EC',
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 2,
-        marginBottom: 16,
-    },
+    heroLogo: { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' },
+    heroLogoImg: { height: 'auto', width: '250px', objectFit: 'contain' },
+    heroTagline: { position: 'relative', zIndex: 2 },
     heroTaglineHeading: {
         fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: 52,
-        fontWeight: 900,
-        lineHeight: 1.05,
-        letterSpacing: 1,
-        marginBottom: 12,
-        color: '#fff',
+        fontSize: 52, fontWeight: 900, lineHeight: 1.05, letterSpacing: 1, marginBottom: 12, color: '#fff',
     },
-    heroTaglineSub: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.55)',
-        fontWeight: 500,
-        maxWidth: 360,
-        lineHeight: 1.6,
-    },
+    heroTaglineSub: { fontSize: 14, color: 'rgba(255,255,255,0.55)', fontWeight: 500, maxWidth: 360, lineHeight: 1.6 },
 
-    /* ── Form Panel ── */
+    /* Form panel */
     formPanel: {
-        flex: '0 0 45%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#0d0d17',
-        borderLeft: '1px solid rgba(255,255,255,0.05)',
-        overflowY: 'auto',
+        flex: '0 0 45%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#0d0d17', borderLeft: '1px solid rgba(255,255,255,0.05)', overflowY: 'auto',
     },
     formInner: {
-        width: '100%',
-        maxWidth: 380,
-        padding: '48px 40px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-    },
-    mobileLogo: {
-        display: 'none',
-        alignItems: 'center',
-        gap: 10,
-        marginBottom: 32,
-        cursor: 'pointer',
-        color: '#fff',
+        width: '100%', maxWidth: 380, padding: '48px 40px',
+        display: 'flex', flexDirection: 'column', gap: 0,
     },
 
-    /* ── View content ── */
-    viewWrap: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-    },
-    viewHeader: {
-        marginBottom: 28,
-    },
-    rolePill: {
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: 20,
-        border: '1px solid',
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 1.5,
-        marginBottom: 14,
-    },
+    /* View */
+    viewWrap: { display: 'flex', flexDirection: 'column', gap: 0 },
+    viewHeader: { marginBottom: 28 },
     viewTitle: {
         fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: 38,
-        fontWeight: 900,
-        letterSpacing: 1,
-        color: '#fff',
-        lineHeight: 1.1,
-        marginBottom: 8,
+        fontSize: 38, fontWeight: 900, letterSpacing: 1, color: '#fff', lineHeight: 1.1, marginBottom: 8,
     },
-    viewSubtitle: {
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.4)',
-        fontWeight: 500,
-    },
+    viewSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500 },
 
-    /* ── Buttons ── */
-    btnStack: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        marginBottom: 20,
-    },
+    /* Buttons */
     googleBtn: {
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        padding: '13px 20px',
-        borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.1)',
-        background: 'rgba(255,255,255,0.04)',
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: 600,
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        marginBottom: 12,
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 10, padding: '13px 20px', borderRadius: 12,
+        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
+        color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+        marginBottom: 0,
     },
     primaryBtn: {
-        width: '100%',
-        padding: '14px 20px',
-        borderRadius: 12,
-        border: 'none',
-        color: '#080810',
-        fontSize: 14,
-        fontWeight: 800,
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        letterSpacing: 0.3,
+        width: '100%', padding: '14px 20px', borderRadius: 12, border: 'none',
+        color: '#080810', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+        fontFamily: 'inherit', letterSpacing: 0.3,
     },
     backBtn: {
-        background: 'none',
-        border: 'none',
-        color: 'rgba(255,255,255,0.35)',
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        padding: 0,
-        marginBottom: 24,
-        textAlign: 'left',
-        transition: 'color 0.2s',
+        background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
+        fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+        padding: 0, marginBottom: 24, textAlign: 'left', transition: 'color 0.2s',
     },
 
-    /* ── Divider ── */
-    divider: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        margin: '4px 0 20px',
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        background: 'rgba(255,255,255,0.07)',
-    },
-    dividerText: {
-        fontSize: 11,
-        fontWeight: 700,
-        color: 'rgba(255,255,255,0.25)',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    },
-
-    /* ── Form Fields ── */
-    form: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-    },
+    /* Form */
+    form: { display: 'flex', flexDirection: 'column', gap: 16 },
     fieldLabel: {
-        fontSize: 11,
-        fontWeight: 700,
-        color: 'rgba(255,255,255,0.35)',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)',
+        textTransform: 'uppercase', letterSpacing: 1,
     },
     input: {
-        width: '100%',
-        padding: '12px 16px',
-        borderRadius: 10,
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.09)',
-        color: '#fff',
-        fontSize: 14,
-        fontFamily: 'inherit',
+        width: '100%', padding: '12px 16px', borderRadius: 10,
+        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+        color: '#fff', fontSize: 14, fontFamily: 'inherit',
+    },
+    errorMsg: {
+        fontSize: 12, color: '#ff6b6b', fontWeight: 500,
+        background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)',
+        borderRadius: 8, padding: '8px 12px',
     },
 
-    /* ── Footer text ── */
-    switchText: {
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.35)',
-        marginTop: 16,
-        textAlign: 'center',
-    },
+    /* Footer */
+    switchText: { fontSize: 13, color: 'rgba(255,255,255,0.35)', textAlign: 'center' },
     inlineLink: {
-        background: 'none',
-        border: 'none',
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        padding: 0,
-        transition: 'color 0.2s',
+        background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)',
+        fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        padding: 0, transition: 'color 0.2s',
     },
-    terms: {
-        fontSize: 11,
-        color: 'rgba(255,255,255,0.15)',
-        textAlign: 'center',
-        marginTop: 32,
-    },
+    terms: { fontSize: 11, color: 'rgba(255,255,255,0.15)', textAlign: 'center', marginTop: 32 },
 };
 
 export default AuthPage;

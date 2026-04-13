@@ -8,9 +8,8 @@ export default function SquadManagement() {
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    const user = JSON.parse(localStorage.getItem("community_user") || "{}");
-    const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
-    const coachId = user.id || 1;
+    const token   = localStorage.getItem("auth_token");
+    const coachId = localStorage.getItem("coach_id");
 
     const fetchTeam = () => {
         const headers = { Authorization: `Bearer ${token}` };

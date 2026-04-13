@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // --- 1. IMPORT THE GATEKEEPER ---
 import ProtectedRoute from "./Components/ProtectedRoute";
+import PlayerRoute    from "./Components/PlayerRoute";
 
 // Auth Page
 import AuthPage from "./Pages/Authentication/AuthPage.jsx";
@@ -105,13 +106,15 @@ function App() {
                     <Route path="/coach/player/:id" element={<CoachPlayerView />} />
                     <Route path="/coach/add-stats" element={<CoachAddStats />} />
 
-                    {/* PLAYER DASHBOARD */}
-                    <Route path="/dashboard" element={<DashboardLayout />}>
-                        <Route index element={<Overview />} />
-                        <Route path="announcements" element={<Announcements />} />
-                        <Route path="settings" element={<Settings />} />
-                        <Route path="schedule" element={<PlayerSchedule />} />
-                        <Route path="payment" element={<PlayerPayment />} />
+                    {/* PLAYER DASHBOARD — extra gate: blocks pending players */}
+                    <Route element={<PlayerRoute />}>
+                        <Route path="/dashboard" element={<DashboardLayout />}>
+                            <Route index element={<Overview />} />
+                            <Route path="announcements" element={<Announcements />} />
+                            <Route path="settings" element={<Settings />} />
+                            <Route path="schedule" element={<PlayerSchedule />} />
+                            <Route path="payment" element={<PlayerPayment />} />
+                        </Route>
                     </Route>
 
                 </Route>

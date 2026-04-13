@@ -163,11 +163,11 @@ class PlayerController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
-        $player = Player::with(['attributes', 'performances.match'])->where('user_id', $user->id)->first();
+        $player = Player::with(['attributes', 'performances.match', 'coach'])->where('user_id', $user->id)->first();
 
         // Fallback to email if user_id is not yet linked (for existing data)
         if (!$player) {
-            $player = Player::with(['attributes', 'performances.match'])->where('email', $user->email)->first();
+            $player = Player::with(['attributes', 'performances.match', 'coach'])->where('email', $user->email)->first();
         }
 
         if (!$player) {
@@ -223,10 +223,14 @@ public function login(Request $request)
         'user_id' => $user->id,
     ];
 
-    // Add player-specific info if needed
+    // Add role-specific info
     if ($user->role === 'player') {
         $playerRecord = $user->player;
         $response['status'] = $playerRecord ? $playerRecord->status : 'active';
+    } elseif ($user->role === 'coach') {
+        $coachRecord = $user->coach;
+        $response['status']   = 'active';
+        $response['coach_id'] = $coachRecord ? $coachRecord->id : null;
     } else {
         $response['status'] = 'active';
     }
@@ -302,28 +306,31 @@ public function login(Request $request)
     public function submitApplication(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'coach_id' => 'required|exists:coaches,id',
-            'position' => 'required|string',
-            'details' => 'nullable|array' // For age, phone, etc.
+            'user_id'       => 'required|exists:users,id',
+            'coach_id'      => 'required|exists:coaches,id',
+            'position'      => 'required|string',
+            'date_of_birth' => 'required|date',
+            'jersey_number' => 'nullable|integer|min:1|max:99',
         ]);
 
         $user = User::find($validated['user_id']);
-        
+
         $existingPlayer = Player::where('email', $user->email)->first();
-        
+
         if ($existingPlayer) {
             return response()->json(['message' => 'Application already pending or approved!'], 400);
         }
 
         Player::create([
-            'user_id' => $user->id,
-            'coach_id' => $validated['coach_id'],
-            'name' => $user->name,
-            'email' => $user->email,
+            'user_id'       => $user->id,
+            'coach_id'      => $validated['coach_id'],
+            'name'          => $user->name,
+            'email'         => $user->email,
             'profile_image' => $user->avatar,
-            'position' => $validated['position'],
-            'status' => 'pending',
+            'position'      => $validated['position'],
+            'date_of_birth' => $validated['date_of_birth'],
+            'jersey_number' => $validated['jersey_number'] ?? null,
+            'status'        => 'pending',
         ]);
 
         return response()->json(['message' => 'Application submitted successfully!']);
