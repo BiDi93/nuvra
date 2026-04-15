@@ -1,12 +1,17 @@
 import React from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import DynamicBackground from "../Components/DynamicBackground";
 
 export default function CoachLayout() {
     const navigate = useNavigate();
 
+    const coachName   = localStorage.getItem("coach_name")   || "Coach";
+    const coachAvatar = localStorage.getItem("coach_avatar")  || null;
+
     const handleLogout = () => {
         localStorage.removeItem("auth_token");
+        localStorage.removeItem("coach_id");
+        localStorage.removeItem("coach_name");
+        localStorage.removeItem("coach_avatar");
         window.location.href = "/login";
     };
 
@@ -20,15 +25,14 @@ export default function CoachLayout() {
 
     return (
         <div style={S.root}>
-            <DynamicBackground />
             <style>{`
                 * { box-sizing: border-box; }
                 ::-webkit-scrollbar { width: 5px; }
                 ::-webkit-scrollbar-track { background: transparent; }
-                ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-                .coach-nav-link { display:flex; align-items:center; gap:10px; padding:10px 20px; background:transparent; border:none; color:rgba(255,255,255,0.4); font-size:11px; font-weight:700; letter-spacing:1.2px; cursor:pointer; font-family:inherit; text-align:left; width:100%; text-decoration:none; position:relative; transition: color 0.2s, background 0.2s; }
-                .coach-nav-link:hover { color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.03); }
-                .coach-nav-link.active { color:#fff; background:rgba(255,255,255,0.05); }
+                ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+                .coach-nav-link { display:flex; align-items:center; gap:10px; padding:10px 20px; background:transparent; border:none; color:rgba(255,255,255,0.45); font-size:11px; font-weight:700; letter-spacing:1.2px; cursor:pointer; font-family:inherit; text-align:left; width:100%; text-decoration:none; position:relative; transition: color 0.2s, background 0.2s; }
+                .coach-nav-link:hover { color:rgba(255,255,255,0.8); background:rgba(255,255,255,0.05); }
+                .coach-nav-link.active { color:#fff; background:rgba(255,255,255,0.08); }
                 .coach-nav-link.active::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,#a78bfa,#7c3aed); border-radius:0 2px 2px 0; }
             `}</style>
 
@@ -60,17 +64,34 @@ export default function CoachLayout() {
 
                 <div style={{ flex: 1 }} />
 
-                <div style={S.divider} />
-
-                <button style={S.logoutBtn} onClick={handleLogout}>
-                    <span>↩</span>
-                    <span>SIGN OUT</span>
-                </button>
+                {/* ── PROFILE + SIGN OUT ── */}
+                <div style={S.profileSection}>
+                    <div style={S.divider} />
+                    <div style={S.profileCard}>
+                        {coachAvatar ? (
+                            <img src={coachAvatar} alt={coachName} style={S.avatar} />
+                        ) : (
+                            <div style={S.avatarFallback}>
+                                {coachName.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+                        <div style={S.profileInfo}>
+                            <div style={S.profileName}>{coachName}</div>
+                            <div style={S.profileRole}>Head Coach</div>
+                        </div>
+                    </div>
+                    <button style={S.logoutBtn} onClick={handleLogout}>
+                        <span>↩</span>
+                        <span>SIGN OUT</span>
+                    </button>
+                </div>
             </aside>
 
             {/* ── MAIN CONTENT ── */}
             <main style={S.main}>
-                <Outlet />
+                <div style={S.pageWrapper}>
+                    <Outlet />
+                </div>
             </main>
         </div>
     );
@@ -80,24 +101,22 @@ const S = {
     root: {
         display: "flex",
         minHeight: "100vh",
-        background: "#080a12",
-        color: "#fff",
+        background: "#ffffff",
+        color: "#1a1a2e",
         fontFamily: "'Inter', sans-serif",
         position: "relative",
-        overflow: "hidden",
     },
     sidebar: {
         width: 220,
         minWidth: 220,
         minHeight: "100vh",
         background: "rgba(6,7,18,0.97)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        borderRight: "1px solid rgba(0,0,0,0.08)",
         display: "flex",
         flexDirection: "column",
         position: "fixed",
         top: 0, left: 0, bottom: 0,
         zIndex: 50,
-        backdropFilter: "blur(20px)",
     },
     brand: {
         padding: "24px 20px",
@@ -142,11 +161,60 @@ const S = {
         textAlign: "center",
         flexShrink: 0,
     },
+    profileSection: {
+        padding: "0 0 8px 0",
+    },
+    profileCard: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "14px 16px",
+    },
+    avatar: {
+        width: 38,
+        height: 38,
+        borderRadius: "50%",
+        objectFit: "cover",
+        flexShrink: 0,
+        border: "2px solid rgba(167,139,250,0.4)",
+    },
+    avatarFallback: {
+        width: 38,
+        height: 38,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg,#a78bfa,#7c3aed)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 16,
+        fontWeight: 700,
+        color: "#fff",
+        flexShrink: 0,
+    },
+    profileInfo: {
+        overflow: "hidden",
+    },
+    profileName: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: "#fff",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        letterSpacing: 0.5,
+    },
+    profileRole: {
+        fontSize: 9,
+        color: "rgba(167,139,250,0.6)",
+        letterSpacing: 1,
+        textTransform: "uppercase",
+        marginTop: 2,
+    },
     logoutBtn: {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "14px 20px",
+        padding: "10px 20px",
         background: "transparent",
         border: "none",
         color: "rgba(255,100,100,0.5)",
@@ -164,5 +232,10 @@ const S = {
         position: "relative",
         zIndex: 10,
         minHeight: "100vh",
+        background: "#f8f9fb",
+    },
+    pageWrapper: {
+        padding: "36px 40px 60px",
+        maxWidth: 1200,
     },
 };

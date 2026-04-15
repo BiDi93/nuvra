@@ -59,12 +59,14 @@ const AuthPage = () => {
                 email: formData.email,
                 password: formData.password,
             });
-            const { token, role: userRole, status, coach_id } = res.data;
+            const { token, role: userRole, status, coach_id, coach_name, coach_avatar } = res.data;
             localStorage.setItem('auth_token', token);
             localStorage.setItem('player_role', userRole);
 
             if (userRole === 'coach') {
                 if (coach_id) localStorage.setItem('coach_id', coach_id);
+                if (coach_name) localStorage.setItem('coach_name', coach_name);
+                if (coach_avatar) localStorage.setItem('coach_avatar', coach_avatar);
                 navigate('/coach-dashboard');
             } else if (status === 'pending') {
                 localStorage.setItem('player_status', 'pending');

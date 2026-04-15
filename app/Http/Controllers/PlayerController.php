@@ -233,8 +233,10 @@ public function login(Request $request)
         $response['status'] = $playerRecord ? $playerRecord->status : 'active';
     } elseif ($user->role === 'coach') {
         $coachRecord = $user->coach;
-        $response['status']   = 'active';
-        $response['coach_id'] = $coachRecord ? $coachRecord->id : null;
+        $response['status']      = 'active';
+        $response['coach_id']    = $coachRecord ? $coachRecord->id : null;
+        $response['coach_name']  = $coachRecord ? $coachRecord->name : $user->name;
+        $response['coach_avatar'] = $user->avatar;
     } else {
         $response['status'] = 'active';
     }

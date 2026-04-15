@@ -45,7 +45,16 @@ export default function CoachSchedule() {
     const sortedEvents = [...events].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
     return (
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="max-w-6xl space-y-8">
+
+            {/* Page Header */}
+            <div>
+                <p className="text-xs font-bold text-purple-500 tracking-widest uppercase mb-1">NUVRA · CLUB PORTAL</p>
+                <h1 className="text-3xl font-black text-gray-900">Schedule</h1>
+                <p className="text-gray-500 text-sm mt-1">Manage training sessions, match days, and team meetings.</p>
+            </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* LEFT: ADD EVENT FORM */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 h-fit">
@@ -81,7 +90,7 @@ export default function CoachSchedule() {
                             value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})}
                         />
                     </div>
-                    <button className="w-full bg-black text-white font-bold py-4 rounded-xl shadow-lg hover:bg-gray-800 transition-all">
+                    <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl transition-colors">
                         + Add to Calendar
                     </button>
                 </form>
@@ -135,6 +144,7 @@ export default function CoachSchedule() {
                     )}
                 </div>
             </div>
+        </div>
         </div>
     );
 }

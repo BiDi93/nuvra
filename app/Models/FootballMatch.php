@@ -9,6 +9,8 @@ class FootballMatch extends Model
 {
     use HasFactory;
 
+    protected $table = 'matches';
+
     protected $fillable = [
         'coach_id',
         'opponent_name',

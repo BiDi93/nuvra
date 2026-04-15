@@ -96,10 +96,19 @@ export default function RecordStats() {
         "w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all";
 
     return (
-        <div className="max-w-4xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <div className="max-w-4xl space-y-8">
             <Toaster position="top-right" />
-            <h2 className="text-2xl font-black text-gray-900 mb-6">
-                Record New Match Performance
+
+            {/* Page Header */}
+            <div>
+                <p className="text-xs font-bold text-purple-500 tracking-widest uppercase mb-1">NUVRA · CLUB PORTAL</p>
+                <h1 className="text-3xl font-black text-gray-900">Record Stats</h1>
+                <p className="text-gray-500 text-sm mt-1">Log match performance for your players.</p>
+            </div>
+
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="text-lg font-black text-gray-900 mb-6">
+                New Match Performance
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -215,11 +224,12 @@ export default function RecordStats() {
 
                 <button 
                     disabled={loading}
-                    className={`w-full ${loading ? 'bg-gray-400' : 'bg-black hover:bg-gray-800'} text-white font-bold py-4 rounded-xl shadow-lg transform transition hover:-translate-y-1`}
+                    className={`w-full ${loading ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-4 rounded-xl transition-colors`}
                 >
                     {loading ? "Saving..." : "Save Performance"}
                 </button>
             </form>
+        </div>
         </div>
     );
 }
