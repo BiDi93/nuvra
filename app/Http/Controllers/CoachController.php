@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Coach;
+use App\Models\Player;
+use App\Models\Attribute;
+use App\Models\User;
 
 class CoachController extends Controller
 {
-    // COACH LOGIN
+    // COACH LOGIN (Unified with Sanctum)
     public function login(Request $request)
     {
         $request->validate([
@@ -16,36 +19,42 @@ class CoachController extends Controller
             'password' => 'required|string',
         ]);
 
-        $coach = DB::table('coaches')->where('email', $request->email)->first();
-
-        if (!$coach || !Hash::check($request->password, $coach->password)) {
+        if (!auth()->attempt($request->only('email', 'password'))) {
             return response()->json(['message' => 'Invalid Credentials'], 401);
         }
+
+        $user = auth()->user();
+        
+        if ($user->role !== 'coach') {
+            return response()->json(['message' => 'Unauthorized. Only coaches can login here.'], 403);
+        }
+
+        $coach = $user->coach;
+        $token = $user->createToken('coach_token')->plainTextToken;
 
         return response()->json([
             'id' => $coach->id,
             'name' => $coach->name,
             'team_name' => $coach->team_name,
+            'token' => $token,
             'message' => 'Welcome Coach!'
         ]);
     }
 
     // GET MY TEAM (Filter by Coach ID)
-public function getMyTeam($coachId)
-{
-    $players = DB::table('players')
-                ->where('coach_id', $coachId)
-                ->where('status', 'active') // <--- ADD THIS LINE!
-                ->select('id', 'name', 'position', 'jersey_number', 'email', 'profile_image')
-                ->get();
+    public function getMyTeam($coachId)
+    {
+        $players = Player::where('coach_id', $coachId)
+                    ->where('status', 'active')
+                    ->select('id', 'name', 'position', 'jersey_number', 'email', 'profile_image')
+                    ->get();
 
-    return response()->json($players);
-}
+        return response()->json($players);
+    }
 
     // ADD PLAYER (Automatically assign to this Coach)
     public function addPlayer(Request $request, $coachId)
     {
-        // (Use the validation logic you already know, but add coach_id)
         $validated = $request->validate([
             'name' => 'required|string',
             'email' => 'required|email|unique:players',
@@ -55,29 +64,27 @@ public function getMyTeam($coachId)
             'strong_foot' => 'required|string',
         ]);
 
-        $id = DB::table('players')->insertGetId([
-            'coach_id' => $coachId, // <--- IMPORTANT: Link to logged-in coach
+        $player = Player::create([
+            'coach_id' => $coachId,
             'name' => $validated['name'],
             'email' => $validated['email'],
             'position' => $validated['position'],
             'jersey_number' => $validated['jersey_number'],
             'height_cm' => $validated['height_cm'],
             'strong_foot' => $validated['strong_foot'],
-            'password' => Hash::make('welcome123'),
-            'created_at' => now(), 'updated_at' => now(),
+            'status' => 'active',
         ]);
 
         // Create default attributes
-        DB::table('attributes')->insert(['player_id' => $id]);
+        Attribute::create(['player_id' => $player->id]);
 
-        return response()->json(['message' => 'Player added to your squad!', 'id' => $id]);
+        return response()->json(['message' => 'Player added to your squad!', 'id' => $player->id]);
     }
 
 
     public function getPendingRequests($coachId)
     {
-        $requests = DB::table('players')
-            ->where('coach_id', $coachId)
+        $requests = Player::where('coach_id', $coachId)
             ->where('status', 'pending')
             ->get();
             
@@ -88,15 +95,21 @@ public function getMyTeam($coachId)
     public function handleRequest(Request $request, $coachId, $playerId)
     {
         $action = $request->input('action'); // 'approve' or 'decline'
+        $player = Player::find($playerId);
+
+        if (!$player) {
+            return response()->json(['message' => 'Player not found'], 404);
+        }
 
         if ($action === 'approve') {
-            DB::table('players')->where('id', $playerId)->update(['status' => 'active']);
+            $player->status = 'active';
+            $player->save();
             return response()->json(['message' => 'Player Approved!']);
         } else {
             // If declined, we just delete their application
-            DB::table('players')->where('id', $playerId)->delete();
-            // Also delete their empty attributes
-            DB::table('attributes')->where('player_id', $playerId)->delete();
+            $player->delete();
+            // Attributes will be deleted via cascade if set up in migration, 
+            // but let's be explicit if needed or rely on cascade.
             return response()->json(['message' => 'Player Declined.']);
         }
     }

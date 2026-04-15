@@ -1,4 +1,6 @@
 import React from 'react';
+import DynamicBackground from '../Components/DynamicBackground';
+import PageLoader from '../Components/PageLoader';
 
 const Login = () => {
 
@@ -8,10 +10,12 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-96 text-center">
+        <div className="portal-root min-h-screen flex items-center justify-center text-white relative">
+            <PageLoader />
+            <DynamicBackground />
+            <div className="glass-panel p-8 w-96 text-center relative z-10">
                 <div className="flex items-center justify-center gap-3 mb-6">
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-12 w-12 object-cover object-left" />
+                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-10 w-10 object-contain" />
                     <span className="text-2xl font-black text-white tracking-tighter">
                         NUVRA
                     </span>
@@ -21,7 +25,7 @@ const Login = () => {
                 {/* The Magic Button */}
                 <button
                     onClick={handleGoogleLogin}
-                    className="w-full bg-white text-gray-900 font-bold py-3 px-4 rounded flex items-center justify-center hover:bg-gray-200 transition"
+                    className="w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center hover:bg-[rgba(255,255,255,0.1)] transition"
                 >
                     <img
                         src="https://www.svgrepo.com/show/475656/google-color.svg"

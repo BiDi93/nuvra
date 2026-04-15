@@ -13,6 +13,11 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentController; // Legacy (Coach View)
 use App\Http\Controllers\PaymentControllerBillplz; // New (Billplz Integration)
 
+// --- COMMUNITY CONTROLLERS ---
+use App\Http\Controllers\CommunityAuthController;
+use App\Http\Controllers\CommunityGameController;
+use App\Http\Controllers\CommunityAnnouncementController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION & ONBOARDING
@@ -40,26 +45,32 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 | Routes used specifically by the Coach Dashboard
 */
-// Team Management
-Route::get('/coach/{id}/team', [TeamController::class, 'getCoachTeam']);
-Route::get('/coach/{id}/players', [CoachController::class, 'getMyTeam']);
-Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
+Route::middleware('auth:sanctum')->group(function () {
+    // Team Management
+    Route::get('/coach/{id}/team', [TeamController::class, 'getCoachTeam']);
+    Route::get('/coach/{id}/players', [CoachController::class, 'getMyTeam']);
+    Route::post('/coach/{id}/players', [CoachController::class, 'addPlayer']);
 
-// Player Requests
-Route::get('/coach/{id}/requests', [CoachController::class, 'getPendingRequests']);
-Route::post('/coach/{id}/request/{playerId}', [CoachController::class, 'handleRequest']);
+    // Player Requests
+    Route::get('/coach/{id}/requests', [CoachController::class, 'getPendingRequests']);
+    Route::post('/coach/{id}/request/{playerId}', [CoachController::class, 'handleRequest']);
 
-// Announcements
-Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);
-Route::post('/announcements', [AnnouncementController::class, 'store']);
+    // Announcements
+    Route::get('/coach/{id}/announcements', [AnnouncementController::class, 'index']);
+    Route::post('/announcements', [AnnouncementController::class, 'store']);
 
-// Schedule
-Route::get('/coach/{id}/schedule', [ScheduleController::class, 'index']);
-Route::post('/schedule', [ScheduleController::class, 'store']);
-Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);
+    // Schedule
+    Route::get('/coach/{id}/schedule', [ScheduleController::class, 'index']);
+    Route::post('/schedule', [ScheduleController::class, 'store']);
+    Route::delete('/schedule/{id}', [ScheduleController::class, 'destroy']);
 
-// Coach View of Payments
-Route::get('/coach/{id}/payments/{month}', [PaymentControllerBillplz::class, 'getTeamPayments']);
+    // Coach View of Payments
+    Route::get('/coach/{id}/payments/{month}', [PaymentControllerBillplz::class, 'getTeamPayments']);
+    
+    // Performance & Matches
+    Route::get('/coach/{id}/matches', [PerformanceController::class, 'getMatches']);
+    Route::post('/performances', [PerformanceController::class, 'store']);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -67,14 +78,16 @@ Route::get('/coach/{id}/payments/{month}', [PaymentControllerBillplz::class, 'ge
 |--------------------------------------------------------------------------
 | Routes used specifically by the Player Dashboard
 */
-// Player Profiles & Teammates
-Route::get('/players/{id}', [PlayerController::class, 'show']);
-Route::post('/player/{id}/update', [PlayerController::class, 'update']);
-Route::post('/player/{id}/attributes', [PlayerController::class, 'updateAttributes']); // <--- NEW ROUTE
-Route::get('/players/{id}/teammates', [PlayerController::class, 'getTeammates']);
+Route::middleware('auth:sanctum')->group(function () {
+    // Player Profiles & Teammates
+    Route::get('/players/{id}', [PlayerController::class, 'show']);
+    Route::post('/player/{id}/update', [PlayerController::class, 'update']);
+    Route::post('/player/{id}/attributes', [PlayerController::class, 'updateAttributes']);
+    Route::get('/players/{id}/teammates', [PlayerController::class, 'getTeammates']);
 
-// Player Payment History
-Route::get('/player/{id}/payments', [PaymentControllerBillplz::class, 'getMyPayments']);
+    // Player Payment History
+    Route::get('/player/{id}/payments', [PaymentControllerBillplz::class, 'getMyPayments']);
+});
 
 // General Player List (Admin/Public?)
 Route::get('/players', [PlayerController::class, 'index']);
@@ -108,3 +121,39 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::get('/teams', [PlayerController::class, 'getTeams']);
+
+/*
+|--------------------------------------------------------------------------
+| NUVRA COMMUNITY
+|--------------------------------------------------------------------------
+*/
+Route::prefix('community')->group(function () {
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    Route::post('/register', [CommunityAuthController::class, 'register']);
+    Route::post('/login',    [CommunityAuthController::class, 'login']);
+
+    // ── Games (public reads) ───────────────────────────────────────────────────
+    Route::get('/games',              [CommunityGameController::class, 'index']);
+    Route::get('/games/{id}',         [CommunityGameController::class, 'show']);
+
+    // ── Authenticated Community Routes ──
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/logout',   [CommunityAuthController::class, 'logout']);
+        Route::get('/me',        [CommunityAuthController::class, 'me']);
+
+        // ── Games (auth required) ─────────────────────────────────────────────────
+        Route::post('/games',                          [CommunityGameController::class, 'store']);
+        Route::patch('/games/{id}/cancel',             [CommunityGameController::class, 'cancel']);
+        Route::post('/games/{id}/join',                [CommunityGameController::class, 'join']);
+        Route::delete('/games/{id}/leave',             [CommunityGameController::class, 'leave']);
+        Route::get('/games/{id}/bookings',             [CommunityGameController::class, 'bookings']);
+        Route::patch('/bookings/{bookingId}/approve',  [CommunityGameController::class, 'approveBooking']);
+        Route::patch('/bookings/{bookingId}/reject',   [CommunityGameController::class, 'rejectBooking']);
+
+        // ── Announcements ─────────────────────────────────────────────────────────
+        Route::get('/announcements',         [CommunityAnnouncementController::class, 'index']);
+        Route::post('/announcements',        [CommunityAnnouncementController::class, 'store']);
+        Route::delete('/announcements/{id}', [CommunityAnnouncementController::class, 'destroy']);
+    });
+});

@@ -8,19 +8,28 @@ import {
 export default function CoachPlayerView() {
     const { id } = useParams(); // Get ID from URL
     const navigate = useNavigate();
-    const [data, setData] = useState(null);
+    const [data, setData]   = useState(null);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState('');
 
     useEffect(() => {
-        // Reuse the existing Player API
-        fetch(`/api/players/${id}`)
-            .then(res => res.json())
-            .then(playerData => {
-                setData(playerData);
+        const token = localStorage.getItem('auth_token');
+        fetch(`/api/players/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(async res => {
+                const json = await res.json();
+                if (!res.ok) {
+                    setFetchError(`${res.status}: ${json.message ?? 'Unknown error'}`);
+                    setLoading(false);
+                    return;
+                }
+                setData(json);
                 setLoading(false);
             })
             .catch(err => {
-                console.error(err);
+                console.error('CoachPlayerView fetch error:', err);
+                setFetchError(err.message);
                 setLoading(false);
             });
     }, [id]);
@@ -50,12 +59,13 @@ export default function CoachPlayerView() {
     };
 
     const saveAttributes = () => {
+        const token = localStorage.getItem('auth_token');
         fetch(`/api/player/${id}/attributes`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                // Add Authorization header if needed, but usually handled by cookie/browser for same-origin
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify(editValues)
         })
@@ -103,6 +113,7 @@ export default function CoachPlayerView() {
     };
 
     if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400 font-bold">Loading Stats...</div>;
+    if (fetchError) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-red-400 font-bold">Error: {fetchError}</div>;
     if (!data) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-red-400 font-bold">Player not found.</div>;
 
     // PREPARE CHART DATA

@@ -1,90 +1,111 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PendingRequests from './PendingRequest'; // <--- IMPORT THIS
+import { Toaster } from 'react-hot-toast';
+import PendingRequests from './PendingRequest';
 
 export default function SquadManagement() {
     const navigate = useNavigate();
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Hardcoded for now (In Phase 5 we will make this dynamic!)
-    const coachId = 1; 
+    const token   = localStorage.getItem("auth_token");
+    const coachId = localStorage.getItem("coach_id");
 
-    // 1. DEFINE THE FETCH FUNCTION
     const fetchTeam = () => {
-        fetch(`/api/coach/${coachId}/players`) 
+        fetch(`/api/coach/${coachId}/players`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
             .then(res => res.json())
-            .then(data => {
-                setTeam(data);
-                setLoading(false);
-            })
-            .catch(err => console.error(err));
+            .then(data => { setTeam(data); setLoading(false); })
+            .catch(() => setLoading(false));
     };
 
-    // 2. CALL IT ON LOAD
-    useEffect(() => {
-        fetchTeam();
-    }, []);
+    useEffect(() => { fetchTeam(); }, [coachId, token]);
 
-    useEffect(() => {
-        // Fetch Players for the Coach's Team
-        fetch(`/api/coach/${coachId}/players`) 
-            .then(res => res.json())
-            .then(data => {
-                setTeam(data);
-                setLoading(false);
-            })
-            .catch(err => console.error(err));
-    }, []);
-
-    // Loading Check 
-    if (loading) return <div className="text-gray-400 font-bold p-10 text-center">Loading Roster...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center py-32 text-gray-400 text-sm font-bold tracking-widest">
+            LOADING ROSTER...
+        </div>
+    );
 
     return (
         <div>
-            {/* PENDING REQUESTS INBOX (Added Here) */}
-            {/* This will appear above your roster if there are requests */}
-            <PendingRequests coachId={coachId} onActionComplete={fetchTeam}/>
-            
-            {/* 2. HEADER & COUNTER */}
-            <div className="flex justify-between items-end mb-6 mt-4">
-                <h3 className="text-xl font-bold text-gray-900">Active Roster</h3>
-                <span className="text-sm font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-lg">{team.length} Players</span>
+            <Toaster position="top-right" />
+
+            {/* Page Header */}
+            <div className="mb-8">
+                <p className="text-xs font-bold text-purple-500 tracking-widest uppercase mb-1">NUVRA · CLUB PORTAL</p>
+                <h1 className="text-3xl font-black text-gray-900">Squad Management</h1>
+                <p className="text-gray-500 text-sm mt-1">View and manage your registered players.</p>
             </div>
 
-            {/* 3. ACTIVE ROSTER GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {team.map(player => (
-                    <div key={player.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
-                        
-                        {/* Player Card Content */}
-                        <div>
-                            <div className="relative z-10 flex items-start justify-between mb-4">
-                                <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white shadow-md overflow-hidden">
-                                    <img src={player.profile_image || "/avatar-placeholder.png"} alt={player.name} className="w-full h-full object-cover" />
+            {/* Pending Requests */}
+            <PendingRequests coachId={coachId} onActionComplete={fetchTeam} />
+
+            {/* Active Roster */}
+            <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-sm font-black text-gray-700 tracking-widest uppercase">Active Roster</h2>
+                    <span className="bg-purple-100 text-purple-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                        {team.length} players
+                    </span>
+                </div>
+            </div>
+
+            {team.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-16 text-center">
+                    <div className="text-4xl mb-3">👥</div>
+                    <p className="text-gray-800 font-bold text-sm tracking-wide">NO ACTIVE PLAYERS</p>
+                    <p className="text-gray-400 text-sm mt-1">Players will appear here once approved.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {team.map(player => (
+                        <div
+                            key={player.id}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                            {/* Card top accent */}
+                            <div className="h-1 w-full bg-gradient-to-r from-purple-500 to-violet-600" />
+
+                            <div className="p-5">
+                                {/* Avatar + Jersey */}
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 bg-gray-100 flex-shrink-0">
+                                        <img
+                                            src={player.profile_image || "/avatar-placeholder.png"}
+                                            alt={player.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <span className="text-3xl font-black text-gray-100 leading-none">
+                                        #{player.jersey_number || "–"}
+                                    </span>
                                 </div>
-                                <div className="text-right">
-                                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs font-bold uppercase">{player.position}</span>
-                                    <div className="mt-2 text-4xl font-black text-gray-200">#{player.jersey_number || '-'}</div>
+
+                                {/* Name + Email */}
+                                <p className="font-black text-gray-900 text-sm truncate">{player.name}</p>
+                                <p className="text-gray-400 text-xs truncate mt-0.5 mb-3">{player.email}</p>
+
+                                {/* Position badge */}
+                                <span className="inline-block bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded mb-4">
+                                    {player.position || "PLAYER"}
+                                </span>
+
+                                {/* Divider + Action */}
+                                <div className="border-t border-gray-100 pt-3">
+                                    <button
+                                        onClick={() => navigate(`/coach/player/${player.id}`)}
+                                        className="text-purple-600 hover:text-purple-800 text-[11px] font-bold tracking-wider uppercase transition-colors"
+                                    >
+                                        VIEW STATS →
+                                    </button>
                                 </div>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 relative z-10">{player.name}</h3>
-                            <p className="text-sm text-gray-500 mb-4">{player.email}</p>
                         </div>
-
-                        {/* Card Actions */}
-                        <div className="border-t border-gray-100 pt-4 flex justify-between items-center mt-2">
-                            <button onClick={() => navigate(`/coach/player/${player.id}`)} className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1">
-                                View Stats <span>→</span>
-                            </button>
-                            <button className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                ))}
-                {team.length === 0 && <p className="text-gray-400">No active players found.</p>}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

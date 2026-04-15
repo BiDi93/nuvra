@@ -33,10 +33,17 @@ export default function CoachAnnouncements() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            
+        <div className="max-w-4xl space-y-8">
+
+            {/* Page Header */}
+            <div className="mb-2">
+                <p className="text-xs font-bold text-purple-500 tracking-widest uppercase mb-1">NUVRA · CLUB PORTAL</p>
+                <h1 className="text-3xl font-black text-gray-900">Notices</h1>
+                <p className="text-gray-500 text-sm mt-1">Send announcements to your entire squad.</p>
+            </div>
+
             {/* WRITE NEW MESSAGE */}
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                 <h2 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-2">
                     <span>📣</span> Blast Announcement
                 </h2>
@@ -62,7 +69,7 @@ export default function CoachAnnouncements() {
                             required
                         ></textarea>
                     </div>
-                    <button className="w-full bg-black hover:bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg transform transition hover:-translate-y-1">
+                    <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl transition-colors">
                         SEND TO ALL PLAYERS
                     </button>
                 </form>

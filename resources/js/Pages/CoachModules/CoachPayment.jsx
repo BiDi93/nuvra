@@ -34,13 +34,14 @@ export default function CoachPayment() {
     const totalCash = roster.reduce((sum, p) => sum + Number(p.amount), 0);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 h-full flex flex-col">
-            
-            {/* Header Area */}
+        <div className="max-w-7xl space-y-8 h-full flex flex-col">
+
+            {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900">Financial Tracker</h1>
-                    <p className="text-gray-400 font-medium">Monitor monthly fees and collections.</p>
+                    <p className="text-xs font-bold text-purple-500 tracking-widest uppercase mb-1">NUVRA · CLUB PORTAL</p>
+                    <h1 className="text-3xl font-black text-gray-900">Payment Tracker</h1>
+                    <p className="text-gray-500 text-sm mt-1">Monitor monthly fees and collections.</p>
                 </div>
 
                 {/* Month Selector */}

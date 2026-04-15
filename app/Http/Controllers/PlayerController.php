@@ -5,23 +5,28 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
-//Import User Model
+//Import Models
 use App\Models\User;
+use App\Models\Player;
+use App\Models\Coach;
+use App\Models\Attribute;
+use App\Models\Performance;
+use App\Models\FootballMatch;
 
 class PlayerController extends Controller
 {
     //
     public function index()
     {
-    // SELECT * FROM players
-    $players = DB::table('players')->get();
-    return response()->json($players);
+        $players = Player::all();
+        return response()->json($players);
     }
 
     public function update(Request $request, $id)
     {
-        $player = DB::table('players')->where('id', $id)->first();
+        $player = Player::find($id);
 
         if (!$player) {
             return response()->json(['message' => 'Player not found'], 404);
@@ -33,36 +38,33 @@ class PlayerController extends Controller
             'password' => 'nullable|string|min:6|confirmed', // confirmed looks for password_confirmation field
         ]);
 
-        $updateData = [
-            'name' => $validated['name'],
-            'updated_at' => now(),
-        ];
+        $player->name = $validated['name'];
 
         // Handle Password Update (Only if provided)
         if ($request->filled('password')) {
-            $updateData['password'] = Hash::make($validated['password']);
+            // Note: If Player is linked to User, we should update User password too.
+            // For now, we update player password field if it exists.
+            $player->password = Hash::make($validated['password']);
         }
 
         // Handle Image Upload
         if ($request->hasFile('profile_image')) {
             // Delete old image if it exists and isn't a default one
-            if ($player->profile_image && file_exists(public_path($player->profile_image))) {
-                 // Optional: unlink(public_path($player->profile_image)); 
+            if ($player->profile_image) {
+                $oldPath = str_replace('/storage/', '', $player->profile_image);
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
             }
 
-            // Save new image to 'storage/app/public/players'
             $path = $request->file('profile_image')->store('players', 'public');
-            
-            // Save the PUBLIC URL to the database
-            $updateData['profile_image'] = '/storage/' . $path;
+            $player->profile_image = '/storage/' . $path;
         }
 
         // COACH-ONLY: Jersey Number Update
         if ($request->has('jersey_number')) {
-            $token = $request->bearerToken();
-            $isCoach = $token && str_starts_with($token, 'coach-session-token-');
-
-            if (!$isCoach) {
+            $user = $request->user();
+            if (!$user || $user->role !== 'coach') {
                 return response()->json(['message' => 'Only coaches can update player attributes.'], 403);
             }
 
@@ -70,14 +72,14 @@ class PlayerController extends Controller
                 'jersey_number' => 'nullable|integer'
             ]);
 
-            $updateData['jersey_number'] = $request->input('jersey_number');
+            $player->jersey_number = $request->input('jersey_number');
         }
 
-        DB::table('players')->where('id', $id)->update($updateData);
+        $player->save();
 
         return response()->json([
             'message' => 'Profile updated successfully!',
-            'profile_image' => $updateData['profile_image'] ?? $player->profile_image
+            'profile_image' => $player->profile_image
         ]);
     }
 
@@ -93,22 +95,14 @@ class PlayerController extends Controller
             'physical' => 'required|integer|min:0|max:100',
         ]);
 
-        DB::table('attributes')->updateOrInsert(
+        Attribute::updateOrCreate(
             ['player_id' => $id],
-            [
-                'pace' => $validated['pace'],
-                'shooting' => $validated['shooting'],
-                'passing' => $validated['passing'],
-                'dribbling' => $validated['dribbling'],
-                'defending' => $validated['defending'],
-                'physical' => $validated['physical'],
-                'updated_at' => now()
-            ]
+            $validated
         );
 
         return response()->json(['message' => 'Attributes updated successfully!']);
     }
-public function store(Request $request)
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -119,112 +113,92 @@ public function store(Request $request)
             'height_cm' => 'required|integer',
         ]);
 
-        $id = DB::table('players')->insertGetId([
+        $player = Player::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'position' => $validated['position'],
             'jersey_number' => $validated['jersey_number'],
             'strong_foot' => $validated['strong_foot'],
             'height_cm' => $validated['height_cm'],
-            'password' => Hash::make('welcome123'), 
-            'created_at' => now(),
-            'updated_at' => now(),
+            // 'password' => Hash::make('welcome123'), // If players have passwords separate from Users
         ]);
 
-        return response()->json(['message' => 'Player Scouted!', 'id' => $id], 201);
+        return response()->json(['message' => 'Player Scouted!', 'id' => $player->id], 201);
     }
 
     public function show($id)
     {
-        $player = DB::table('players')->where('id', $id)->first();
-        if (!$player) return response()->json(['message' => 'Not found'], 404);
+        try {
+            $player = Player::with(['attributes', 'performances.match'])->find($id);
+            if (!$player) return response()->json(['message' => 'Player not found'], 404);
 
-        // UPDATED: Join 'performances' with 'matches' to get the details
-        $history = DB::table('performances')
-                     ->join('matches', 'performances.match_id', '=', 'matches.id')
-                     ->where('performances.player_id', $id)
-                     ->orderBy('matches.match_date', 'desc')
-                     ->select(
-                        'performances.*', 
-                        'matches.opponent_name', 
-                        'matches.match_date', 
-                        'matches.venue', 
-                        'matches.league_name'
-                     )
-                     ->get();
+            $history = $player->performances->filter(fn($p) => $p->match !== null)->map(function ($perf) {
+                return array_merge($perf->toArray(), [
+                    'opponent_name' => $perf->match->opponent_name,
+                    'match_date'    => $perf->match->match_date,
+                    'venue'         => $perf->match->venue,
+                    'league_name'   => $perf->match->league_name,
+                ]);
+            })->values();
 
-        $attributes = DB::table('attributes')->where('player_id', $id)->first();
-
-        // Default attributes if missing
-        if (!$attributes) {
-            $attributes = [
-                'pace' => 50, 'shooting' => 50, 'passing' => 50, 
+            $attributes = $player->attributes ?: [
+                'pace' => 50, 'shooting' => 50, 'passing' => 50,
                 'dribbling' => 50, 'defending' => 50, 'physical' => 50
             ];
+
+            $avgRating = $player->performances->avg('rating') ?: 0;
+
+            return response()->json([
+                'profile'    => $player,
+                'stats'      => [
+                    'total_matches'  => $player->performances->count(),
+                    'total_goals'    => $player->performances->sum('goals'),
+                    'average_rating' => round($avgRating, 1),
+                ],
+                'attributes' => $attributes,
+                'history'    => $history,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
         }
-
-        $avgRating = $history->avg('rating') ?: 0;
-
-        return response()->json([
-            'profile' => $player,
-            'stats' => [
-                'total_matches' => $history->count(),
-                'total_goals' => $history->sum('goals'),
-                'average_rating' => round($avgRating, 1)
-            ],
-            'attributes' => $attributes,
-            'history' => $history
-        ]);
     }
 
     // Get Full Profile for Logged-In User
     public function me(Request $request)
     {
-        // 1. Get the logged-in user's email from the Token
-        $userEmail = $request->user()->email;
+        $user = $request->user();
+        $player = Player::with(['attributes', 'performances.match', 'coach'])->where('user_id', $user->id)->first();
 
-        // 2. Find the Player record associated with that email
-        $player = DB::table('players')->where('email', $userEmail)->first();
+        // Fallback to email if user_id is not yet linked (for existing data)
+        if (!$player) {
+            $player = Player::with(['attributes', 'performances.match', 'coach'])->where('email', $user->email)->first();
+        }
 
         if (!$player) {
             return response()->json(['message' => 'Player profile not found'], 404);
         }
 
-        $id = $player->id; 
+        $history = $player->performances->filter(fn($p) => $p->match !== null)->map(function ($perf) {
+            return array_merge($perf->toArray(), [
+                'opponent_name' => $perf->match->opponent_name,
+                'match_date'    => $perf->match->match_date,
+                'venue'         => $perf->match->venue,
+                'league_name'   => $perf->match->league_name,
+            ]);
+        })->values();
 
-        // 3. Fetch History (Matches joined with Performances)
-        $history = DB::table('performances')
-                     ->join('matches', 'performances.match_id', '=', 'matches.id')
-                     ->where('performances.player_id', $id)
-                     ->orderBy('matches.match_date', 'desc')
-                     ->select(
-                        'performances.*', 
-                        'matches.opponent_name', 
-                        'matches.match_date', 
-                        'matches.venue', 
-                        'matches.league_name'
-                     )
-                     ->get();
+        $attributes = $player->attributes ?: [
+            'pace' => 50, 'shooting' => 50, 'passing' => 50, 
+            'dribbling' => 50, 'defending' => 50, 'physical' => 50
+        ];
 
-        // 4. Fetch Attributes
-        $attributes = DB::table('attributes')->where('player_id', $id)->first();
+        $avgRating = $player->performances->avg('rating') ?: 0;
 
-        // Default attributes if missing (prevents frontend crashes)
-        if (!$attributes) {
-            $attributes = [
-                'pace' => 50, 'shooting' => 50, 'passing' => 50, 
-                'dribbling' => 50, 'defending' => 50, 'physical' => 50
-            ];
-        }
-
-        $avgRating = $history->avg('rating') ?: 0;
-
-        // 5. Return the FULL package
         return response()->json([
             'profile' => $player,
             'stats' => [
-                'total_matches' => $history->count(),
-                'total_goals' => $history->sum('goals'),
+                'total_matches' => $player->performances->count(),
+                'total_goals' => $player->performances->sum('goals'),
                 'average_rating' => round($avgRating, 1)
             ],
             'attributes' => $attributes,
@@ -232,81 +206,56 @@ public function store(Request $request)
         ]);
     }
 public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string',
+    ]);
 
-        // 1. Try to find a PLAYER (in Users table)
-        $user = \App\Models\User::where('email', $request->email)->first();
-
-        if ($user && Hash::check($request->password, $user->password)) {
-            // It's a Player
-            $role = 'player';
-            $status = 'active'; 
-
-            // Check specific player status
-            $playerRecord = DB::table('players')->where('email', $user->email)->first();
-            if ($playerRecord) {
-                $status = $playerRecord->status;
-            }
-
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            return response()->json([
-                'message' => 'Login successful',
-                'token' => $token,
-                'role' => $role,
-                'status' => $status,
-                'user_id' => $user->id
-            ]);
-        }
-
-        // 2. Try to find a COACH (in Coaches table)
-        $coach = DB::table('coaches')->where('email', $request->email)->first();
-
-        if ($coach && Hash::check($request->password, $coach->password)) {
-            // It's a Coach!
-            // NOTE: Since Coach is just a DB record, we can't issue a Sanctum token easily 
-            // unless Coach is a Model with HasApiTokens. 
-            // For now, we will fake a token or you need to ensure Coach is a Model.
-            
-            // OPTION A: If you have a Coach model:
-            // $coachModel = \App\Models\Coach::find($coach->id);
-            // $token = $coachModel->createToken('coach_token')->plainTextToken;
-
-            // OPTION B: For now, just return a dummy token or use session ID
-            // Ideally, you should migrate Coaches to the User table later!
-            $token = 'coach-session-token-' . $coach->id; 
-
-            return response()->json([
-                'message' => 'Coach Login successful',
-                'token' => $token,
-                'role' => 'coach',
-                'status' => 'active',
-                'user_id' => $coach->id
-            ]);
-        }
-
+    // Unified login using standard Auth
+    if (!auth()->attempt($request->only('email', 'password'))) {
         return response()->json(['message' => 'Invalid credentials'], 401);
     }
+
+    $user = auth()->user();
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    $response = [
+        'message' => 'Login successful',
+        'token' => $token,
+        'role' => $user->role,
+        'user_id' => $user->id,
+    ];
+
+    // Add role-specific info
+    if ($user->role === 'player') {
+        $playerRecord = $user->player;
+        $response['status'] = $playerRecord ? $playerRecord->status : 'active';
+    } elseif ($user->role === 'coach') {
+        $coachRecord = $user->coach;
+        $response['status']      = 'active';
+        $response['coach_id']    = $coachRecord ? $coachRecord->id : null;
+        $response['coach_name']  = $coachRecord ? $coachRecord->name : $user->name;
+        $response['coach_avatar'] = $user->avatar;
+    } else {
+        $response['status'] = 'active';
+    }
+
+    return response()->json($response);
+}
+
     // Get Teammates function
     public function getTeammates($id)
     {
-        // 1. Find the current player to get their coach_id
-        $currentPlayer = DB::table('players')->where('id', $id)->first();
+        $currentPlayer = Player::find($id);
 
         if (!$currentPlayer || !$currentPlayer->coach_id) {
             return response()->json(['error' => 'You are not assigned to a team yet.'], 404);
         }
 
-        // 2. Find the Coach/Club details
-        $coach = DB::table('coaches')->where('id', $currentPlayer->coach_id)->first();
+        $coach = $currentPlayer->coach;
 
-        // 3. Find all players with the same coach_id
-        $teammates = DB::table('players')
-            ->where('coach_id', $currentPlayer->coach_id)
+        $teammates = Player::where('coach_id', $currentPlayer->coach_id)
             ->select('id', 'name', 'position', 'jersey_number', 'profile_image', 'height_cm')
             ->get();
 
@@ -319,12 +268,12 @@ public function login(Request $request)
 
     public function getTeams()
     {
-        $teams = DB::table('coaches')->select('id', 'team_name', 'name as coach_name')->get();
+        $teams = Coach::select('id', 'team_name', 'name as coach_name')->get();
         return response()->json($teams);
     }
 
     // PUBLIC: Handle Sign Up
-public function register(Request $request)
+    public function register(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -336,13 +285,11 @@ public function register(Request $request)
         // 2. Create the User with the correct Role
         $role = $request->input('role', 'player'); // Default to player if missing
 
-        $user = \App\Models\User::create([
+        $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => $role, // <--- SAVE THE ROLE
-            'google_id' => null,
-            'avatar' => null,
+            'role' => $role,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -357,10 +304,7 @@ public function register(Request $request)
     // Get all players for a specific coach
     public function getCoachPlayers($coachId)
     {
-        $players = DB::table('players')
-            ->where('coach_id', $coachId)
-            ->get();
-
+        $players = Player::where('coach_id', $coachId)->get();
         return response()->json($players);
     }
 
@@ -368,32 +312,31 @@ public function register(Request $request)
     public function submitApplication(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'coach_id' => 'required|exists:coaches,id',
-            'position' => 'required|string',
-            'details' => 'nullable|array' // For age, phone, etc.
+            'user_id'       => 'required|exists:users,id',
+            'coach_id'      => 'required|exists:coaches,id',
+            'position'      => 'required|string',
+            'date_of_birth' => 'required|date',
+            'jersey_number' => 'nullable|integer|min:1|max:99',
         ]);
 
-        // Create the Player Profile (Pending Approval)
-        $user = \App\Models\User::find($validated['user_id']);
-        
-        // Check if player profile already exists
-        $existingPlayer = DB::table('players')->where('email', $user->email)->first();
-        
+        $user = User::find($validated['user_id']);
+
+        $existingPlayer = Player::where('email', $user->email)->first();
+
         if ($existingPlayer) {
             return response()->json(['message' => 'Application already pending or approved!'], 400);
         }
 
-        DB::table('players')->insert([
-            'coach_id' => $validated['coach_id'],
-            'name' => $user->name,
-            'email' => $user->email,
+        Player::create([
+            'user_id'       => $user->id,
+            'coach_id'      => $validated['coach_id'],
+            'name'          => $user->name,
+            'email'         => $user->email,
             'profile_image' => $user->avatar,
-            'position' => $validated['position'],
-            'status' => 'pending', // Crucial: Start as pending!
-            'created_at' => now(),
-            'updated_at' => now(),
-            // Add other details like age/phone here if you passed them
+            'position'      => $validated['position'],
+            'date_of_birth' => $validated['date_of_birth'],
+            'jersey_number' => $validated['jersey_number'] ?? null,
+            'status'        => 'pending',
         ]);
 
         return response()->json(['message' => 'Application submitted successfully!']);
