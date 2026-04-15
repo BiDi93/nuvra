@@ -112,6 +112,7 @@ class ResetSeeder extends Seeder
         DB::table('community_games')->truncate();
         DB::table('community_users')->truncate();
         DB::table('performances')->truncate();
+        DB::table('matches')->truncate();
         DB::table('attributes')->truncate();
         DB::table('players')->truncate();
         DB::table('coaches')->truncate();
@@ -149,8 +150,29 @@ class ResetSeeder extends Seeder
 
             $this->command->info("✅ Coach {$coachIndex}: {$coachData['email']}  →  {$coachData['team']}");
 
-            // c. 10 players for this coach
-            $squadStart = $coachNum * 10; // index into playerPool
+            // c. Create 8 matches for this coach
+            $leagues  = ['Liga Super', 'Liga Premier', 'FA Cup', 'Malaysia Cup'];
+            $venues   = ['Home', 'Away', 'Shah Alam Stadium', 'Stadium Bukit Jalil', 'Stadium Perak'];
+            $matchIds = [];
+
+            for ($m = 1; $m <= 8; $m++) {
+                $opponent  = $this->opponents[($m + $coachNum) % count($this->opponents)];
+                $matchIds[] = DB::table('matches')->insertGetId([
+                    'coach_id'      => $coachId,
+                    'opponent_name' => $opponent,
+                    'match_date'    => now()->subDays($m * 8)->toDateString(),
+                    'match_time'    => '20:00:00',
+                    'venue'         => $venues[$m % count($venues)],
+                    'league_type'   => 'League',
+                    'league_name'   => $leagues[$m % count($leagues)],
+                    'category'      => 'Senior',
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // d. 10 players for this coach
+            $squadStart = $coachNum * 10;
 
             for ($playerNum = 1; $playerNum <= 10; $playerNum++) {
                 $p     = $this->playerPool[$squadStart + ($playerNum - 1)];
@@ -199,22 +221,16 @@ class ResetSeeder extends Seeder
                     'updated_at' => now(),
                 ]);
 
-                // 8 match performances spread over last 2 months
-                for ($m = 1; $m <= 8; $m++) {
-                    $opponent = $this->opponents[($m + $coachNum + $playerNum) % count($this->opponents)];
-                    $goals    = $isAttacker ? rand(0, 3) : ($isDefender ? 0 : rand(0, 1));
-                    $assists  = rand(0, 2);
-                    $rating   = round(rand(55, 97) / 10, 1);
-                    $mins     = [60, 70, 75, 80, 85, 90, 90, 90][$m - 1];
-
+                // 1 performance per match (8 total), linked via match_id
+                $minsList = [60, 70, 75, 80, 85, 90, 90, 90];
+                foreach ($matchIds as $idx => $matchId) {
                     DB::table('performances')->insert([
                         'player_id'      => $playerId,
-                        'match_date'     => now()->subDays($m * 8),
-                        'opponent_name'  => $opponent,
-                        'minutes_played' => $mins,
-                        'goals'          => $goals,
-                        'assists'        => $assists,
-                        'rating'         => $rating,
+                        'match_id'       => $matchId,
+                        'minutes_played' => $minsList[$idx],
+                        'goals'          => $isAttacker ? rand(0, 3) : ($isDefender ? 0 : rand(0, 1)),
+                        'assists'        => rand(0, 2),
+                        'rating'         => round(rand(55, 97) / 10, 1),
                         'cleansheet'     => ($isDefender && rand(0, 1)) ? 1 : 0,
                         'created_at'     => now(),
                         'updated_at'     => now(),
@@ -285,7 +301,7 @@ class ResetSeeder extends Seeder
         $this->command->info('  COMMUNITY ADMIN  →  admin@nuvra.com');
         $this->command->info('  COMMUNITY USER   →  user@nuvra.com');
         $this->command->info('══════════════════════════════════════════════════════');
-        $this->command->info('  Total: 5 coaches · 50 players · 400 performances');
+        $this->command->info('  Total: 5 coaches · 40 matches · 50 players · 400 performances');
         $this->command->info('══════════════════════════════════════════════════════');
     }
 }
