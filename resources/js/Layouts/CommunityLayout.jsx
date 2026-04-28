@@ -78,6 +78,25 @@ export default function CommunityLayout() {
                         active={isActive("/community/announcements")} 
                         onClick={() => navigate("/community/announcements")} 
                     />
+
+                    {/* ADMIN ONLY */}
+                    {user?.role === "admin" && (
+                        <>
+                            <div style={S.navDivider}>ADMIN CONTROL</div>
+                            <NavItem 
+                                icon={<span style={{fontSize: 18}}>⊕</span>} 
+                                label="CREATE GAME" 
+                                active={isActive("/community/admin/create-game")} 
+                                onClick={() => navigate("/community/admin/create-game")} 
+                            />
+                            <NavItem 
+                                icon={<span style={{fontSize: 18}}>✍</span>} 
+                                label="POST NEWS" 
+                                active={isActive("/community/admin/post-announcement")} 
+                                onClick={() => navigate("/community/admin/post-announcement")} 
+                            />
+                        </>
+                    )}
                 </nav>
 
                 <div style={{ flex: 1 }} />
@@ -193,6 +212,14 @@ const S = {
     navItemActive: {
         background: "#333333",
         color: "#fff",
+    },
+    navDivider: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: "rgba(255,255,255,0.2)",
+        letterSpacing: 1.5,
+        padding: "24px 20px 8px 20px",
+        textTransform: "uppercase",
     },
     navIcon: {
         display: "flex",
