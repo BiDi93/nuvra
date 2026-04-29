@@ -46,6 +46,7 @@ import GameDetail from "./Pages/Community/GameDetail.jsx";
 import CommunityAnnouncements from "./Pages/Community/CommunityAnnouncements.jsx";
 import CreateGame from "./Pages/Community/Admin/CreateGame.jsx";
 import PostAnnouncement from "./Pages/Community/Admin/PostAnnouncement.jsx";
+import Analytics from "./Pages/Community/Admin/Analytics.jsx";
 
 // Community Protected Route (uses community_token, not auth_token)
 const CommunityAdminRoute = () => {
@@ -81,6 +82,7 @@ function App() {
                     <Route path="announcements" element={<CommunityAnnouncements />} />
                     <Route path="admin/create-game" element={<CreateGame />} />
                     <Route path="admin/post-announcement" element={<PostAnnouncement />} />
+                    <Route path="admin/analytics" element={<Analytics />} />
                 </Route>
 
                 {/* =========================================

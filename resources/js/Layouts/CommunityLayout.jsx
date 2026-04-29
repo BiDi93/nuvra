@@ -6,10 +6,9 @@ import PageLoader from "../Components/PageLoader";
 const API = "/api/community";
 
 // ── Sidebar Nav Item ──────────────────────────────────────────────────────────
-function NavItem({ icon, label, active, onClick }) {
+function NavItem({ label, active, onClick }) {
     return (
         <button style={{ ...S.navItem, ...(active ? S.navItemActive : {}) }} onClick={onClick}>
-            <span style={S.navIcon}>{icon}</span>
             <span style={S.navLabel}>{label}</span>
         </button>
     );
@@ -67,13 +66,11 @@ export default function CommunityLayout() {
                 {/* Nav */}
                 <nav style={S.sideNav}>
                     <NavItem 
-                        icon={<span style={{fontSize: 18}}>⊞</span>} 
                         label="DASHBOARD" 
                         active={isActive("/community/feed")} 
                         onClick={() => navigate("/community/feed")} 
                     />
                     <NavItem 
-                        icon={<span style={{fontSize: 18}}>📢</span>} 
                         label="ANNOUNCEMENTS" 
                         active={isActive("/community/announcements")} 
                         onClick={() => navigate("/community/announcements")} 
@@ -84,16 +81,19 @@ export default function CommunityLayout() {
                         <>
                             <div style={S.navDivider}>ADMIN CONTROL</div>
                             <NavItem 
-                                icon={<span style={{fontSize: 18}}>⊕</span>} 
                                 label="CREATE GAME" 
                                 active={isActive("/community/admin/create-game")} 
                                 onClick={() => navigate("/community/admin/create-game")} 
                             />
                             <NavItem 
-                                icon={<span style={{fontSize: 18}}>✍</span>} 
                                 label="POST NEWS" 
                                 active={isActive("/community/admin/post-announcement")} 
                                 onClick={() => navigate("/community/admin/post-announcement")} 
+                            />
+                            <NavItem 
+                                label="ANALYTICS" 
+                                active={isActive("/community/admin/analytics")} 
+                                onClick={() => navigate("/community/admin/analytics")} 
                             />
                         </>
                     )}
@@ -125,7 +125,11 @@ export default function CommunityLayout() {
 
             {/* ── MAIN CONTENT ── */}
             <main style={S.main}>
-                <Outlet />
+                <div style={S.bgImage} />
+                <div style={S.bgOverlay} />
+                <div style={S.contentWrapper}>
+                    <Outlet />
+                </div>
             </main>
         </div>
     );
@@ -146,7 +150,7 @@ const S = {
     sidebar: {
         width: 260,
         minWidth: 260,
-        background: "#222222",
+        background: "#1e1e1e",
         display: "flex",
         flexDirection: "column",
         position: "fixed",
@@ -154,6 +158,7 @@ const S = {
         left: 0,
         bottom: 0,
         zIndex: 50,
+        borderRight: "1px solid rgba(255,255,255,0.05)",
     },
     brand: {
         padding: "32px 24px",
@@ -165,25 +170,27 @@ const S = {
         gap: 12,
     },
     logoImg: {
-        width: 40,
-        height: 40,
+        width: 50,
+        height: 50,
         objectFit: "contain",
+        filter: "brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(90deg)", // Make it green-ish to match logo in ref
     },
     brandTextCol: {
         display: "flex",
         flexDirection: "column",
     },
     brandText: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 900,
-        letterSpacing: 2,
+        letterSpacing: 1,
         lineHeight: 1,
+        color: "#fff",
     },
     brandSubText: {
         fontSize: 9,
         fontWeight: 700,
         letterSpacing: 1,
-        color: "rgba(255,255,255,0.4)",
+        color: "rgba(255,255,255,0.3)",
         marginTop: 4,
         textTransform: "uppercase",
     },
@@ -191,18 +198,17 @@ const S = {
         padding: "0 12px",
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 6,
     },
     navItem: {
         display: "flex",
         alignItems: "center",
-        gap: 12,
         padding: "12px 20px",
         background: "transparent",
         border: "none",
-        color: "rgba(255,255,255,0.5)",
+        color: "rgba(255,255,255,0.4)",
         fontSize: 14,
-        fontWeight: 700,
+        fontWeight: 600,
         cursor: "pointer",
         fontFamily: "inherit",
         borderRadius: 12,
@@ -210,22 +216,16 @@ const S = {
         textAlign: "left",
     },
     navItemActive: {
-        background: "#333333",
-        color: "#fff",
+        background: "rgba(16, 185, 129, 0.1)", // Soft Emerald Green
+        color: "#10b981", // Emerald Green
     },
     navDivider: {
         fontSize: 10,
         fontWeight: 800,
-        color: "rgba(255,255,255,0.2)",
+        color: "rgba(255,255,255,0.15)",
         letterSpacing: 1.5,
         padding: "24px 20px 8px 20px",
         textTransform: "uppercase",
-    },
-    navIcon: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 24,
     },
     userBox: {
         padding: "24px",
@@ -291,6 +291,27 @@ const S = {
         flex: 1,
         background: "#121212",
         minHeight: "100vh",
+        position: "relative",
+    },
+    bgImage: {
+        position: "fixed",
+        inset: 0,
+        marginLeft: 260,
+        backgroundImage: "url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=1600')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        zIndex: 0,
+    },
+    bgOverlay: {
+        position: "fixed",
+        inset: 0,
+        marginLeft: 260,
+        background: "linear-gradient(135deg, rgba(18,18,18,0.9) 0%, rgba(18,18,18,0.96) 100%)",
+        zIndex: 1,
+    },
+    contentWrapper: {
+        position: "relative",
+        zIndex: 2,
         padding: "40px",
     },
 };

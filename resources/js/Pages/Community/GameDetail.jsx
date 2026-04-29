@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
 import DynamicBackground from "../../Components/DynamicBackground";
 import PageLoader from "../../Components/PageLoader";
+import TeamLogo from "../../Components/TeamLogo";
 
 const API = "/api/community";
 
@@ -107,23 +108,6 @@ function PaymentModal({ game, side, onClose, onSuccess }) {
     );
 }
 
-// ── Team Logo Helper ────────────────────────────────────────────────────────
-function TeamLogo({ name, color }) {
-    return (
-        <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: `linear-gradient(135deg, ${color}, #080a12)`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, fontWeight: 900, color: "#fff",
-            fontFamily: "'Inter', sans-serif",
-            border: `1px solid ${color}44`,
-            flexShrink: 0
-        }}>
-            {name?.[0]?.toUpperCase() || "T"}
-        </div>
-    );
-}
-
 // ── Seat Grid Visual ──────────────────────────────────────────────────────────
 function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus }) {
     const remaining = max - filled;
@@ -136,7 +120,7 @@ function SlotVisual({ filled, max, teamName, side, onJoin, disabled, gameStatus 
         <div style={T.wrap}>
             <div style={T.header}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <TeamLogo name={teamName} color={side === "team_a" ? "#00D4EC" : "#D040EF"} />
+                    <TeamLogo name={teamName} size={36} />
                     <span style={T.teamName}>{teamName}</span>
                 </div>
                 <span style={{ ...T.badge, color, background: color + "15", border: `1px solid ${color}33` }}>

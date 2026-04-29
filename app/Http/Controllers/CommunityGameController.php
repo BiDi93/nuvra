@@ -35,6 +35,18 @@ class CommunityGameController extends Controller
                     ->where('team_side', 'team_b')
                     ->whereIn('status', ['payment_submitted', 'confirmed'])
                     ->count();
+
+                // Dynamic Status Verification
+                $totalLocked = $game->team_a_count + $game->team_b_count;
+                $maxCapacity = $game->max_slots_per_team * 2;
+                $calculatedStatus = ($totalLocked >= $maxCapacity) ? 'full' : 'open';
+
+                // Only update if it's currently open/full and out of sync
+                if (in_array($game->status, ['open', 'full']) && $game->status !== $calculatedStatus) {
+                    DB::table('community_games')->where('id', $game->id)->update(['status' => $calculatedStatus]);
+                    $game->status = $calculatedStatus;
+                }
+
                 $game->payment_qr_url = $game->payment_qr_path
                     ? Storage::url($game->payment_qr_path)
                     : null;
@@ -72,6 +84,16 @@ class CommunityGameController extends Controller
             ->whereIn('community_bookings.status', ['payment_submitted', 'confirmed'])
             ->select('community_users.id', 'community_users.name', 'community_bookings.created_at as joined_at', 'community_bookings.status as booking_status')
             ->get();
+
+        // Dynamic Status Verification
+        $totalLocked = $teamA->count() + $teamB->count();
+        $maxCapacity = $game->max_slots_per_team * 2;
+        $calculatedStatus = ($totalLocked >= $maxCapacity) ? 'full' : 'open';
+
+        if (in_array($game->status, ['open', 'full']) && $game->status !== $calculatedStatus) {
+            DB::table('community_games')->where('id', $id)->update(['status' => $calculatedStatus]);
+            $game->status = $calculatedStatus;
+        }
 
         return response()->json([
             'game'   => $game,
