@@ -41,7 +41,7 @@ export default function PostAnnouncement() {
 
     return (
         <div style={styles.root}>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } body{background:#080810;}`}</style>
+            <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
             <div style={styles.bgGlow} />
 
             <nav style={styles.nav}>
@@ -78,9 +78,9 @@ export default function PostAnnouncement() {
 }
 
 const styles = {
-    root: { fontFamily: "'Inter', sans-serif", minHeight: "100vh", background: "#080810", color: "#fff" },
+    root: { fontFamily: "'Inter', sans-serif", minHeight: "100vh", background: "transparent", color: "#fff" },
     bgGlow: { position: "fixed", top: 0, left: 0, right: 0, height: "40vh", zIndex: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,201,255,0.06) 0%, transparent 70%)" },
-    nav: { position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 60, background: "rgba(8,8,16,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" },
+    nav: { position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 60, background: "rgba(18,18,18,0.7)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" },
     backBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
     navBrand: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, letterSpacing: 2 },
     adminBadge: { fontSize: 12, color: "rgba(255,215,0,0.8)", fontWeight: 600 },
