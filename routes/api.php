@@ -17,6 +17,7 @@ use App\Http\Controllers\PaymentControllerBillplz; // New (Billplz Integration)
 use App\Http\Controllers\CommunityAuthController;
 use App\Http\Controllers\CommunityGameController;
 use App\Http\Controllers\CommunityAnnouncementController;
+use App\Http\Controllers\CommunityAnalyticsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -155,5 +156,8 @@ Route::prefix('community')->group(function () {
         Route::get('/announcements',         [CommunityAnnouncementController::class, 'index']);
         Route::post('/announcements',        [CommunityAnnouncementController::class, 'store']);
         Route::delete('/announcements/{id}', [CommunityAnnouncementController::class, 'destroy']);
+
+        // ── Analytics ─────────────────────────────────────────────────────────────
+        Route::get('/analytics', [CommunityAnalyticsController::class, 'index']);
     });
 });

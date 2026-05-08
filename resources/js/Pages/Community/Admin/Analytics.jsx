@@ -27,17 +27,22 @@ function NotificationItem({ icon, message, time }) {
 }
 
 export default function Analytics() {
-    const [stats, setStats] = useState({
-        totalMatches: 203,
-        playersRegistered: 30,
-        revenue: "1,932.00"
-    });
+    const [stats, setStats] = useState(null);
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const [notifications, setNotifications] = useState([
-        { id: 1, icon: "👤", message: "New team member added to 'United FC'", time: "Kick-off: 19:30 Today" },
-        { id: 2, icon: "🏟️", message: "Venue booking confirmed for 'Main Arena'", time: "Kick-off: 19:30 Today" },
-        { id: 3, icon: "💳", message: "Payment received for 'City Lions' match", time: "Kick-off: 20:00 Today" }
-    ]);
+    useEffect(() => {
+        const token = localStorage.getItem("community_token");
+        fetch(`${API}/analytics`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                setStats(data.stats);
+                setNotifications(data.notifications);
+            })
+            .finally(() => setLoading(false));
+    }, []);
 
     return (
         <div style={S.container}>
@@ -51,9 +56,15 @@ export default function Analytics() {
                 <div style={S.leftCol}>
                     <h2 style={S.sectionTitle}>RECENT NOTIFICATIONS</h2>
                     <div style={S.card}>
-                        {notifications.map(n => (
-                            <NotificationItem key={n.id} icon={n.icon} message={n.message} time={n.time} />
-                        ))}
+                        {loading ? (
+                            <div style={S.empty}>Loading...</div>
+                        ) : notifications.length === 0 ? (
+                            <div style={S.empty}>No recent activity.</div>
+                        ) : (
+                            notifications.map((n) => (
+                                <NotificationItem key={n.id} icon={n.icon} message={n.message} time={n.time} />
+                            ))
+                        )}
                     </div>
                 </div>
 
@@ -61,9 +72,9 @@ export default function Analytics() {
                 <div style={S.rightCol}>
                     <h2 style={S.sectionTitle}>QUICK STATS</h2>
                     <div style={S.statsStack}>
-                        <StatCard label="Total Matches" value={stats.totalMatches} />
-                        <StatCard label="Players Registered" value={stats.playersRegistered} />
-                        <StatCard label="Revenue this Month" value={stats.revenue} prefix="$" />
+                        <StatCard label="Total Games" value={loading ? "—" : stats?.totalGames} />
+                        <StatCard label="Players Registered" value={loading ? "—" : stats?.playersRegistered} />
+                        <StatCard label="Revenue this Month" value={loading ? "—" : stats?.revenueThisMonth} prefix="RM " />
                     </div>
                 </div>
             </div>
@@ -163,5 +174,10 @@ const S = {
         fontSize: 13,
         fontWeight: 600,
         color: "rgba(255,255,255,0.4)",
+    },
+    empty: {
+        padding: "20px 0",
+        color: "rgba(255,255,255,0.3)",
+        fontSize: 13,
     },
 };
