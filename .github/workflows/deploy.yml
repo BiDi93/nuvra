@@ -20,7 +20,7 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT || 22 }}
         script: |
-          cd /var/www/nuvra-app
+          cd /var/www/html/html
           
           # Maintain maintenance mode
           php artisan down || true
