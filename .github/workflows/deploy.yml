@@ -20,13 +20,13 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT || 22 }}
         script: |
-          cd /var/www/html/html
+          cd /var/www/html
           
           # Maintain maintenance mode
           php artisan down || true
           
           # Pull latest changes
-          git pull origin main
+          git pull origin testing-nuvra
           
           # Update Backend
           composer install --no-dev --optimize-autoloader
