@@ -17,9 +17,10 @@ const AuthPage = () => {
     const navigate = useNavigate();
     const [imgIndex, setImgIndex] = useState(0);
     const [fade, setFade] = useState(true);
-    const [view, setView] = useState('login');     // 'login' | 'signup'
+    const [view, setView] = useState('login');     // 'login' | 'signup' | 'forgot'
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
 
     const [formData, setFormData] = useState({
         name: '',
@@ -42,7 +43,7 @@ const AuthPage = () => {
 
     const field = (key) => ({
         value: formData[key],
-        onChange: v => { setError(''); setFormData(f => ({ ...f, [key]: v })); },
+        onChange: v => { setError(''); setMessage(''); setFormData(f => ({ ...f, [key]: v })); },
     });
 
     const handleGoogleLogin = () => {
@@ -110,8 +111,25 @@ const AuthPage = () => {
         }
     };
 
-    const switchToSignup = () => { setError(''); setView('signup'); };
-    const switchToLogin  = () => { setError(''); setView('login'); };
+    // ── FORGOT PASSWORD ────────────────────────────────────────
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setMessage('');
+        try {
+            const res = await axios.post('/api/forgot-password', { email: formData.email });
+            setMessage(res.data.message);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to send reset link.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const switchToSignup = () => { setError(''); setMessage(''); setView('signup'); };
+    const switchToLogin  = () => { setError(''); setMessage(''); setView('login'); };
+    const switchToForgot = () => { setError(''); setMessage(''); setView('forgot'); };
 
     return (
         <div style={S.root}>
@@ -167,7 +185,23 @@ const AuthPage = () => {
                             {/* Email / Password */}
                             <form onSubmit={handleLogin} style={S.form}>
                                 <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
-                                <Field label="Password" type="password" placeholder="••••••••" {...field('password')} />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <label style={S.fieldLabel}>Password</label>
+                                        <button type="button" className="auth-link" style={{ ...S.inlineLink, fontSize: 11, color: '#D040EF' }} onClick={switchToForgot}>
+                                            Forgot password?
+                                        </button>
+                                    </div>
+                                    <input
+                                        className="auth-input"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={formData.password}
+                                        onChange={e => { setError(''); setFormData(f => ({ ...f, password: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
                                 {error && <p style={S.errorMsg}>{error}</p>}
                                 <button
                                     type="submit"
@@ -182,6 +216,40 @@ const AuthPage = () => {
                                 Don't have an account?{' '}
                                 <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToSignup}>
                                     Sign up
+                                </button>
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ══════════════════════════════════════
+                        FORGOT PASSWORD VIEW
+                    ══════════════════════════════════════ */}
+                    {view === 'forgot' && (
+                        <div style={S.viewWrap}>
+                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
+
+                            <div style={S.viewHeader}>
+                                <h1 style={S.viewTitle}>Reset Password</h1>
+                                <p style={S.viewSubtitle}>Enter your email to receive a reset link.</p>
+                            </div>
+
+                            <form onSubmit={handleForgotPassword} style={S.form}>
+                                <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
+                                {error && <p style={S.errorMsg}>{error}</p>}
+                                {message && <p style={S.successMsg}>{message}</p>}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
+                                >
+                                    {loading ? 'Sending link…' : 'Send Reset Link'}
+                                </button>
+                            </form>
+
+                            <p style={{ ...S.switchText, marginTop: 24 }}>
+                                Remember your password?{' '}
+                                <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToLogin}>
+                                    Sign in
                                 </button>
                             </p>
                         </div>
@@ -356,6 +424,11 @@ const S = {
     errorMsg: {
         fontSize: 12, color: '#ff6b6b', fontWeight: 500,
         background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)',
+        borderRadius: 8, padding: '8px 12px',
+    },
+    successMsg: {
+        fontSize: 12, color: '#00D4EC', fontWeight: 500,
+        background: 'rgba(0,212,236,0.08)', border: '1px solid rgba(0,212,236,0.2)',
         borderRadius: 8, padding: '8px 12px',
     },
 
