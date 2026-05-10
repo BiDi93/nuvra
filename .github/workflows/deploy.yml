@@ -1,0 +1,44 @@
+name: Deploy NUVRA to Google Cloud VM
+
+on:
+  push:
+    branches: [ testing-nuvra ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VM_IP }}
+        username: ${{ secrets.VM_SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          cd /var/www/nuvra-app
+          
+          # Maintain maintenance mode
+          php artisan down || true
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Update Backend
+          composer install --no-dev --optimize-autoloader
+          
+          # Update Frontend
+          npm install
+          npm run build
+          
+          # Database & Optimization
+          php artisan migrate --force
+          php artisan optimize
+          php artisan view:cache
+          
+          # Bring app back up
+          php artisan up
