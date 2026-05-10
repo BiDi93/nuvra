@@ -2,7 +2,7 @@ name: Deploy NUVRA to Google Cloud VM
 
 on:
   push:
-    branches: [ testing-nuvra ]
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -26,7 +26,7 @@ jobs:
           php artisan down || true
           
           # Pull latest changes
-          git pull origin testing-nuvra
+          git pull origin main
           
           # Update Backend
           composer install --no-dev --optimize-autoloader
