@@ -12,6 +12,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\PaymentController; // Legacy (Coach View)
 use App\Http\Controllers\PaymentControllerBillplz; // New (Billplz Integration)
+use App\Http\Controllers\NewPasswordController;
 
 // --- COMMUNITY CONTROLLERS ---
 use App\Http\Controllers\CommunityAuthController;
@@ -27,6 +28,10 @@ use App\Http\Controllers\CommunityAnalyticsController;
 // Login Routes
 Route::post('/login', [PlayerController::class, 'login']);
 Route::post('/coach/login', [CoachController::class, 'login']);
+
+// Password Reset Routes
+Route::post('/forgot-password', [NewPasswordController::class, 'forgotPassword'])->middleware('guest');
+Route::post('/reset-password', [NewPasswordController::class, 'resetPassword'])->middleware('guest');
 
 // Registration & Onboarding
 Route::post('/register', [PlayerController::class, 'register']);

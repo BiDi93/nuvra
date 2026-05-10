@@ -11,6 +11,7 @@ import PlayerRoute    from "./Components/PlayerRoute";
 import AuthPage from "./Pages/Authentication/AuthPage.jsx";
 import Login from "./Pages/Login"; // Ensure this path is correct if different from AuthPage
 import GoogleCallback from "./Pages/Authentication/GoogleCallback.jsx";
+import ResetPassword from "./Pages/Authentication/ResetPassword.jsx";
 
 // Import Waiting Room & Onboarding
 import WaitingRoom from "./Pages/WaitingRoom.jsx";
@@ -69,6 +70,7 @@ function App() {
                    ========================================= */}
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/club" element={<AuthPage />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/auth/callback" element={<GoogleCallback />} />
 
                 {/* =========================================
