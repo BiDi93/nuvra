@@ -25,8 +25,9 @@ jobs:
           # Maintain maintenance mode
           php artisan down || true
           
-          # Pull latest changes
-          git pull origin main
+          # Sync with GitHub (Force)
+          git fetch origin main
+          git reset --hard origin/main
           
           # Update Backend
           composer install --no-dev --optimize-autoloader
