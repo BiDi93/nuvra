@@ -7,16 +7,18 @@ const API = "/api/community";
 
 export default function CommunityHome() {
     const navigate = useNavigate();
-    const [tab, setTab] = useState("login"); // 'login' | 'register'
+    const [tab, setTab] = useState("login"); // 'login' | 'register' | 'forgot'
     const [error, setError] = useState("");
+    const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(false);
 
     const [loginData, setLoginData] = useState({ email: "", password: "" });
     const [regData, setRegData] = useState({ name: "", email: "", password: "", phone: "" });
+    const [forgotData, setForgotData] = useState({ email: "" });
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setError(""); setLoading(true);
+        setError(""); setMessage(""); setLoading(true);
         try {
             const res = await fetch(`${API}/login`, {
                 method: "POST",
@@ -37,7 +39,7 @@ export default function CommunityHome() {
 
     const handleRegister = async (e) => {
         e.preventDefault();
-        setError(""); setLoading(true);
+        setError(""); setMessage(""); setLoading(true);
         try {
             const res = await fetch(`${API}/register`, {
                 method: "POST",
@@ -49,6 +51,25 @@ export default function CommunityHome() {
             localStorage.setItem("community_token", data.token);
             localStorage.setItem("community_user", JSON.stringify(data.user));
             navigate("/community/feed");
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setError(""); setMessage(""); setLoading(true);
+        try {
+            const res = await fetch(`/api/forgot-password`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(forgotData),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Failed to send reset link.");
+            setMessage(data.message);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -92,29 +113,57 @@ export default function CommunityHome() {
                     {error && (
                         <div style={styles.errorBox}>⚠ {error}</div>
                     )}
+                    {message && (
+                        <div style={styles.successMsg}>{message}</div>
+                    )}
 
                     {tab === "login" ? (
                         <form onSubmit={handleLogin} style={styles.form}>
                             <Field label="Email" type="email" placeholder="you@email.com"
                                 value={loginData.email} onChange={v => setLoginData({ ...loginData, email: v })} />
-                            <Field label="Password" type="password" placeholder="••••••••"
-                                value={loginData.password} onChange={v => setLoginData({ ...loginData, password: v })} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <label style={styles.label}>Password</label>
+                                    <button type="button" style={{ background: 'none', border: 'none', color: '#D040EF', fontSize: 11, cursor: 'pointer', fontWeight: 700 }} onClick={() => { setTab("forgot"); setError(""); setMessage(""); }}>
+                                        Forgot Password?
+                                    </button>
+                                </div>
+                                <input
+                                    style={styles.input}
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={loginData.password}
+                                    onChange={e => { setError(""); setLoginData({ ...loginData, password: e.target.value }) }}
+                                    required
+                                />
+                            </div>
                             <button style={styles.submitBtn} type="submit" disabled={loading}>
                                 {loading ? "Signing in..." : "SIGN IN →"}
                             </button>
                         </form>
-                    ) : (
+                    ) : tab === "register" ? (
                         <form onSubmit={handleRegister} style={styles.form}>
                             <Field label="Full Name" type="text" placeholder="Your name"
                                 value={regData.name} onChange={v => setRegData({ ...regData, name: v })} />
                             <Field label="Email" type="email" placeholder="you@email.com"
                                 value={regData.email} onChange={v => setRegData({ ...regData, email: v })} />
-                            <Field label="Phone (optional)" type="text" placeholder="+60 12 345 6789"
+                            <Field label="Phone (Optional)" type="tel" placeholder="+60123456789"
                                 value={regData.phone} onChange={v => setRegData({ ...regData, phone: v })} />
-                            <Field label="Password" type="password" placeholder="Min. 6 characters"
+                            <Field label="Password" type="password" placeholder="••••••••"
                                 value={regData.password} onChange={v => setRegData({ ...regData, password: v })} />
                             <button style={styles.submitBtn} type="submit" disabled={loading}>
                                 {loading ? "Creating account..." : "JOIN THE COMMUNITY →"}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleForgotPassword} style={styles.form}>
+                            <Field label="Email" type="email" placeholder="you@email.com"
+                                value={forgotData.email} onChange={v => setForgotData({ ...forgotData, email: v })} />
+                            <button style={styles.submitBtn} type="submit" disabled={loading}>
+                                {loading ? "Sending Link..." : "SEND RESET LINK →"}
+                            </button>
+                            <button type="button" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', marginTop: 10 }} onClick={() => { setTab("login"); setError(""); setMessage(""); }}>
+                                ← Back to login
                             </button>
                         </form>
                     )}
@@ -182,6 +231,11 @@ const styles = {
         background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.3)",
         borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600,
         color: "#ff8080", marginBottom: 16,
+    },
+    successMsg: {
+        background: "rgba(0,212,236,0.1)", border: "1px solid rgba(0,212,236,0.3)",
+        borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600,
+        color: "#00D4EC", marginBottom: 16,
     },
     form: { display: "flex", flexDirection: "column", gap: 16 },
     label: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 },
