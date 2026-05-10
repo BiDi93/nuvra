@@ -21,6 +21,7 @@ jobs:
         port: ${{ secrets.SSH_PORT || 22 }}
         script: |
           cd /var/www/html
+          git config --global --add safe.directory /var/www/html
           
           # Maintain maintenance mode
           php artisan down || true
