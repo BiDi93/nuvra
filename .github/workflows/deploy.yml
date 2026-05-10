@@ -15,10 +15,10 @@ jobs:
     - name: Deploy via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.VM_IP }}
+        host: ${{ secrets.HOST || secrets.VM_IP }}
         username: ${{ secrets.VM_SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT }}
+        port: ${{ secrets.SSH_PORT || 22 }}
         script: |
           cd /var/www/nuvra-app
           
