@@ -77,12 +77,18 @@ export default function CommunityHome() {
         }
     };
 
+    const handleGoogleLogin = () => {
+        window.location.href = "/community/auth/google";
+    };
+
     return (
         <div style={styles.root}>
             <PageLoader />
             <DynamicBackground />
             <style>{`
                 * { box-sizing: border-box; margin: 0; padding: 0; }
+                .google-btn { transition: all 0.2s; }
+                .google-btn:hover { background: rgba(255,255,255,0.08) !important; transform: translateY(-1px); }
             `}</style>
 
 
@@ -108,6 +114,22 @@ export default function CommunityHome() {
                                 {t === "login" ? "Sign In" : "Create Account"}
                             </button>
                         ))}
+                    </div>
+
+                    {/* Google Login Button */}
+                    <button 
+                        className="google-btn"
+                        onClick={handleGoogleLogin}
+                        style={styles.googleBtn}
+                    >
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" style={{width: 18, height: 18}} />
+                        Continue with Google
+                    </button>
+
+                    <div style={styles.divider}>
+                        <div style={styles.line} />
+                        <span style={styles.dividerText}>OR</span>
+                        <div style={styles.line} />
                     </div>
 
                     {error && (
@@ -226,6 +248,39 @@ const styles = {
     tabActive: {
         background: "linear-gradient(135deg, #00D4EC, #D040EF)",
         color: "#080810",
+    },
+    googleBtn: {
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        padding: "12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.1)",
+        background: "rgba(255,255,255,0.03)",
+        color: "#fff",
+        fontSize: 14,
+        fontWeight: 600,
+        cursor: "pointer",
+        marginBottom: 20,
+        fontFamily: "inherit",
+    },
+    divider: {
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: 20,
+    },
+    line: {
+        flex: 1,
+        height: 1,
+        background: "rgba(255,255,255,0.1)",
+    },
+    dividerText: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: "rgba(255,255,255,0.2)",
     },
     errorBox: {
         background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.3)",

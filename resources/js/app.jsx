@@ -42,6 +42,7 @@ import CoachPayment from "./Pages/CoachModules/CoachPayment.jsx";
 import NuvraPortal from "./Pages/NuvraPortal.jsx";
 import CommunityLayout from "./Layouts/CommunityLayout.jsx";
 import CommunityHome from "./Pages/Community/CommunityHome.jsx";
+import CommunityGoogleCallback from "./Pages/Community/CommunityGoogleCallback.jsx";
 import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
 import GameDetail from "./Pages/Community/GameDetail.jsx";
 import CommunityAnnouncements from "./Pages/Community/CommunityAnnouncements.jsx";
@@ -77,6 +78,7 @@ function App() {
                     2. COMMUNITY ROUTES (separate auth)
                    ========================================= */}
                 <Route path="/community" element={<CommunityHome />} />
+                <Route path="/community/auth/callback" element={<CommunityGoogleCallback />} />
                 
                 <Route path="/community" element={<CommunityLayout />}>
                     <Route path="feed" element={<CommunityFeed />} />

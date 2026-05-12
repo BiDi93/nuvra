@@ -6,6 +6,10 @@ use App\Http\Controllers\AuthController;
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
+// Community Google Auth
+Route::get('/community/auth/google', [CommunityAuthController::class, 'redirectToGoogle']);
+Route::get('/community/auth/google/callback', [CommunityAuthController::class, 'handleGoogleCallback']);
+
 Route::get('/', function () {
     return view('welcome');
 });
