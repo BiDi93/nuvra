@@ -44,11 +44,14 @@ function MatchCard({ game, onClick }) {
     return (
         <div style={S.card} onClick={onClick} className="match-card">
             <div style={S.cardHeader}>
+                <div style={S.gameTitle}>
+                    {game.title}
+                </div>
                 <div style={S.matchupRow}>
                     <div style={S.teamPair}>
-                        <TeamLogo name={game.team_a_name} size={32} />
+                        <TeamLogo name={game.team_a_name} size={28} />
                         <span style={S.vsText}>vs.</span>
-                        <TeamLogo name={game.team_b_name} size={32} />
+                        <TeamLogo name={game.team_b_name} size={28} />
                     </div>
                     <div style={S.matchNames}>
                         {game.team_a_name} vs. {game.team_b_name}
@@ -57,6 +60,9 @@ function MatchCard({ game, onClick }) {
             </div>
 
             <div style={S.cardBody}>
+                <div style={S.venueRow}>
+                    <span style={S.venueText}>📍 {game.venue}</span>
+                </div>
                 <div style={S.infoRow}>
                     <span style={S.kickoffLabel}>Kick-off: {timeStr} {dateLabel}</span>
                     <div style={S.slotBadge}>
@@ -186,6 +192,13 @@ const S = {
     cardHeader: {
         display: "flex",
         flexDirection: "column",
+        gap: 12,
+    },
+    gameTitle: {
+        fontSize: 18,
+        fontWeight: 800,
+        color: "#10b981", // Brand green
+        letterSpacing: -0.5,
     },
     matchupRow: {
         display: "flex",
@@ -203,13 +216,25 @@ const S = {
         color: "rgba(255,255,255,0.2)",
     },
     matchNames: {
-        fontSize: 16,
-        fontWeight: 700,
-        color: "#fff",
+        fontSize: 14,
+        fontWeight: 600,
+        color: "rgba(255,255,255,0.7)",
         letterSpacing: -0.2,
     },
     cardBody: {
         marginTop: "auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+    },
+    venueRow: {
+        display: "flex",
+        alignItems: "center",
+    },
+    venueText: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.4)",
+        fontWeight: 500,
     },
     infoRow: {
         display: "flex",

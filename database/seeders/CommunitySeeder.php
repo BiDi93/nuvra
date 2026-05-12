@@ -29,6 +29,10 @@ class CommunitySeeder extends Seeder
             ['name' => 'Amirul Afif',  'email' => 'amirul@test.com'],
             ['name' => 'Zulhelmi',     'email' => 'zul@test.com'],
             ['name' => 'Syafiq',       'email' => 'syafiq@test.com'],
+            ['name' => 'Ahmad Idham',  'email' => 'idham@test.com'],
+            ['name' => 'Firdaus Ali',  'email' => 'firdaus@test.com'],
+            ['name' => 'Siti Aminah',  'email' => 'siti@test.com'],
+            ['name' => 'Nurul Izzah',  'email' => 'nurul@test.com'],
         ];
 
         $playerUsers = [];
