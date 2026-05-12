@@ -13,11 +13,14 @@ class CommunityAuthController extends Controller
     // ── Google OAuth ──────────────────────────────────────────────────────────
     public function redirectToGoogle()
     {
-        // Use a different state or redirect path for community to distinguish from main app if needed
-        return \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->redirect();
+        // Use state to distinguish that this request came from the community portal
+        return \Laravel\Socialite\Facades\Socialite::driver('google')
+            ->stateless()
+            ->with(['state' => 'portal=community'])
+            ->redirect();
     }
 
-    public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
         try {
             $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->user();

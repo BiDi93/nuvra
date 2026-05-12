@@ -14,12 +14,20 @@ class AuthController extends Controller
     // Redirect the user to Google's Login Page
     public function redirectToGoogle()
     {
-        return Socialite::driver('google')->stateless()->redirect();
+        return Socialite::driver('google')
+            ->stateless()
+            ->with(['state' => 'portal=main'])
+            ->redirect();
     }
 
     // Handle the user coming back from Google
-public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
+        // If coming from community portal, redirect to that controller's callback
+        if ($request->input('state') === 'portal=community') {
+            return app(CommunityAuthController::class)->handleGoogleCallback($request);
+        }
+
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
 
