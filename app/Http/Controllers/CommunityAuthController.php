@@ -41,11 +41,12 @@ class CommunityAuthController extends Controller
             $communityUser = CommunityUser::where('user_id', $user->id)->first();
             if (!$communityUser) {
                 $communityUser = CommunityUser::create([
-                    'user_id' => $user->id,
-                    'name'    => $user->name,
-                    'email'   => $user->email,
-                    'role'    => 'player',
-                    'avatar'  => $user->avatar,
+                    'user_id'  => $user->id,
+                    'name'     => $user->name,
+                    'email'    => $user->email,
+                    'password' => Hash::make(\Illuminate\Support\Str::random(24)),
+                    'role'     => 'player',
+                    'avatar'   => $user->avatar,
                 ]);
             }
 

@@ -15,6 +15,7 @@ class CommunityUser extends Model
         'user_id',
         'name',
         'email',
+        'password',
         'role',
         'phone',
         'avatar'
