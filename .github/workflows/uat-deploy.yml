@@ -1,0 +1,46 @@
+name: Deploy NUVRA to UAT VM
+
+on:
+  push:
+    branches: [ uat ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.UAT_VM_IP }}
+        username: ${{ secrets.UAT_VM_SSH_USER }}
+        key: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT || 22 }}
+        script: |
+          cd /var/www/html
+          git config --global --add safe.directory /var/www/html
+          
+          # Maintain maintenance mode
+          php artisan down || true
+          
+          # Sync with GitHub (Force)
+          git fetch origin uat
+          git reset --hard origin/uat
+          
+          # Update Backend
+          composer install --no-dev --optimize-autoloader
+          
+          # Update Frontend
+          npm install
+          npm run build
+          
+          # Database & Optimization
+          php artisan migrate --force
+          php artisan optimize
+          php artisan view:cache
+          
+          # Bring app back up
+          php artisan up
