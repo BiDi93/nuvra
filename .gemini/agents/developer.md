@@ -7,7 +7,7 @@ tools:
   - replace
   - grep_search
   - run_shell_command
-model: gemini-2.0-flash-thinking-exp
+model: flash
 max_turns: 20
 ---
 You are the Senior Full-stack Developer for NUVRA. You transform architectural designs and UI/UX specs into working code.

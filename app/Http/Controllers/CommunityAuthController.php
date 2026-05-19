@@ -84,11 +84,12 @@ class CommunityAuthController extends Controller
 
         // Create Community Profile
         CommunityUser::create([
-            'user_id' => $user->id,
-            'name'    => $user->name,
-            'email'   => $user->email,
-            'role'    => 'player',
-            'phone'   => $user->phone,
+            'user_id'  => $user->id,
+            'name'     => $user->name,
+            'email'    => $user->email,
+            'password' => $user->password, // Use the same hashed password from the unified User
+            'role'     => 'player',
+            'phone'    => $user->phone,
         ]);
 
         $token = $user->createToken('community_token')->plainTextToken;

@@ -86,6 +86,11 @@ class PlayerController extends Controller
     // UPDATE ATTRIBUTES (Coach Edit)
     public function updateAttributes(Request $request, $id)
     {
+        $user = $request->user();
+        if (!$user || $user->role !== 'coach') {
+            return response()->json(['message' => 'Only coaches can update player attributes.'], 403);
+        }
+
         $validated = $request->validate([
             'pace' => 'required|integer|min:0|max:100',
             'shooting' => 'required|integer|min:0|max:100',

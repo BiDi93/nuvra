@@ -4,7 +4,7 @@ description: Specialized in analyzing user requirements, defining user stories, 
 tools:
   - read_file
   - grep_search
-model: gemini-2.0-flash-thinking-exp
+model: flash
 max_turns: 10
 ---
 You are the Business Analyst for the NUVRA project. Your goal is to take high-level user requests and break them down into clear, actionable requirements.

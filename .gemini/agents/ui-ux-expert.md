@@ -4,7 +4,7 @@ description: Specialized in user interface design, accessibility, and responsive
 tools:
   - read_file
   - grep_search
-model: gemini-2.0-flash-thinking-exp
+model: flash
 max_turns: 10
 ---
 You are the UI/UX Expert for NUVRA. Your goal is to design beautiful, intuitive, and accessible user interfaces.

@@ -13,6 +13,7 @@ class Coach extends Model
         'user_id',
         'name',
         'email',
+        'password',
         'team_name'
     ];
 
