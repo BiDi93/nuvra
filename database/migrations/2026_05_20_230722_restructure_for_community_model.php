@@ -8,9 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Add QR Code field to Users (for Club Owners)
-        Schema::table('users', function (Blueprint $blueprint) {
-            $blueprint->string('qr_code_path')->nullable()->after('role');
+        // 1. Update Role enum (SQLite handles this by recreating table via Laravel)
+        Schema::table('users', function (Blueprint $table) {
+            $table->enum('role', ['player', 'coach', 'club_owner', 'community_player', 'community_admin'])->default('player')->change();
+            $table->string('qr_code_path')->nullable()->after('role');
         });
 
         // 2. Restructure matches table
