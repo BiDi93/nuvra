@@ -30,16 +30,12 @@ function StatusBadge({ status }) {
 
 // ── Match Card (Redesigned based on reference) ────────────────────────────────────────────────────
 function MatchCard({ game, onClick }) {
-    const totalA = game.team_a_count ?? 0;
-    const totalB = game.team_b_count ?? 0;
-    const filled = totalA + totalB;
-    const max = game.max_slots_per_team * 2;
+    const filled = game.filled_slots ?? 0;
+    const max = game.total_slots ?? 22;
     const remaining = max - filled;
     
     const date = new Date(game.game_date);
-    const timeStr = date.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
-    const isToday = new Date().toDateString() === date.toDateString();
-    const dateLabel = isToday ? "Today" : date.toLocaleDateString("en-MY", { day: 'numeric', month: 'short' });
+    const dateLabel = date.toLocaleDateString("en-MY", { day: 'numeric', month: 'short' });
 
     return (
         <div style={S.card} onClick={onClick} className="match-card">
@@ -48,11 +44,6 @@ function MatchCard({ game, onClick }) {
                     {game.title}
                 </div>
                 <div style={S.matchupRow}>
-                    <div style={S.teamPair}>
-                        <TeamLogo name={game.team_a_name} size={28} />
-                        <span style={S.vsText}>vs.</span>
-                        <TeamLogo name={game.team_b_name} size={28} />
-                    </div>
                     <div style={S.matchNames}>
                         {game.team_a_name} vs. {game.team_b_name}
                     </div>
@@ -64,10 +55,13 @@ function MatchCard({ game, onClick }) {
                     <span style={S.venueText}>📍 {game.venue}</span>
                 </div>
                 <div style={S.infoRow}>
-                    <span style={S.kickoffLabel}>Kick-off: {timeStr} {dateLabel}</span>
+                    <span style={S.kickoffLabel}>Kick-off: {game.game_time} ({dateLabel})</span>
                     <div style={S.slotBadge}>
                         {remaining > 0 ? `${remaining}/${max} SLOTS AVAILABLE` : "GAME FULL"}
                     </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#00D4EC' }}>
+                    RM {game.price}
                 </div>
             </div>
         </div>
