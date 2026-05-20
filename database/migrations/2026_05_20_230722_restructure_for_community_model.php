@@ -18,11 +18,15 @@ return new class extends Migration
         Schema::table('matches', function (Blueprint $table) {
             $table->unsignedBigInteger('coach_id')->nullable()->change();
             $table->unsignedBigInteger('club_owner_id')->nullable()->after('id');
+            
+            $table->string('title')->nullable()->after('club_owner_id');
+            $table->text('description')->nullable()->after('title');
+            $table->string('team_a_name')->default('Team A')->after('description');
+            $table->string('team_b_name')->default('Team B')->after('team_a_name');
+            $table->enum('status', ['open', 'full', 'cancelled', 'completed'])->default('open')->after('team_b_name');
+
             $table->decimal('price', 8, 2)->default(0.00)->after('venue');
             $table->integer('total_slots')->default(22)->after('price');
-            
-            // Note: We keep coach_id temporarily to avoid migration crashes if data exists, 
-            // but we will phase it out in the models.
         });
 
         // 3. Create Pivot Table for Players joining Matches

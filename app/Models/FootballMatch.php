@@ -13,6 +13,11 @@ class FootballMatch extends Model
 
     protected $fillable = [
         'club_owner_id',
+        'title',
+        'description',
+        'team_a_name',
+        'team_b_name',
+        'status',
         'opponent_name',
         'match_date',
         'match_time',
