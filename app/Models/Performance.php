@@ -10,7 +10,7 @@ class Performance extends Model
     use HasFactory;
 
     protected $fillable = [
-        'player_id',
+        'user_id',
         'match_id',
         'goals',
         'assists',
@@ -19,9 +19,9 @@ class Performance extends Model
         'cleansheet'
     ];
 
-    public function player()
+    public function user()
     {
-        return $this->belongsTo(Player::class);
+        return $this->belongsTo(User::class);
     }
 
     public function match()

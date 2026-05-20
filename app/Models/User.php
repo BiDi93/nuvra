@@ -26,6 +26,7 @@ class User extends Authenticatable
         'google_id', // Ensure this is here too!
         'avatar',    // And this!
         'role',
+        'qr_code_path',
     ];
 
     /**
@@ -52,26 +53,28 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the player profile associated with the user.
+     * Matches created by this user (Club Owner)
      */
-    public function player()
+    public function createdMatches()
     {
-        return $this->hasOne(Player::class);
+        return $this->hasMany(FootballMatch::class, 'club_owner_id');
     }
 
     /**
-     * Get the coach profile associated with the user.
+     * Matches joined by this user (Player)
      */
-    public function coach()
+    public function joinedMatches()
     {
-        return $this->hasOne(Coach::class);
+        return $this->belongsToMany(FootballMatch::class, 'match_player')
+                    ->withPivot('status')
+                    ->withTimestamps();
     }
 
     /**
-     * Get the community user profile associated with the user.
+     * Performance records for this user (Player)
      */
-    public function communityUser()
+    public function performances()
     {
-        return $this->hasOne(CommunityUser::class);
+        return $this->hasMany(Performance::class, 'user_id');
     }
 }

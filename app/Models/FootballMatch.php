@@ -12,24 +12,39 @@ class FootballMatch extends Model
     protected $table = 'matches';
 
     protected $fillable = [
-        'coach_id',
+        'club_owner_id',
         'opponent_name',
         'match_date',
         'match_time',
         'venue',
+        'price',
+        'total_slots',
         'league_type',
         'category',
         'league_name',
         'event_name'
     ];
 
-    public function coach()
+    /**
+     * The Club Owner who created this match.
+     */
+    public function owner()
     {
-        return $this->belongsTo(Coach::class);
+        return $this->belongsTo(User::class, 'club_owner_id');
+    }
+
+    /**
+     * Players who have joined this match.
+     */
+    public function players()
+    {
+        return $this->belongsToMany(User::class, 'match_player')
+                    ->withPivot('status')
+                    ->withTimestamps();
     }
 
     public function performances()
     {
-        return $this->hasMany(Performance::class);
+        return $this->hasMany(Performance::class, 'match_id');
     }
 }
