@@ -16,6 +16,7 @@ return new class extends Migration
 
         // 2. Restructure matches table
         Schema::table('matches', function (Blueprint $table) {
+            $table->unsignedBigInteger('coach_id')->nullable()->change();
             $table->unsignedBigInteger('club_owner_id')->nullable()->after('id');
             $table->decimal('price', 8, 2)->default(0.00)->after('venue');
             $table->integer('total_slots')->default(22)->after('price');
