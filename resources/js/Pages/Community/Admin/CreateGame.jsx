@@ -19,10 +19,10 @@ export default function CreateGame() {
     const [error, setError] = useState("");
 
     // Guard non-admin
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "club_owner")) {
         return (
             <div style={{ minHeight: "100vh", background: "#080810", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Inter, sans-serif" }}>
-                Access denied. Admins only.
+                Access denied. Organizers only.
             </div>
         );
     }
@@ -68,7 +68,7 @@ export default function CreateGame() {
             <nav style={styles.nav}>
                 <button style={styles.backBtn} onClick={() => navigate("/community/feed")}>← Feed</button>
                 <span style={styles.navBrand}>NUVRA Community</span>
-                <span style={styles.adminBadge}>👑 Admin</span>
+                <span style={styles.adminBadge}>⚽ Organizer</span>
             </nav>
 
             <div style={styles.content}>
