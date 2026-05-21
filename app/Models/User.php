@@ -65,7 +65,7 @@ class User extends Authenticatable
      */
     public function joinedMatches()
     {
-        return $this->belongsToMany(FootballMatch::class, 'match_player')
+        return $this->belongsToMany(FootballMatch::class, 'match_player', 'user_id', 'match_id')
                     ->withPivot('status')
                     ->withTimestamps();
     }

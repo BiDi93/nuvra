@@ -43,7 +43,7 @@ class FootballMatch extends Model
      */
     public function players()
     {
-        return $this->belongsToMany(User::class, 'match_player')
+        return $this->belongsToMany(User::class, 'match_player', 'match_id', 'user_id')
                     ->withPivot('status')
                     ->withTimestamps();
     }
