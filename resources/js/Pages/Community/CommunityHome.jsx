@@ -146,7 +146,7 @@ export default function CommunityHome() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <label style={styles.label}>Password</label>
-                                    <button type="button" style={{ background: 'none', border: 'none', color: '#D040EF', fontSize: 11, cursor: 'pointer', fontWeight: 700 }} onClick={() => { setTab("forgot"); setError(""); setMessage(""); }}>
+                                    <button type="button" style={{ background: 'none', border: 'none', color: '#00D4EC', fontSize: 11, cursor: 'pointer', fontWeight: 700 }} onClick={() => { setTab("forgot"); setError(""); setMessage(""); }}>
                                         Forgot Password?
                                     </button>
                                 </div>

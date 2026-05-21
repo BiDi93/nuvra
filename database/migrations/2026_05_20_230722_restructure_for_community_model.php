@@ -17,6 +17,10 @@ return new class extends Migration
         // 2. Restructure matches table
         Schema::table('matches', function (Blueprint $table) {
             $table->unsignedBigInteger('coach_id')->nullable()->change();
+            $table->string('opponent_name')->nullable()->change();
+            $table->string('league_type')->nullable()->change();
+            $table->string('category')->nullable()->change();
+            
             $table->unsignedBigInteger('club_owner_id')->nullable()->after('id');
             
             $table->string('title')->nullable()->after('club_owner_id');
@@ -40,6 +44,7 @@ return new class extends Migration
 
         // 4. Update Performances to link to User (Player) instead of legacy Player model
         Schema::table('performances', function (Blueprint $table) {
+            $table->unsignedBigInteger('player_id')->nullable()->change();
             $table->unsignedBigInteger('user_id')->nullable()->after('id');
         });
     }

@@ -8,67 +8,75 @@ use App\Models\FootballMatch;
 use App\Models\Performance;
 use App\Models\MatchPlayer;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class CommunitySeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Create a Club Owner
+        // 1. Clear legacy data tables first
+        DB::statement('DELETE FROM match_player');
+        DB::statement('DELETE FROM performances');
+        DB::statement('DELETE FROM matches');
+        DB::statement('DELETE FROM users');
+
+        // 2. Create a Club Owner (Organizer)
         $owner = User::create([
-            'name' => 'Abang Baller (Owner)',
+            'name' => 'Organizer Nuvra (Club Owner)',
             'email' => 'owner@nuvra.com',
             'password' => Hash::make('password'),
             'role' => 'club_owner',
-            'qr_code_path' => 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=DUMMY_PAYMENT_URL'
+            'qr_code_path' => 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=NuvraPayment'
         ]);
 
-        // 2. Create some Players
-        $players = [];
-        for ($i = 1; $i <= 5; $i++) {
-            $players[] = User::create([
+        // 3. Create Independent Community Players
+        $playerIds = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $player = User::create([
                 'name' => "Player Community $i",
                 'email' => "player$i@nuvra.com",
                 'password' => Hash::make('password'),
                 'role' => 'player',
             ]);
+            $playerIds[] = $player->id;
         }
 
-        // 3. Create a Match
+        // 4. Create a Community Match
         $match = FootballMatch::create([
             'club_owner_id' => $owner->id,
-            'title' => 'Friday Night Fever!',
-            'description' => 'Friendly match for all levels. Bring your own water!',
-            'team_a_name' => 'Emerald FC',
-            'team_b_name' => 'Team Komu',
-            'status' => 'open',
-            'opponent_name' => 'Team Komu',
+            'title' => 'Perlawanan Persahabatan Terbuka',
+            'description' => 'Jom main bola malam Jumaat. Sesuai untuk semua level.',
+            'venue' => 'Rhino Arena, Shah Alam',
             'match_date' => now()->addDays(2)->format('Y-m-d'),
             'match_time' => '21:00',
-            'venue' => 'Rhino Arena, Shah Alam',
+            'team_a_name' => 'Team Emerald',
+            'team_b_name' => 'Team Komu',
             'price' => 15.00,
             'total_slots' => 22,
-            'league_type' => 'Friendly',
-            'category' => 'Open',
-            'event_name' => 'Friday Night Pick-up'
+            'status' => 'open'
         ]);
 
-        // 4. Join Players to the Match
-        foreach ($players as $player) {
+        // 5. Join Players to the Match (Decoupled)
+        foreach ($playerIds as $index => $userId) {
             MatchPlayer::create([
                 'match_id' => $match->id,
-                'user_id' => $player->id,
+                'user_id' => $userId,
                 'status' => 'confirmed'
             ]);
 
-            // Add dummy performance for a past game logic
-            Performance::create([
-                'user_id' => $player->id,
-                'match_id' => $match->id,
-                'goals' => rand(0, 2),
-                'assists' => rand(0, 1),
-                'minutes_played' => 90,
-                'rating' => rand(6, 9),
-            ]);
+            // Optional: Record some past stats for gamification view
+            if ($index < 3) {
+                Performance::create([
+                    'user_id' => $userId,
+                    'match_id' => $match->id,
+                    'goals' => rand(1, 3),
+                    'assists' => rand(0, 2),
+                    'minutes_played' => 90,
+                    'rating' => 8.5
+                ]);
+            }
         }
+
+        echo "✅ Community model seeded successfully (Decoupled from Coach/Player models)\n";
     }
 }

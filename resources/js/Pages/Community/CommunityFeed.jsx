@@ -9,7 +9,7 @@ const API = "/api/community";
 // ── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
     const map = {
-        open: { label: "OPEN", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+        open: { label: "OPEN", color: "#00D4EC", bg: "rgba(0,212,236,0.1)" },
         full: { label: "FULL", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
         cancelled: { label: "CANCELLED", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
         completed: { label: "DONE", color: "#6b7280", bg: "rgba(107,114,128,0.05)" },
@@ -97,7 +97,7 @@ export default function CommunityFeed() {
         <div style={S.container}>
             <style>{`
                 .match-card { transition: all 0.2s ease; cursor: pointer; }
-                .match-card:hover { transform: translateY(-4px); background: rgba(60, 62, 68, 0.9) !important; border-color: rgba(16,185,129,0.5) !important; }
+                .match-card:hover { transform: translateY(-4px); background: rgba(60, 62, 68, 0.9) !important; border-color: #00D4EC !important; }
             `}</style>
 
             <header style={S.header}>
@@ -191,7 +191,7 @@ const S = {
     gameTitle: {
         fontSize: 18,
         fontWeight: 800,
-        color: "#10b981", // Brand green
+        color: "#00D4EC", // Brand cyan
         letterSpacing: -0.5,
     },
     matchupRow: {
@@ -243,12 +243,12 @@ const S = {
     slotBadge: {
         padding: "6px 14px",
         borderRadius: 20,
-        background: "rgba(16,185,129,0.15)",
-        color: "#10b981",
+        background: "rgba(0,212,236,0.15)",
+        color: "#00D4EC",
         fontSize: 10,
         fontWeight: 800,
         letterSpacing: 0.5,
-        border: "1px solid rgba(16,185,129,0.2)",
+        border: "1px solid rgba(0,212,236,0.2)",
     },
     emptyState: {
         padding: "80px 0",
