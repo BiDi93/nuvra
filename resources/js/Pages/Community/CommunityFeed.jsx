@@ -102,7 +102,7 @@ export default function CommunityFeed() {
 
             <header style={S.header}>
                 <h1 style={S.title}>Dashboard</h1>
-                <div style={S.profileIcon}>
+                <div style={{ ...S.profileIcon, cursor: 'pointer' }} onClick={() => navigate("/community/profile")}>
                     {user?.name?.[0]?.toUpperCase() || "U"}
                 </div>
             </header>

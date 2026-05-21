@@ -74,28 +74,50 @@ class CommunityGameController extends Controller
     // Join a match
     public function join(Request $request, $id)
     {
+        // ... (existing join code)
+    }
+
+    // Get User Profile Statistics
+    public function getProfile(Request $request)
+    {
         $user = $request->user();
         if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $match = FootballMatch::find($id);
-        if (!$match) return response()->json(['message' => 'Match not found'], 404);
+        // 1. Calculate Stats from Performances
+        $stats = DB::table('performances')
+            ->where('user_id', $user->id)
+            ->selectRaw('COUNT(match_id) as total_games, SUM(goals) as total_goals, SUM(assists) as total_assists, AVG(rating) as avg_rating')
+            ->first();
 
-        // Check if already joined
-        $exists = MatchPlayer::where('match_id', $id)->where('user_id', $user->id)->exists();
-        if ($exists) return response()->json(['message' => 'You already joined this match'], 422);
-
-        // Check slots
-        $count = MatchPlayer::where('match_id', $id)->where('status', 'confirmed')->count();
-        if ($count >= $match->total_slots) return response()->json(['message' => 'Match is full'], 422);
-
-        MatchPlayer::create([
-            'match_id' => $id,
-            'user_id' => $user->id,
-            'status' => $match->price > 0 ? 'pending' : 'confirmed'
+        // 2. Get Match History
+        $history = FootballMatch::whereHas('players', function($q) use ($user) {
+            $q->where('user_id', $user->id)->where('match_player.status', 'confirmed');
+        })
+        ->orderBy('match_date', 'desc')
+        ->limit(10)
+        ->get()
+        ->map(fn($m) => [
+            'id' => $m->id,
+            'title' => $m->title,
+            'date' => $m->match_date,
+            'venue' => $m->venue,
+            'league' => $m->league_name ?? 'Community Friendly'
         ]);
 
         return response()->json([
-            'message' => $match->price > 0 ? 'Request sent! Please pay using the QR code.' : 'Joined successfully!'
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
+                'role' => $user->role,
+            ],
+            'stats' => [
+                'total_matches' => $stats->total_games ?? 0,
+                'total_goals' => $stats->total_goals ?? 0,
+                'total_assists' => $stats->total_assists ?? 0,
+                'avg_rating' => round($stats->avg_rating ?? 0, 1),
+            ],
+            'history' => $history
         ]);
     }
 }

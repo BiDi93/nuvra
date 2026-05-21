@@ -15,6 +15,7 @@ import CommunityHome from "./Pages/Community/CommunityHome.jsx";
 import CommunityGoogleCallback from "./Pages/Community/CommunityGoogleCallback.jsx";
 import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
 import GameDetail from "./Pages/Community/GameDetail.jsx";
+import PlayerProfile from "./Pages/Community/PlayerProfile.jsx";
 import CommunityAnnouncements from "./Pages/Community/CommunityAnnouncements.jsx";
 import CreateGame from "./Pages/Community/Admin/CreateGame.jsx";
 import PostAnnouncement from "./Pages/Community/Admin/PostAnnouncement.jsx";
@@ -40,6 +41,7 @@ function App() {
                 
                 <Route path="/community" element={<CommunityLayout />}>
                     <Route path="feed" element={<CommunityFeed />} />
+                    <Route path="profile" element={<PlayerProfile />} />
                     <Route path="games/:id" element={<GameDetail />} />
                     <Route path="announcements" element={<CommunityAnnouncements />} />
                     

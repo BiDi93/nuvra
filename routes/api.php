@@ -147,6 +147,7 @@ Route::prefix('community')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout',   [CommunityAuthController::class, 'logout']);
         Route::get('/me',        [CommunityAuthController::class, 'me']);
+        Route::get('/profile',   [CommunityGameController::class, 'getProfile']);
 
         // ── Games (auth required) ─────────────────────────────────────────────────
         Route::post('/games',                          [CommunityGameController::class, 'store']);
