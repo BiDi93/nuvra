@@ -155,7 +155,7 @@ const AuthPage = () => {
                     </div>
                     <div style={S.heroTagline}>
                         <h2 style={S.heroTaglineHeading}>Play Together.<br />Grow Together.</h2>
-                        <p style={S.heroTaglineSub}>The all-in-one platform for football clubs and their players.</p>
+                        <p style={S.heroTaglineSub}>The ultimate social ecosystem for amateur players and match organizers.</p>
                     </div>
                 </div>
             </div>
@@ -264,7 +264,7 @@ const AuthPage = () => {
 
                             <div style={S.viewHeader}>
                                 <h1 style={S.viewTitle}>Create Account</h1>
-                                <p style={S.viewSubtitle}>Join your squad on Nuvra.</p>
+                                <p style={S.viewSubtitle}>Join the Nuvra community today.</p>
                             </div>
 
                             {/* Google sign up */}

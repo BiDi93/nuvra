@@ -98,7 +98,7 @@ export default function CommunityHome() {
                 <div style={styles.header}>
                     <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={styles.iconWrap} onClick={() => navigate("/")} />
                     <h1 style={styles.title}>Nuvra Community</h1>
-                    <p style={styles.subtitle}>Football for everyone — no club required</p>
+                    <p style={styles.subtitle}>Football for everyone — join your favorite game</p>
                 </div>
 
                 {/* Card */}

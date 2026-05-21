@@ -43,7 +43,7 @@ function App() {
                     <Route path="games/:id" element={<GameDetail />} />
                     <Route path="announcements" element={<CommunityAnnouncements />} />
                     
-                    {/* Admin/Club Owner Routes */}
+                    {/* Admin/Organizer Routes */}
                     <Route path="admin/create-game" element={<CreateGame />} />
                     <Route path="admin/post-announcement" element={<PostAnnouncement />} />
                     <Route path="admin/analytics" element={<Analytics />} />

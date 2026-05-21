@@ -168,7 +168,7 @@ export default function NuvraPortal() {
 
             <section style={S.hero}>
                 <h1 style={S.heroTitle}>THE FOOTBALL<br /><span style={{ color: "#00D4EC" }}>COMMUNITY</span></h1>
-                <p style={S.heroTagline}>The platform for amateur players and club organizers to connect, play, and track records.</p>
+                <p style={S.heroTagline}>The platform for amateur players and match organizers to connect, play, and track records.</p>
                 <div style={{ display: 'flex', gap: 16 }}>
                     <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/community")}>EXPLORE GAMES</button>
                     <button style={S.btnSecondaryHero} onClick={() => navigate("/community")}>ORGANIZER LOGIN</button>
@@ -192,7 +192,7 @@ export default function NuvraPortal() {
                 </div>
                 <div style={S.stepsGrid}>
                     {[
-                        { num: "01", title: "Browse", desc: "Find games hosted by club organizers near you." },
+                        { num: "01", title: "Browse", desc: "Find games hosted by organizers near you." },
                         { num: "02", title: "Join", desc: "Book your slot and pay the organizer via QR code." },
                         { num: "03", title: "Play & Record", desc: "Show up, play, and see your stats updated on your profile." },
                     ].map(s => (
