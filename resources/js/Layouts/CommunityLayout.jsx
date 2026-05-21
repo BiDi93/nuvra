@@ -76,10 +76,10 @@ export default function CommunityLayout() {
                         onClick={() => navigate("/community/announcements")} 
                     />
 
-                    {/* ADMIN ONLY */}
-                    {user?.role === "admin" && (
+                    {/* ADMIN / ORGANIZER ONLY */}
+                    {(user?.role === "club_owner" || user?.role === "admin") && (
                         <>
-                            <div style={S.navDivider}>ADMIN CONTROL</div>
+                            <div style={S.navDivider}>ORGANIZER CONTROL</div>
                             <NavItem 
                                 label="CREATE GAME" 
                                 active={isActive("/community/admin/create-game")} 
@@ -104,7 +104,10 @@ export default function CommunityLayout() {
                 {/* User section */}
                 {user ? (
                     <div style={S.userBox}>
-                        <div style={S.userAvatar}>
+                        <div 
+                            style={{ ...S.userAvatar, cursor: 'pointer', border: isActive("/community/profile") ? '2px solid #00D4EC' : 'none' }} 
+                            onClick={() => navigate("/community/profile")}
+                        >
                             {user.avatar_url ? (
                                 <img src={user.avatar_url} alt="" style={S.avatarImg} />
                             ) : (
@@ -112,7 +115,7 @@ export default function CommunityLayout() {
                             )}
                         </div>
                         <div style={S.userInfo}>
-                            <div style={S.userName}>{user.name}</div>
+                            <div style={{ ...S.userName, cursor: 'pointer' }} onClick={() => navigate("/community/profile")}>{user.name}</div>
                             <button style={S.logoutBtn} onClick={logout}>Sign out</button>
                         </div>
                     </div>
@@ -216,8 +219,8 @@ const S = {
         textAlign: "left",
     },
     navItemActive: {
-        background: "rgba(16, 185, 129, 0.1)", // Soft Emerald Green
-        color: "#10b981", // Emerald Green
+        background: "rgba(0, 212, 236, 0.1)", // Soft Cyan
+        color: "#00D4EC", // Brand Cyan
     },
     navDivider: {
         fontSize: 10,
