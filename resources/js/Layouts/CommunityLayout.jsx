@@ -6,10 +6,12 @@ import PageLoader from "../Components/PageLoader";
 const API = "/api/community";
 
 // ── Sidebar Nav Item ──────────────────────────────────────────────────────────
-function NavItem({ label, active, onClick }) {
+function NavItem({ label, icon, active, onClick }) {
     return (
         <button style={{ ...S.navItem, ...(active ? S.navItemActive : {}) }} onClick={onClick}>
+            {icon && <span style={S.navIcon}>{icon}</span>}
             <span style={S.navLabel}>{label}</span>
+            {active && <div style={S.activeIndicator} />}
         </button>
     );
 }
@@ -18,6 +20,7 @@ export default function CommunityLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     const [user, setUser] = useState(null);
+    const [showUserMenu, setShowUserMenu] = useState(false);
 
     useEffect(() => {
         const stored = localStorage.getItem("community_user");
@@ -56,10 +59,7 @@ export default function CommunityLayout() {
                             alt="Nuvra Logo" 
                             style={S.logoImg} 
                         />
-                        <div style={S.brandTextCol}>
-                            <div style={S.brandText}>NUVRA</div>
-                            <div style={S.brandSubText}>FOOTBALL COMMUNITY</div>
-                        </div>
+                        <div style={S.brandText}>NUVRA</div>
                     </div>
                 </div>
 
@@ -67,13 +67,33 @@ export default function CommunityLayout() {
                 <nav style={S.sideNav}>
                     <NavItem 
                         label="DASHBOARD" 
+                        icon="📊"
                         active={isActive("/community/feed")} 
                         onClick={() => navigate("/community/feed")} 
                     />
                     <NavItem 
-                        label="ANNOUNCEMENTS" 
+                        label="MATCHES" 
+                        icon="⚽"
+                        active={isActive("/community/matches")} 
+                        onClick={() => navigate("/community/matches")} 
+                    />
+                    <NavItem 
+                        label="TEAMS" 
+                        icon="👥"
+                        active={isActive("/community/teams")} 
+                        onClick={() => navigate("/community/teams")} 
+                    />
+                    <NavItem 
+                        label="COMMUNITY" 
+                        icon="🌐"
                         active={isActive("/community/announcements")} 
                         onClick={() => navigate("/community/announcements")} 
+                    />
+                    <NavItem 
+                        label="PROFILE" 
+                        icon="👤"
+                        active={isActive("/community/profile")} 
+                        onClick={() => navigate("/community/profile")} 
                     />
 
                     {/* ADMIN / ORGANIZER ONLY */}
@@ -103,21 +123,25 @@ export default function CommunityLayout() {
 
                 {/* User section */}
                 {user ? (
-                    <div style={S.userBox}>
-                        <div 
-                            style={{ ...S.userAvatar, cursor: 'pointer', border: isActive("/community/profile") ? '2px solid #00D4EC' : 'none' }} 
-                            onClick={() => navigate("/community/profile")}
-                        >
+                    <div style={S.userBox} onClick={() => setShowUserMenu(!showUserMenu)}>
+                        <div style={S.userAvatar}>
                             {user.avatar_url ? (
                                 <img src={user.avatar_url} alt="" style={S.avatarImg} />
                             ) : (
-                                user.name?.[0]?.toUpperCase()
+                                <img src="/images/playerImage/beckam.jpg" alt="" style={S.avatarImg} />
                             )}
                         </div>
                         <div style={S.userInfo}>
-                            <div style={{ ...S.userName, cursor: 'pointer' }} onClick={() => navigate("/community/profile")}>{user.name}</div>
-                            <button style={S.logoutBtn} onClick={logout}>Sign out</button>
+                            <div style={S.userName}>{user.name}</div>
+                            <div style={S.userRole}>{user.role?.toUpperCase() || "PLAYER"}</div>
                         </div>
+                        <div style={S.dropdownArrow}>⌄</div>
+                        
+                        {showUserMenu && (
+                            <div style={S.userMenu}>
+                                <button style={S.menuItem} onClick={logout}>Sign out</button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <button style={S.signInBtn} onClick={() => navigate("/community")}>
@@ -153,7 +177,7 @@ const S = {
     sidebar: {
         width: 260,
         minWidth: 260,
-        background: "#1e1e1e",
+        background: "#121620", // Deep Navy
         display: "flex",
         flexDirection: "column",
         position: "fixed",
@@ -161,10 +185,10 @@ const S = {
         left: 0,
         bottom: 0,
         zIndex: 50,
-        borderRight: "1px solid rgba(255,255,255,0.05)",
+        borderRight: "1px solid rgba(255,255,255,0.03)",
     },
     brand: {
-        padding: "32px 24px",
+        padding: "40px 24px",
         cursor: "pointer",
     },
     logoContainer: {
@@ -173,81 +197,82 @@ const S = {
         gap: 12,
     },
     logoImg: {
-        width: 50,
-        height: 50,
+        width: 40,
+        height: 40,
         objectFit: "contain",
-        filter: "brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(90deg)", // Make it green-ish to match logo in ref
-    },
-    brandTextCol: {
-        display: "flex",
-        flexDirection: "column",
     },
     brandText: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: 900,
         letterSpacing: 1,
-        lineHeight: 1,
         color: "#fff",
-    },
-    brandSubText: {
-        fontSize: 9,
-        fontWeight: 700,
-        letterSpacing: 1,
-        color: "rgba(255,255,255,0.3)",
-        marginTop: 4,
-        textTransform: "uppercase",
+        fontFamily: "'Inter', sans-serif",
     },
     sideNav: {
         padding: "0 12px",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 4,
     },
     navItem: {
         display: "flex",
         alignItems: "center",
-        padding: "12px 20px",
+        padding: "14px 20px",
         background: "transparent",
         border: "none",
         color: "rgba(255,255,255,0.4)",
         fontSize: 14,
-        fontWeight: 600,
+        fontWeight: 700,
         cursor: "pointer",
         fontFamily: "inherit",
         borderRadius: 12,
         transition: "all 0.2s ease",
         textAlign: "left",
+        gap: 12,
+        position: "relative",
     },
     navItemActive: {
-        background: "rgba(0, 212, 236, 0.1)", // Soft Cyan
-        color: "#00D4EC", // Brand Cyan
+        background: "rgba(255,255,255,0.05)",
+        color: "#fff",
+    },
+    navIcon: {
+        fontSize: 18,
+        filter: "grayscale(1) brightness(2)",
+    },
+    activeIndicator: {
+        position: "absolute",
+        left: 0,
+        top: "20%",
+        bottom: "20%",
+        width: 4,
+        background: "#C1FF00",
+        borderRadius: "0 4px 4px 0",
     },
     navDivider: {
         fontSize: 10,
         fontWeight: 800,
         color: "rgba(255,255,255,0.15)",
         letterSpacing: 1.5,
-        padding: "24px 20px 8px 20px",
+        padding: "32px 20px 8px 20px",
         textTransform: "uppercase",
     },
     userBox: {
-        padding: "24px",
-        borderTop: "1px solid rgba(255,255,255,0.05)",
+        margin: "12px",
+        padding: "16px",
+        borderRadius: 16,
+        background: "rgba(255,255,255,0.02)",
         display: "flex",
         alignItems: "center",
         gap: 12,
+        cursor: "pointer",
+        position: "relative",
     },
     userAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: "50%",
-        background: "#444",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 14,
-        fontWeight: 800,
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.1)",
     },
     avatarImg: {
         width: "100%",
@@ -260,28 +285,53 @@ const S = {
     },
     userName: {
         fontSize: 14,
-        fontWeight: 600,
-        color: "rgba(255,255,255,0.8)",
+        fontWeight: 700,
+        color: "#fff",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
     },
-    logoutBtn: {
-        marginTop: 4,
-        background: "none",
-        border: "none",
-        color: "rgba(255,255,255,0.3)",
+    userRole: {
         fontSize: 11,
         fontWeight: 600,
-        cursor: "pointer",
-        fontFamily: "inherit",
-        padding: 0,
+        color: "rgba(255,255,255,0.3)",
+        marginTop: 2,
+        letterSpacing: 0.5,
+    },
+    dropdownArrow: {
+        color: "rgba(255,255,255,0.3)",
+        fontSize: 18,
+    },
+    userMenu: {
+        position: "absolute",
+        bottom: "100%",
+        left: 0,
+        right: 0,
+        background: "#1e2330",
+        borderRadius: 12,
+        padding: 8,
+        marginBottom: 8,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        border: "1px solid rgba(255,255,255,0.05)",
+    },
+    menuItem: {
+        width: "100%",
+        padding: "10px",
+        background: "none",
+        border: "none",
+        color: "#fff",
         textAlign: "left",
-        transition: "color 0.2s",
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: "pointer",
+        borderRadius: 8,
     },
     signInBtn: {
         margin: "24px",
         padding: "12px",
         borderRadius: 12,
         border: "none",
-        background: "linear-gradient(135deg, #00D4EC, #D040EF)",
+        background: "#C1FF00", // Match lime theme
         color: "#000",
         fontSize: 13,
         fontWeight: 800,
@@ -292,29 +342,23 @@ const S = {
     main: {
         marginLeft: 260,
         flex: 1,
-        background: "#121212",
+        background: "#0d111a", // Master Background
         minHeight: "100vh",
         position: "relative",
     },
     bgImage: {
-        position: "fixed",
-        inset: 0,
-        marginLeft: 260,
-        backgroundImage: "url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=1600')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        zIndex: 0,
+        display: "none", // Hide the old image
     },
     bgOverlay: {
         position: "fixed",
         inset: 0,
         marginLeft: 260,
-        background: "linear-gradient(135deg, rgba(18,18,18,0.9) 0%, rgba(18,18,18,0.96) 100%)",
+        background: "radial-gradient(circle at top right, rgba(193, 255, 0, 0.03), transparent 40%), radial-gradient(circle at bottom left, rgba(0, 212, 236, 0.02), transparent 40%)",
         zIndex: 1,
     },
     contentWrapper: {
         position: "relative",
         zIndex: 2,
-        padding: "40px",
+        padding: "60px 48px", // More spacious
     },
 };

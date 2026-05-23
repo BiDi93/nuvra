@@ -23,6 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 TECHNICAL_DOCUMENT.md
+/.force_deploy_vm.exp
 .gemini/skills/ui-ux-pro-max/SKILL.md
 .gemini/skills/ui-ux-pro-max/data/charts.csv
 .gemini/skills/ui-ux-pro-max/data/colors.csv
