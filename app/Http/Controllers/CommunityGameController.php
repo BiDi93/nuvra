@@ -43,7 +43,7 @@ class CommunityGameController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        if (!in_array($user->role, ['club_owner', 'community_admin', 'coach'])) {
+        if (!in_array($user->role, ['club_owner', 'community_admin', 'coach', 'admin'])) {
             return response()->json(['message' => 'Unauthorized to create games'], 403);
         }
 
@@ -51,18 +51,40 @@ class CommunityGameController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'venue' => 'required|string',
-            'match_date' => 'required|date',
-            'match_time' => 'required',
-            'price' => 'required|numeric|min:0',
-            'total_slots' => 'required|integer|min:1',
+            'game_date' => 'required', // Combined datetime from frontend
+            'price_per_player' => 'required|numeric|min:0',
+            'max_slots_per_team' => 'required|integer|min:1',
             'team_a_name' => 'nullable|string',
             'team_b_name' => 'nullable|string',
+            'payment_qr' => 'nullable|image|max:2048',
         ]);
 
-        $match = FootballMatch::create(array_merge($validated, [
+        // Split game_date (YYYY-MM-DDTHH:MM)
+        $dt = new \DateTime($validated['game_date']);
+        $match_date = $dt->format('Y-m-d');
+        $match_time = $dt->format('H:i:s');
+
+        // Handle QR Upload if match-specific QR is provided
+        // Note: The schema currently has qr_code_path on users table, 
+        // but we can also store it per match if needed or update user.
+        if ($request->hasFile('payment_qr')) {
+            $path = $request->file('payment_qr')->store('qrcodes', 'public');
+            $user->update(['qr_code_path' => '/storage/' . $path]);
+        }
+
+        $match = FootballMatch::create([
             'club_owner_id' => $user->id,
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'venue' => $validated['venue'],
+            'match_date' => $match_date,
+            'match_time' => $match_time,
+            'price' => $validated['price_per_player'],
+            'total_slots' => $validated['max_slots_per_team'] * 2, // Backend uses total slots
+            'team_a_name' => $validated['team_a_name'] ?? 'Team A',
+            'team_b_name' => $validated['team_b_name'] ?? 'Team B',
             'status' => 'open'
-        ]));
+        ]);
 
         return response()->json(['message' => 'Game created successfully', 'game' => $match], 201);
     }
