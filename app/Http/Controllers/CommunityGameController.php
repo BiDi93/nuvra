@@ -51,11 +51,13 @@ class CommunityGameController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'venue' => 'required|string',
-            'game_date' => 'required', // Combined datetime from frontend
+            'game_date' => 'required', 
             'price_per_player' => 'required|numeric|min:0',
             'max_slots_per_team' => 'required|integer|min:1',
             'team_a_name' => 'nullable|string',
             'team_b_name' => 'nullable|string',
+            'opponent_name' => 'nullable|string', // Added for external friendly
+            'match_type' => 'nullable|string', // 'pickup' or 'external'
             'payment_qr' => 'nullable|image|max:2048',
         ]);
 
@@ -64,13 +66,19 @@ class CommunityGameController extends Controller
         $match_date = $dt->format('Y-m-d');
         $match_time = $dt->format('H:i:s');
 
-        // Handle QR Upload if match-specific QR is provided
-        // Note: The schema currently has qr_code_path on users table, 
-        // but we can also store it per match if needed or update user.
         if ($request->hasFile('payment_qr')) {
             $path = $request->file('payment_qr')->store('qrcodes', 'public');
             $user->update(['qr_code_path' => '/storage/' . $path]);
         }
+
+        $matchType = $validated['match_type'] ?? 'pickup';
+        
+        // Logic for slots: 
+        // If pickup: 2 teams (total = max * 2)
+        // If external: 1 internal team (total = max)
+        $totalSlots = ($matchType === 'external') 
+            ? $validated['max_slots_per_team'] 
+            : ($validated['max_slots_per_team'] * 2);
 
         $match = FootballMatch::create([
             'club_owner_id' => $user->id,
@@ -80,9 +88,10 @@ class CommunityGameController extends Controller
             'match_date' => $match_date,
             'match_time' => $match_time,
             'price' => $validated['price_per_player'],
-            'total_slots' => $validated['max_slots_per_team'] * 2, // Backend uses total slots
+            'total_slots' => $totalSlots,
             'team_a_name' => $validated['team_a_name'] ?? 'Team A',
-            'team_b_name' => $validated['team_b_name'] ?? 'Team B',
+            'team_b_name' => ($matchType === 'external') ? null : ($validated['team_b_name'] ?? 'Team B'),
+            'opponent_name' => ($matchType === 'external') ? $validated['opponent_name'] : null,
             'status' => 'open'
         ]);
 

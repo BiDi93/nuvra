@@ -11,6 +11,7 @@ export default function CreateGame() {
     const [form, setForm] = useState({
         title: "", description: "", venue: "",
         game_date: "", team_a_name: "Team A", team_b_name: "Team B",
+        opponent_name: "", match_type: "pickup",
         max_slots_per_team: 20, price_per_player: 0,
     });
     const [qrFile, setQrFile] = useState(null);
@@ -78,11 +79,37 @@ export default function CreateGame() {
                 {error && <div style={styles.errorBox}>⚠ {error}</div>}
 
                 <form onSubmit={handleSubmit} style={styles.form}>
+                    <div style={styles.typeToggle}>
+                        <button 
+                            type="button"
+                            onClick={() => set("match_type", "pickup")}
+                            style={form.match_type === "pickup" ? styles.activeToggle : styles.inactiveToggle}
+                        >
+                            Pickup Game (2 Teams)
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => set("match_type", "external")}
+                            style={form.match_type === "external" ? styles.activeToggle : styles.inactiveToggle}
+                        >
+                            External Friendly (1 Team)
+                        </button>
+                    </div>
+
                     <Field label="Game Title *" value={form.title} onChange={v => set("title", v)} placeholder="e.g. Midnight Futsal — Cheras" />
 
                     <div style={styles.row}>
-                        <Field label="Team A Name" value={form.team_a_name} onChange={v => set("team_a_name", v)} placeholder="Team A" />
-                        <Field label="Team B Name" value={form.team_b_name} onChange={v => set("team_b_name", v)} placeholder="Team B" />
+                        <Field 
+                            label={form.match_type === "external" ? "Your Team Name" : "Team A Name"} 
+                            value={form.team_a_name} 
+                            onChange={v => set("team_a_name", v)} 
+                            placeholder="e.g. Nuvra FC" 
+                        />
+                        {form.match_type === "pickup" ? (
+                            <Field label="Team B Name" value={form.team_b_name} onChange={v => set("team_b_name", v)} placeholder="Team B" />
+                        ) : (
+                            <Field label="External Opponent Name" value={form.opponent_name} onChange={v => set("opponent_name", v)} placeholder="e.g. Local Rivals" />
+                        )}
                     </div>
 
                     <Field label="Venue *" value={form.venue} onChange={v => set("venue", v)} placeholder="e.g. Cheras Futsal Arena, Kuala Lumpur" />
@@ -206,6 +233,10 @@ const styles = {
     seatGrid: { display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 6 },
     seat: { height: 16, borderRadius: 4, background: "rgba(0,212,236,0.2)", border: "1px solid rgba(0,212,236,0.3)" },
     submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 8 },
+
+    typeToggle: { display: "flex", gap: 10, background: "rgba(255,255,255,0.03)", padding: 6, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)" },
+    activeToggle: { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "rgba(0,212,236,0.15)", color: "#00D4EC", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(0,212,236,0.3)" },
+    inactiveToggle: { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
 
     paymentSection: { background: "rgba(0,201,255,0.04)", border: "1px solid rgba(0,201,255,0.12)", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 16 },
     paymentSectionLabel: { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "rgba(0,201,255,0.7)" },
