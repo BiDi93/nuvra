@@ -145,7 +145,7 @@ export default function CommunityFeed() {
             </div>
 
             {loading ? (
-                <div style={S.emptyState}>LOADING THE GRID...</div>
+                <div style={S.emptyState}>LOADING DASHBOARD...</div>
             ) : filteredGames.length === 0 ? (
                 <div style={S.emptyState}>NO MATCHES FOUND IN THIS CATEGORY</div>
             ) : (

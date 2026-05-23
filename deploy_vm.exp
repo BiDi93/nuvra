@@ -1,0 +1,12 @@
+set timeout 600
+spawn ssh -o StrictHostKeyChecking=no abdulmuhaimin@34.142.226.77
+expect {
+    "Enter passphrase for key*" {
+        send "Memin@9994061\r"
+        exp_continue
+    }
+    "$ " {
+        send "cd /var/www/html && sudo git fetch origin uat && sudo git reset --hard origin/uat && sudo npm run build && sudo php artisan optimize && exit\r"
+    }
+}
+expect eof
