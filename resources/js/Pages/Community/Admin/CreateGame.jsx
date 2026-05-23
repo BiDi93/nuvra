@@ -235,7 +235,7 @@ const styles = {
     submitBtn: { padding: "16px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginTop: 8 },
 
     typeToggle: { display: "flex", gap: 10, background: "rgba(255,255,255,0.03)", padding: 6, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)" },
-    activeToggle: { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "rgba(0,212,236,0.15)", color: "#00D4EC", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(0,212,236,0.3)" },
+    activeToggle: { flex: 1, padding: "10px", borderRadius: 8, background: "rgba(0,212,236,0.15)", color: "#00D4EC", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: "1px solid rgba(0,212,236,0.3)" },
     inactiveToggle: { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
 
     paymentSection: { background: "rgba(0,201,255,0.04)", border: "1px solid rgba(0,201,255,0.12)", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 16 },

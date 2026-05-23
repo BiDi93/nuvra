@@ -1,0 +1,32 @@
+set timeout 600
+spawn ssh -o StrictHostKeyChecking=no abdulmuhaimin@34.142.226.77
+expect {
+    "Enter passphrase for key*" {
+        send "Memin@9994061\r"
+        exp_continue
+    }
+    "abdulmuhaimin@nuvra-uat:~$" {
+        send "cd /var/www/html\r"
+    }
+}
+expect "abdulmuhaimin@nuvra-uat:/var/www/html$"
+send "sudo git fetch origin uat\r"
+expect {
+    "Are you sure you want to continue connecting (yes/no/[fingerprint])?" {
+        send "yes\r"
+        exp_continue
+    }
+    "Enter passphrase for key*" {
+        send "Memin@9994061\r"
+        exp_continue
+    }
+    "abdulmuhaimin@nuvra-uat:/var/www/html$"
+}
+send "sudo git reset --hard origin/uat\r"
+expect "abdulmuhaimin@nuvra-uat:/var/www/html$"
+send "sudo npm install && sudo npm run build\r"
+expect "abdulmuhaimin@nuvra-uat:/var/www/html$"
+send "sudo php artisan optimize\r"
+expect "abdulmuhaimin@nuvra-uat:/var/www/html$"
+send "exit\r"
+expect eof
