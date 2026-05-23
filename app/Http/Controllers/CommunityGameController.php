@@ -39,6 +39,34 @@ class CommunityGameController extends Controller
         return response()->json($matches);
     }
 
+    // Create a new match (Admin/Club Owner)
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        if (!in_array($user->role, ['club_owner', 'community_admin', 'coach'])) {
+            return response()->json(['message' => 'Unauthorized to create games'], 403);
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'venue' => 'required|string',
+            'match_date' => 'required|date',
+            'match_time' => 'required',
+            'price' => 'required|numeric|min:0',
+            'total_slots' => 'required|integer|min:1',
+            'team_a_name' => 'nullable|string',
+            'team_b_name' => 'nullable|string',
+        ]);
+
+        $match = FootballMatch::create(array_merge($validated, [
+            'club_owner_id' => $user->id,
+            'status' => 'open'
+        ]));
+
+        return response()->json(['message' => 'Game created successfully', 'game' => $match], 201);
+    }
+
     // Match details
     public function show($id)
     {
@@ -74,7 +102,109 @@ class CommunityGameController extends Controller
     // Join a match
     public function join(Request $request, $id)
     {
-        // ... (existing join code)
+        $user = $request->user();
+        $match = FootballMatch::find($id);
+
+        if (!$match) return response()->json(['message' => 'Match not found'], 404);
+        if ($match->status !== 'open') return response()->json(['message' => 'This match is not open for registration'], 400);
+
+        // Check if already joined
+        $existing = DB::table('match_player')->where('match_id', $id)->where('user_id', $user->id)->first();
+        if ($existing) return response()->json(['message' => 'You have already registered for this match'], 400);
+
+        // Check slots
+        $confirmedCount = DB::table('match_player')->where('match_id', $id)->where('status', 'confirmed')->count();
+        if ($confirmedCount >= $match->total_slots) {
+            return response()->json(['message' => 'Match is full'], 400);
+        }
+
+        // If price is 0, auto-confirm
+        $status = ($match->price <= 0) ? 'confirmed' : 'pending';
+
+        DB::table('match_player')->insert([
+            'match_id' => $id,
+            'user_id' => $user->id,
+            'status' => $status,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => $status === 'confirmed' ? 'Successfully joined the match!' : 'Registration submitted. Please upload payment receipt.',
+            'status' => $status
+        ]);
+    }
+
+    // Leave a match
+    public function leave(Request $request, $id)
+    {
+        $user = $request->user();
+        $deleted = DB::table('match_player')
+            ->where('match_id', $id)
+            ->where('user_id', $user->id)
+            ->delete();
+
+        if (!$deleted) return response()->json(['message' => 'Registration not found'], 404);
+
+        return response()->json(['message' => 'Successfully left the match']);
+    }
+
+    // Cancel match (Admin only)
+    public function cancel(Request $request, $id)
+    {
+        $match = FootballMatch::find($id);
+        if (!$match) return response()->json(['message' => 'Match not found'], 404);
+
+        if ($match->club_owner_id !== $request->user()->id && $request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $match->update(['status' => 'cancelled']);
+        return response()->json(['message' => 'Match cancelled']);
+    }
+
+    // Get bookings for a match (Admin only)
+    public function bookings($id)
+    {
+        $match = FootballMatch::with(['players' => function($query) {
+            $query->select('users.id', 'users.name', 'users.email', 'users.avatar')
+                  ->withPivot('status', 'id as booking_id');
+        }])->find($id);
+
+        if (!$match) return response()->json(['message' => 'Match not found'], 404);
+
+        return response()->json($match->players);
+    }
+
+    // Approve booking
+    public function approveBooking(Request $request, $bookingId)
+    {
+        // $bookingId is the ID in match_player pivot table
+        $updated = DB::table('match_player')
+            ->where('id', $bookingId)
+            ->update([
+                'status' => 'confirmed',
+                'updated_at' => now()
+            ]);
+
+        if (!$updated) return response()->json(['message' => 'Booking not found'], 404);
+
+        return response()->json(['message' => 'Booking approved']);
+    }
+
+    // Reject booking
+    public function rejectBooking(Request $request, $bookingId)
+    {
+        $updated = DB::table('match_player')
+            ->where('id', $bookingId)
+            ->update([
+                'status' => 'cancelled',
+                'updated_at' => now()
+            ]);
+
+        if (!$updated) return response()->json(['message' => 'Booking not found'], 404);
+
+        return response()->json(['message' => 'Booking rejected']);
     }
 
     // Get User Profile Statistics
