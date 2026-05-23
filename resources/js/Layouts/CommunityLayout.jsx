@@ -227,7 +227,7 @@ const S = {
         fontSize: 18,
         filter: "grayscale(1) brightness(2)",
     },
-    activeIndicator: { background: "#00D4EC", 
+    activeIndicator: {
         position: "absolute",
         left: 0,
         top: "20%",
