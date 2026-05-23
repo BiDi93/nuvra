@@ -33,7 +33,7 @@ function MatchCard({ game, onClick }) {
     const max = game.total_slots ?? 22;
     const remaining = max - filled;
     const progress = (filled / max) * 100;
-    
+
     // Split slots per team for display
     const teamASlots = Math.ceil(filled / 2);
     const teamBSlots = Math.floor(filled / 2);
@@ -48,13 +48,17 @@ function MatchCard({ game, onClick }) {
 
             <div style={S.matchDisplay}>
                 <div style={S.teamCol}>
-                    <div style={S.teamIcon}>A</div>
+                    <div style={S.teamCircle}>
+                        <div style={S.teamShield}>A</div>
+                    </div>
                 </div>
                 <div style={S.scoreArea}>
-                    {game.status === 'live' ? "3 - 3" : "VS"}
+                    {game.status === 'live' ? "3 - 3" : (game.status === 'completed' ? "1 - 2" : "VS")}
                 </div>
                 <div style={S.teamCol}>
-                    <div style={S.teamIcon}>B</div>
+                    <div style={S.teamCircle}>
+                        <div style={S.teamShieldB}>B</div>
+                    </div>
                 </div>
             </div>
 
@@ -119,7 +123,7 @@ export default function CommunityFeed() {
                 <h1 style={S.title}>DASHBOARD</h1>
                 <div style={S.statsRow}>
                     <div style={S.statBadgeBlue}>
-                        <div style={S.statIcon}>⚽</div>
+                        <div style={S.statIcon}></div>
                         OPEN GAMES: {games.filter(g => g.status === 'open').length}
                     </div>
                     <div style={S.statBadgeWhite}>
@@ -180,21 +184,46 @@ const S = {
     tabBtnActive: { color: BRAND_BLUE, borderBottom: `2px solid ${BRAND_BLUE}` },
 
     grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 24 },
-    card: { background: "rgba(30, 31, 35, 0.8)", borderRadius: 24, border: "1px solid rgba(255,255,255,0.1)", padding: 24, display: "flex", flexDirection: "column" },
-    cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
+    card: { 
+        background: "linear-gradient(145deg, #2a2d34, #1e2025)", 
+        borderRadius: 24, 
+        border: "1px solid rgba(255,255,255,0.08)", 
+        padding: 24, 
+        display: "flex", 
+        flexDirection: "column",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+    },
+    cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 },
     gameTitle: { fontSize: 20, fontWeight: 800, color: "#fff", maxWidth: "70%" },
-    
-    matchDisplay: { display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 24 },
-    teamCol: { display: "flex", flexDirection: "column", alignItems: "center" },
-    teamIcon: { width: 64, height: 64, borderRadius: 16, border: "2px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, color: BRAND_BLUE },
-    scoreArea: { fontSize: 32, fontWeight: 900, color: "rgba(255,255,255,0.8)", letterSpacing: 2 },
 
+    matchDisplay: { display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 32 },
+    teamCol: { display: "flex", flexDirection: "column", alignItems: "center" },
+    teamCircle: { 
+        width: 72, height: 72, borderRadius: "50%", 
+        background: "rgba(255,255,255,0.03)", 
+        border: "1px solid rgba(255,255,255,0.1)", 
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 8
+    },
+    teamShield: { 
+        width: "100%", height: "100%", borderRadius: 12, 
+        border: "2px solid rgba(255,255,255,0.4)", 
+        display: "flex", alignItems: "center", justifyContent: "center", 
+        fontSize: 24, fontWeight: 900, color: "#fff" 
+    },
+    teamShieldB: { 
+        width: "100%", height: "100%", borderRadius: 12, 
+        border: "2px solid #00D4EC66", 
+        display: "flex", alignItems: "center", justifyContent: "center", 
+        fontSize: 24, fontWeight: 900, color: "#00D4EC" 
+    },
+    scoreArea: { fontSize: 32, fontWeight: 900, color: "rgba(255,255,255,0.8)", letterSpacing: 2 },
     teamLabels: { display: "flex", justifyContent: "space-between", marginBottom: 12 },
     teamLabel: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)" },
     progressWrapper: { height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden", marginBottom: 12 },
     progressBar: { height: "100%", background: BRAND_BLUE, borderRadius: 4 },
     slotsLeft: { fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 20 },
-    
+
     viewBtn: { width: "100%", padding: "16px", borderRadius: 12, border: "none", background: BRAND_BLUE, color: "#000", fontSize: 14, fontWeight: 900, cursor: "pointer", transition: "transform 0.1s" },
 
     emptyState: { padding: "100px 0", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 16, fontWeight: 800 }
