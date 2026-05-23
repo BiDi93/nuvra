@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PageLoader from "../../Components/PageLoader";
 
 const API = "/api/community";
-const LIME = "#C1FF00";
+const BRAND_BLUE = "#00D4EC";
 
 export default function CommunityMembers() {
     const [members, setMembers] = useState([]);
@@ -87,11 +87,11 @@ const S = {
         textAlign: "center",
         transition: "transform 0.2s ease"
     },
-    avatar: { width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: LIME, marginBottom: 16, overflow: "hidden", border: `2px solid ${LIME}33` },
+    avatar: { width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: BRAND_BLUE, marginBottom: 16, overflow: "hidden", border: `2px solid ${BRAND_BLUE}33` },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
     info: { marginBottom: 20 },
     name: { fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 },
-    role: { fontSize: 11, fontWeight: 700, color: LIME, letterSpacing: 1 },
+    role: { fontSize: 11, fontWeight: 700, color: BRAND_BLUE, letterSpacing: 1 },
     joined: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 },
     stats: { display: "flex", gap: 24, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16, width: "100%", justifyContent: "center" },
     statItem: { display: "flex", flexDirection: "column", gap: 2 },

@@ -227,13 +227,13 @@ const S = {
         fontSize: 18,
         filter: "grayscale(1) brightness(2)",
     },
-    activeIndicator: {
+    activeIndicator: { background: "#00D4EC", 
         position: "absolute",
         left: 0,
         top: "20%",
         bottom: "20%",
         width: 4,
-        background: "#C1FF00",
+        background: "#00D4EC",
         borderRadius: "0 4px 4px 0",
     },
     navDivider: {
@@ -319,7 +319,7 @@ const S = {
         padding: "12px",
         borderRadius: 12,
         border: "none",
-        background: "#C1FF00", // Match lime theme
+        background: "#00D4EC", // Match lime theme
         color: "#000",
         fontSize: 13,
         fontWeight: 800,
@@ -341,7 +341,7 @@ const S = {
         position: "fixed",
         inset: 0,
         marginLeft: 260,
-        background: "radial-gradient(circle at top right, rgba(193, 255, 0, 0.03), transparent 40%), radial-gradient(circle at bottom left, rgba(0, 212, 236, 0.02), transparent 40%)",
+        background: "radial-gradient(circle at top right, rgba(0, 212, 236, 0.03), transparent 40%), radial-gradient(circle at bottom left, rgba(0, 212, 236, 0.02), transparent 40%)",
         zIndex: 1,
     },
     contentWrapper: {
