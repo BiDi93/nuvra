@@ -116,7 +116,7 @@ export default function CommunityFeed() {
             `}</style>
 
             <header style={S.header}>
-                <h1 style={S.title}>THE GRID // DASHBOARD</h1>
+                <h1 style={S.title}>DASHBOARD</h1>
                 <div style={S.statsRow}>
                     <div style={S.statBadgeLime}>
                         <div style={S.statIcon}>⚽</div>

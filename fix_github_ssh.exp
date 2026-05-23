@@ -1,0 +1,17 @@
+set timeout 600
+spawn ssh -o StrictHostKeyChecking=no abdulmuhaimin@34.142.226.77
+expect {
+    "Enter passphrase for key*" {
+        send "Memin@9994061\r"
+        exp_continue
+    }
+    "$ " {
+        # Add github to known_hosts automatically
+        send "ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts\r"
+        expect "$ "
+        
+        # Now run the deployment
+        send "cd /var/www/html && sudo git fetch origin uat && sudo git reset --hard origin/uat && sudo php artisan migrate --force && sudo npm install && sudo npm run build && sudo php artisan optimize && exit\r"
+    }
+}
+expect eof

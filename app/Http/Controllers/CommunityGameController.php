@@ -238,6 +238,33 @@ class CommunityGameController extends Controller
         return response()->json(['message' => 'Booking rejected']);
     }
 
+    // List all community members
+    public function members()
+    {
+        $users = User::select('id', 'name', 'avatar', 'role', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($user) {
+                // Get some quick stats
+                $stats = DB::table('performances')
+                    ->where('user_id', $user->id)
+                    ->selectRaw('COUNT(id) as total_games, SUM(goals) as goals')
+                    ->first();
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar,
+                    'role' => $user->role,
+                    'joined' => $user->created_at->format('M Y'),
+                    'games' => $stats->total_games ?? 0,
+                    'goals' => $stats->goals ?? 0,
+                ];
+            });
+
+        return response()->json($users);
+    }
+
     // Get User Profile Statistics
     public function getProfile(Request $request)
     {

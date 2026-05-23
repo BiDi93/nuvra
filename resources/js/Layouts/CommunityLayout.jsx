@@ -72,22 +72,10 @@ export default function CommunityLayout() {
                         onClick={() => navigate("/community/feed")} 
                     />
                     <NavItem 
-                        label="MATCHES" 
-                        icon="⚽"
-                        active={isActive("/community/matches")} 
-                        onClick={() => navigate("/community/matches")} 
-                    />
-                    <NavItem 
-                        label="TEAMS" 
-                        icon="👥"
-                        active={isActive("/community/teams")} 
-                        onClick={() => navigate("/community/teams")} 
-                    />
-                    <NavItem 
                         label="COMMUNITY" 
-                        icon="🌐"
-                        active={isActive("/community/announcements")} 
-                        onClick={() => navigate("/community/announcements")} 
+                        icon="✨" // New prettier icon
+                        active={isActive("/community/members")} 
+                        onClick={() => navigate("/community/members")} 
                     />
                     <NavItem 
                         label="PROFILE" 
