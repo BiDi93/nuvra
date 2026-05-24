@@ -106,7 +106,13 @@ export default function CommunityFeed() {
 
     const filteredGames = games.filter(g => {
         if (filter === "ALL") return true;
-        return g.status?.toUpperCase() === filter;
+        const gameDate = new Date(g.game_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (filter === "UPCOMING") return gameDate >= today;
+        if (filter === "PAST") return gameDate < today;
+        return true;
     });
 
     return (
@@ -134,9 +140,9 @@ export default function CommunityFeed() {
             </header>
 
             <div style={S.filterBar}>
-                <div style={S.sectionLabel}>UPCOMING MATCHES</div>
+                <div style={S.sectionLabel}>MATCHES</div>
                 <div style={S.tabs}>
-                    {["ALL", "OPEN", "LIVE", "FULL"].map(t => (
+                    {["ALL", "UPCOMING", "PAST"].map(t => (
                         <button
                             key={t}
                             style={{ ...S.tabBtn, ...(filter === t ? S.tabBtnActive : {}) }}
@@ -184,12 +190,12 @@ const S = {
     tabBtnActive: { color: BRAND_BLUE, borderBottom: `2px solid ${BRAND_BLUE}` },
 
     grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 24 },
-    card: { 
-        background: "linear-gradient(145deg, #2a2d34, #1e2025)", 
-        borderRadius: 24, 
-        border: "1px solid rgba(255,255,255,0.08)", 
-        padding: 24, 
-        display: "flex", 
+    card: {
+        background: "linear-gradient(145deg, #2a2d34, #1e2025)",
+        borderRadius: 24,
+        border: "1px solid rgba(255,255,255,0.08)",
+        padding: 24,
+        display: "flex",
         flexDirection: "column",
         boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
     },
@@ -198,24 +204,24 @@ const S = {
 
     matchDisplay: { display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 32 },
     teamCol: { display: "flex", flexDirection: "column", alignItems: "center" },
-    teamCircle: { 
-        width: 72, height: 72, borderRadius: "50%", 
-        background: "rgba(255,255,255,0.03)", 
-        border: "1px solid rgba(255,255,255,0.1)", 
+    teamCircle: {
+        width: 72, height: 72, borderRadius: "50%",
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.1)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 8
     },
-    teamShield: { 
-        width: "100%", height: "100%", borderRadius: 12, 
-        border: "2px solid rgba(255,255,255,0.4)", 
-        display: "flex", alignItems: "center", justifyContent: "center", 
-        fontSize: 24, fontWeight: 900, color: "#fff" 
+    teamShield: {
+        width: "100%", height: "100%", borderRadius: 12,
+        border: "2px solid rgba(255,255,255,0.4)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 24, fontWeight: 900, color: "#fff"
     },
-    teamShieldB: { 
-        width: "100%", height: "100%", borderRadius: 12, 
-        border: "2px solid #00D4EC66", 
-        display: "flex", alignItems: "center", justifyContent: "center", 
-        fontSize: 24, fontWeight: 900, color: "#00D4EC" 
+    teamShieldB: {
+        width: "100%", height: "100%", borderRadius: 12,
+        border: "2px solid #00D4EC66",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 24, fontWeight: 900, color: "#00D4EC"
     },
     scoreArea: { fontSize: 32, fontWeight: 900, color: "rgba(255,255,255,0.8)", letterSpacing: 2 },
     teamLabels: { display: "flex", justifyContent: "space-between", marginBottom: 12 },

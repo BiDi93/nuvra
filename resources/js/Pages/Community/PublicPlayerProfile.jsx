@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API = "/api/community";
 const BRAND_BLUE = "#00D4EC";
 
-export default function PlayerProfile() {
+export default function PublicPlayerProfile() {
+    const { id } = useParams();
+    const navigate = useNavigate();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchProfile();
-    }, []);
+    }, [id]);
 
     const fetchProfile = async () => {
         try {
             const token = localStorage.getItem("community_token");
-            const res = await fetch(`${API}/profile`, {
+            const res = await fetch(`${API}/members/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
@@ -29,13 +32,14 @@ export default function PlayerProfile() {
     };
 
     if (loading) return <PageLoader />;
-    if (!profile) return <div style={S.empty}>No profile data found.</div>;
+    if (!profile) return <div style={S.empty}>Player not found.</div>;
 
-    const { user, stats, club, history } = profile;
-    const isOwner = user.role === 'club_owner' || user.role === 'admin';
+    const { user, stats, history } = profile;
 
     return (
         <div style={S.container}>
+            <button style={S.backBtn} onClick={() => navigate(-1)}>← Back to Community</button>
+            
             <header style={S.header}>
                 <div style={S.profileMain}>
                     <div style={S.avatarLarge}>
@@ -48,57 +52,32 @@ export default function PlayerProfile() {
                     <div style={S.userMeta}>
                         <h1 style={S.name}>{user.name}</h1>
                         <p style={S.roleBadge}>{user.role?.toUpperCase()}</p>
-                        <p style={S.email}>{user.email}</p>
+                        <p style={S.joined}>Joined {user.joined}</p>
                     </div>
                 </div>
             </header>
 
             <div style={S.content}>
-                {/* SECTION 1: Basic Info */}
+                {/* SECTION 1: Stats */}
                 <section style={S.section}>
-                    <h2 style={S.sectionTitle}>BASIC INFORMATION</h2>
-                    <div style={S.infoGrid}>
-                        <InfoItem label="Address" value={user.address || "Not set"} />
-                        <InfoItem label="Phone" value={user.phone || "Not set"} />
-                        {isOwner && (
-                            <>
-                                <InfoItem label="Club Name" value={club?.name} />
-                                <InfoItem label="Established" value={club?.established_at || "Not set"} />
-                                <InfoItem label="Location" value={club?.location} />
-                            </>
-                        )}
-                    </div>
-                </section>
-
-                {/* SECTION 2: Stats */}
-                <section style={S.section}>
-                    <h2 style={S.sectionTitle}>{isOwner ? "MANAGEMENT STATS" : "PERFORMANCE OVERVIEW"}</h2>
+                    <h2 style={S.sectionTitle}>CAREER STATS</h2>
                     <div style={S.statsGrid}>
-                        {isOwner ? (
-                            <>
-                                <StatCard label="GAMES ORGANIZED" value={stats.total_organized} />
-                                <StatCard label="ACTIVE PLAYERS" value={stats.active_players} />
-                            </>
-                        ) : (
-                            <>
-                                <StatCard label="MATCHES" value={stats.total_matches} />
-                                <StatCard label="GOALS" value={stats.total_goals} />
-                                <StatCard label="ASSISTS" value={stats.total_assists} />
-                                <StatCard label="AVG RATING" value={stats.avg_rating} />
-                            </>
-                        )}
+                        <StatCard label="MATCHES" value={stats.total_matches} />
+                        <StatCard label="GOALS" value={stats.total_goals} />
+                        <StatCard label="ASSISTS" value={stats.total_assists} />
+                        <StatCard label="AVG RATING" value={stats.avg_rating} />
                     </div>
                 </section>
 
-                {/* SECTION 3: Visual History (Graph) - Player Only */}
-                {!isOwner && history && history.length > 0 && (
+                {/* SECTION 2: Graph */}
+                {history && history.length > 0 && (
                     <section style={S.section}>
-                        <h2 style={S.sectionTitle}>PERFORMANCE GRAPH</h2>
+                        <h2 style={S.sectionTitle}>PERFORMANCE TREND</h2>
                         <div style={S.graphCard}>
                             <ResponsiveContainer width="100%" height={240}>
                                 <AreaChart data={history}>
                                     <defs>
-                                        <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
+                                        <linearGradient id="colorRatingPublic" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor={BRAND_BLUE} stopOpacity={0.3}/>
                                             <stop offset="95%" stopColor={BRAND_BLUE} stopOpacity={0}/>
                                         </linearGradient>
@@ -111,17 +90,17 @@ export default function PlayerProfile() {
                                         itemStyle={{ color: BRAND_BLUE, fontSize: 12, fontWeight: 700 }}
                                         labelStyle={{ color: '#fff', marginBottom: 4 }}
                                     />
-                                    <Area type="monotone" dataKey="rating" stroke={BRAND_BLUE} strokeWidth={3} fillOpacity={1} fill="url(#colorRating)" />
+                                    <Area type="monotone" dataKey="rating" stroke={BRAND_BLUE} strokeWidth={3} fillOpacity={1} fill="url(#colorRatingPublic)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </section>
                 )}
 
-                {/* SECTION 4: Match History Timeline */}
-                {!isOwner && history && (
+                {/* SECTION 3: Match History */}
+                {history && (
                     <section style={S.section}>
-                        <h2 style={S.sectionTitle}>MATCH HISTORY</h2>
+                        <h2 style={S.sectionTitle}>RECENT GAMES</h2>
                         <div style={S.historyList}>
                             {history.map(m => (
                                 <div key={m.id} style={S.historyItem}>
@@ -144,15 +123,6 @@ export default function PlayerProfile() {
     );
 }
 
-function InfoItem({ label, value }) {
-    return (
-        <div style={S.infoItem}>
-            <span style={S.infoLabel}>{label}</span>
-            <span style={S.infoValue}>{value}</span>
-        </div>
-    );
-}
-
 function StatCard({ label, value }) {
     return (
         <div style={S.statCard}>
@@ -164,6 +134,7 @@ function StatCard({ label, value }) {
 
 const S = {
     container: { maxWidth: 1000, margin: "0 auto", paddingBottom: 80 },
+    backBtn: { background: 'none', border: 'none', color: BRAND_BLUE, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 32 },
     header: { marginBottom: 48 },
     profileMain: { display: "flex", alignItems: "center", gap: 32 },
     avatarLarge: { width: 120, height: 120, borderRadius: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden" },
@@ -171,17 +142,12 @@ const S = {
     userMeta: { flex: 1 },
     name: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: -0.5 },
     roleBadge: { display: "inline-block", padding: "4px 12px", borderRadius: 8, background: "rgba(0,212,236,0.1)", color: BRAND_BLUE, fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 8 },
-    email: { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: 500 },
+    joined: { color: "rgba(255,255,255,0.3)", fontSize: 13, fontWeight: 500 },
 
     content: { display: "flex", flexDirection: "column", gap: 48 },
     section: { background: "rgba(30, 31, 35, 0.4)", borderRadius: 24, padding: 32, border: "1px solid rgba(255,255,255,0.05)" },
     sectionTitle: { fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, marginBottom: 24 },
     
-    infoGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 24 },
-    infoItem: { display: "flex", flexDirection: "column", gap: 4 },
-    infoLabel: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.2)", textTransform: "uppercase" },
-    infoValue: { fontSize: 15, fontWeight: 600, color: "#fff" },
-
     statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20 },
     statCard: { background: "rgba(255,255,255,0.03)", borderRadius: 20, padding: "24px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" },
     statVal: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 4 },

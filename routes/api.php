@@ -149,6 +149,7 @@ Route::prefix('community')->group(function () {
         Route::get('/me',        [CommunityAuthController::class, 'me']);
         Route::get('/profile',   [CommunityGameController::class, 'getProfile']);
         Route::get('/members',   [CommunityGameController::class, 'members']);
+        Route::get('/members/{id}', [CommunityGameController::class, 'memberProfile']);
 
         // ── Games (auth required) ─────────────────────────────────────────────────
         Route::post('/games',                          [CommunityGameController::class, 'store']);

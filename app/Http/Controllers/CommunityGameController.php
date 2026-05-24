@@ -16,9 +16,7 @@ class CommunityGameController extends Controller
         $matches = FootballMatch::withCount(['players as confirmed_players' => function($query) {
             $query->where('match_player.status', 'confirmed');
         }])
-        ->where('status', 'open')
-        ->where('match_date', '>=', now()->toDateString())
-        ->orderBy('match_date', 'asc')
+        ->orderBy('match_date', 'desc')
         ->get()
         ->map(function($match) {
             return [
@@ -56,12 +54,11 @@ class CommunityGameController extends Controller
             'max_slots_per_team' => 'required|integer|min:1',
             'team_a_name' => 'nullable|string',
             'team_b_name' => 'nullable|string',
-            'opponent_name' => 'nullable|string', // Added for external friendly
-            'match_type' => 'nullable|string', // 'pickup' or 'external'
+            'opponent_name' => 'nullable|string',
+            'match_type' => 'nullable|string', 
             'payment_qr' => 'nullable|image|max:2048',
         ]);
 
-        // Split game_date (YYYY-MM-DDTHH:MM)
         $dt = new \DateTime($validated['game_date']);
         $match_date = $dt->format('Y-m-d');
         $match_time = $dt->format('H:i:s');
@@ -72,10 +69,6 @@ class CommunityGameController extends Controller
         }
 
         $matchType = $validated['match_type'] ?? 'pickup';
-        
-        // Logic for slots: 
-        // If pickup: 2 teams (total = max * 2)
-        // If external: 1 internal team (total = max)
         $totalSlots = ($matchType === 'external') 
             ? $validated['max_slots_per_team'] 
             : ($validated['max_slots_per_team'] * 2);
@@ -139,17 +132,15 @@ class CommunityGameController extends Controller
         if (!$match) return response()->json(['message' => 'Match not found'], 404);
         if ($match->status !== 'open') return response()->json(['message' => 'This match is not open for registration'], 400);
 
-        // Check if already joined
         $existing = DB::table('match_player')->where('match_id', $id)->where('user_id', $user->id)->first();
         if ($existing) return response()->json(['message' => 'You have already registered for this match'], 400);
 
-        // Check slots
         $confirmedCount = DB::table('match_player')->where('match_id', $id)->where('status', 'confirmed')->count();
         if ($confirmedCount >= $match->total_slots) {
+            $match->update(['status' => 'full']);
             return response()->json(['message' => 'Match is full'], 400);
         }
 
-        // If price is 0, auto-confirm
         $status = ($match->price <= 0) ? 'confirmed' : 'pending';
 
         DB::table('match_player')->insert([
@@ -159,6 +150,10 @@ class CommunityGameController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        if ($status === 'confirmed' && ($confirmedCount + 1) >= $match->total_slots) {
+            $match->update(['status' => 'full']);
+        }
 
         return response()->json([
             'message' => $status === 'confirmed' ? 'Successfully joined the match!' : 'Registration submitted. Please upload payment receipt.',
@@ -210,7 +205,6 @@ class CommunityGameController extends Controller
     // Approve booking
     public function approveBooking(Request $request, $bookingId)
     {
-        // $bookingId is the ID in match_player pivot table
         $updated = DB::table('match_player')
             ->where('id', $bookingId)
             ->update([
@@ -245,7 +239,6 @@ class CommunityGameController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($user) {
-                // Get some quick stats
                 $stats = DB::table('performances')
                     ->where('user_id', $user->id)
                     ->selectRaw('COUNT(id) as total_games, SUM(goals) as goals')
@@ -265,47 +258,118 @@ class CommunityGameController extends Controller
         return response()->json($users);
     }
 
-    // Get User Profile Statistics
-    public function getProfile(Request $request)
+    // Get Public Profile of another player
+    public function memberProfile($id)
     {
-        $user = $request->user();
-        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+        $user = User::find($id);
+        if (!$user) return response()->json(['message' => 'User not found'], 404);
 
-        // 1. Calculate Stats from Performances
         $stats = DB::table('performances')
             ->where('user_id', $user->id)
-            ->selectRaw('COUNT(match_id) as total_games, SUM(goals) as total_goals, SUM(assists) as total_assists, AVG(rating) as avg_rating')
+            ->selectRaw('COUNT(match_id) as total_matches, SUM(goals) as total_goals, SUM(assists) as total_assists, AVG(rating) as avg_rating')
             ->first();
 
-        // 2. Get Match History
         $history = FootballMatch::whereHas('players', function($q) use ($user) {
             $q->where('user_id', $user->id)->where('match_player.status', 'confirmed');
         })
+        ->with(['performances' => function($q) use ($user) {
+            $q->where('user_id', $user->id);
+        }])
         ->orderBy('match_date', 'desc')
         ->limit(10)
         ->get()
         ->map(fn($m) => [
             'id' => $m->id,
-            'title' => $m->title,
-            'date' => $m->match_date,
+            'title' => $m->title ?? ($m->team_a_name . ' vs ' . $m->team_b_name),
             'venue' => $m->venue,
-            'league' => $m->league_name ?? 'Community Friendly'
+            'date' => $m->match_date,
+            'goals' => $m->performances->first()->goals ?? 0,
+            'rating' => $m->performances->first()->rating ?? 0,
         ]);
 
         return response()->json([
             'user' => [
                 'name' => $user->name,
-                'email' => $user->email,
                 'avatar' => $user->avatar,
                 'role' => $user->role,
+                'joined' => $user->created_at->format('M Y'),
             ],
             'stats' => [
-                'total_matches' => $stats->total_games ?? 0,
+                'total_matches' => $stats->total_matches ?? 0,
                 'total_goals' => $stats->total_goals ?? 0,
                 'total_assists' => $stats->total_assists ?? 0,
                 'avg_rating' => round($stats->avg_rating ?? 0, 1),
             ],
             'history' => $history
         ]);
+    }
+
+    // Get Personal Profile Stats
+    public function getProfile(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+
+        $data = [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'role' => $user->role,
+                'avatar' => $user->avatar,
+            ]
+        ];
+
+        if (in_array($user->role, ['club_owner', 'admin'])) {
+            $data['club'] = [
+                'name' => $user->club_name ?? 'Nuvra Club',
+                'established_at' => $user->established_at,
+                'location' => $user->location ?? 'Unknown',
+            ];
+            
+            $data['stats'] = [
+                'total_organized' => DB::table('matches')->where('club_owner_id', $user->id)->count(),
+                'active_players' => DB::table('match_player')
+                    ->join('matches', 'match_player.match_id', '=', 'matches.id')
+                    ->where('matches.club_owner_id', $user->id)
+                    ->where('match_player.status', 'confirmed')
+                    ->distinct('user_id')
+                    ->count('user_id'),
+            ];
+        } else {
+            $stats = DB::table('performances')
+                ->where('user_id', $user->id)
+                ->selectRaw('COUNT(match_id) as total_games, SUM(goals) as total_goals, SUM(assists) as total_assists, AVG(rating) as avg_rating')
+                ->first();
+
+            $data['stats'] = [
+                'total_matches' => $stats->total_matches ?? 0,
+                'total_goals' => $stats->total_goals ?? 0,
+                'total_assists' => $stats->total_assists ?? 0,
+                'avg_rating' => round($stats->avg_rating ?? 0, 1),
+            ];
+
+            $data['history'] = FootballMatch::whereHas('players', function($q) use ($user) {
+                $q->where('user_id', $user->id)->where('match_player.status', 'confirmed');
+            })
+            ->with(['performances' => function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            }])
+            ->orderBy('match_date', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(fn($m) => [
+                'id' => $m->id,
+                'title' => $m->title ?? ($m->team_a_name . ' vs ' . $m->team_b_name),
+                'venue' => $m->venue,
+                'date' => $m->match_date,
+                'goals' => $m->performances->first()->goals ?? 0,
+                'rating' => $m->performances->first()->rating ?? 0,
+            ]);
+        }
+
+        return response()->json($data);
     }
 }

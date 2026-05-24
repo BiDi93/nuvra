@@ -64,6 +64,18 @@ export default function GameDetail() {
     if (!data) return <div style={{ color: "#fff", textAlign: "center", padding: 100 }}>Match not found</div>;
 
     const { game, players } = data;
+    const isFull = (players?.length || 0) >= (game?.total_slots || 0);
+    const isPast = new Date(game.game_date) < new Date().setHours(0,0,0,0);
+
+    const getButtonText = () => {
+        if (joining) return "JOINING...";
+        if (game.status === 'completed' || isPast) return "MATCH COMPLETED";
+        if (game.status === 'cancelled') return "MATCH CANCELLED";
+        if (isFull) return "MATCH FULL";
+        return "JOIN THIS MATCH";
+    };
+
+    const isDisabled = joining || game.status !== 'open' || isFull || isPast;
 
     return (
         <div style={S.container}>
@@ -99,11 +111,15 @@ export default function GameDetail() {
                         <p style={S.desc}>{game.description}</p>
 
                         <button 
-                            style={S.joinBtn} 
+                            style={{ 
+                                ...S.joinBtn, 
+                                background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #00D4EC, #D040EF)',
+                                color: isDisabled ? 'rgba(255,255,255,0.2)' : '#080810'
+                            }} 
                             onClick={handleJoin}
-                            disabled={joining || game.status !== 'open'}
+                            disabled={isDisabled}
                         >
-                            {joining ? "JOINING..." : game.status === 'open' ? "JOIN THIS MATCH" : "MATCH FULL"}
+                            {getButtonText()}
                         </button>
                     </div>
 
@@ -128,8 +144,18 @@ export default function GameDetail() {
                                 <p style={{ color: '#555', fontSize: 13 }}>No players yet. Be the first!</p>
                             ) : (
                                 players.map(p => (
-                                    <div key={p.id} style={S.playerRow}>
-                                        <div style={S.avatar}>{p.name[0]}</div>
+                                    <div 
+                                        key={p.id} 
+                                        style={{ ...S.playerRow, cursor: 'pointer' }}
+                                        onClick={() => navigate(`/community/members/${p.id}`)}
+                                    >
+                                        <div style={S.avatar}>
+                                            {p.avatar ? (
+                                                <img src={p.avatar} alt="" style={S.avatarImg} />
+                                            ) : (
+                                                p.name[0]
+                                            )}
+                                        </div>
                                         <span style={S.playerName}>{p.name}</span>
                                     </div>
                                 ))
@@ -156,6 +182,7 @@ const S = {
     joinBtn: { width: "100%", marginTop: 30, padding: 16, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontWeight: 800, cursor: "pointer" },
     playerList: { display: "flex", flexDirection: "column", gap: 12 },
     playerRow: { display: "flex", alignItems: "center", gap: 12, padding: "8px 0" },
-    avatar: { width: 32, height: 32, borderRadius: "50%", background: "#2a2a30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 },
+    avatar: { width: 32, height: 32, borderRadius: "50%", background: "#2a2a30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" },
+    avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
     playerName: { fontSize: 14, color: "#fff" },
 };

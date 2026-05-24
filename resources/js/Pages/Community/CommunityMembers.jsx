@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
 
 const API = "/api/community";
@@ -7,6 +8,7 @@ const BRAND_BLUE = "#00D4EC";
 export default function CommunityMembers() {
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchMembers();
@@ -30,6 +32,9 @@ export default function CommunityMembers() {
     return (
         <div style={S.container}>
             <PageLoader />
+            <style>{`
+                .member-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; cursor: pointer; }
+            `}</style>
             <h1 style={S.title}>COMMUNITY MEMBERS</h1>
             <p style={S.subtitle}>List of all registered football enthusiasts in NUVRA</p>
 
@@ -40,7 +45,7 @@ export default function CommunityMembers() {
             ) : (
                 <div style={S.grid}>
                     {members.map(m => (
-                        <div key={m.id} style={S.card}>
+                        <div key={m.id} style={S.card} className="member-card" onClick={() => navigate(`/community/members/${m.id}`)}>
                             <div style={S.avatar}>
                                 {m.avatar ? (
                                     <img src={m.avatar} alt="" style={S.avatarImg} />
@@ -85,7 +90,7 @@ const S = {
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
-        transition: "transform 0.2s ease"
+        transition: "all 0.2s ease"
     },
     avatar: { width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: BRAND_BLUE, marginBottom: 16, overflow: "hidden", border: `2px solid ${BRAND_BLUE}33` },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
