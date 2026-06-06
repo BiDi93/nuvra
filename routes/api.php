@@ -148,6 +148,7 @@ Route::prefix('community')->group(function () {
         Route::post('/logout',   [CommunityAuthController::class, 'logout']);
         Route::get('/me',        [CommunityAuthController::class, 'me']);
         Route::get('/profile',   [CommunityGameController::class, 'getProfile']);
+        Route::post('/profile/avatar', [CommunityGameController::class, 'updateAvatar']);
         Route::get('/members',   [CommunityGameController::class, 'members']);
         Route::get('/members/{id}', [CommunityGameController::class, 'memberProfile']);
 

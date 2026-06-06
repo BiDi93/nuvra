@@ -123,10 +123,16 @@ export default function CommunityFeed() {
                 .match-card { transition: all 0.2s ease; cursor: pointer; }
                 .match-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; }
                 .filter-btn { transition: color 0.2s; }
+                @media (max-width: 768px) {
+                    .feed-header { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; margin-bottom: 32px !important; }
+                    .feed-title  { font-size: 36px !important; }
+                    .feed-grid   { grid-template-columns: 1fr !important; }
+                    .feed-filterbar { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+                }
             `}</style>
 
-            <header style={S.header}>
-                <h1 style={S.title}>DASHBOARD</h1>
+            <header style={S.header} className="feed-header">
+                <h1 style={S.title} className="feed-title">DASHBOARD</h1>
                 <div style={S.statsRow}>
                     <div style={S.statBadgeBlue}>
                         <div style={S.statIcon}></div>
@@ -139,7 +145,7 @@ export default function CommunityFeed() {
                 </div>
             </header>
 
-            <div style={S.filterBar}>
+            <div style={S.filterBar} className="feed-filterbar">
                 <div style={S.sectionLabel}>MATCHES</div>
                 <div style={S.tabs}>
                     {["ALL", "UPCOMING", "PAST"].map(t => (
@@ -159,7 +165,7 @@ export default function CommunityFeed() {
             ) : filteredGames.length === 0 ? (
                 <div style={S.emptyState}>NO MATCHES FOUND IN THIS CATEGORY</div>
             ) : (
-                <div style={S.grid}>
+                <div style={S.grid} className="feed-grid">
                     {filteredGames.map(game => (
                         <MatchCard
                             key={game.id}

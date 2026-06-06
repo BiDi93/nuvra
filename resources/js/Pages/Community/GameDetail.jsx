@@ -79,14 +79,20 @@ export default function GameDetail() {
 
     return (
         <div style={S.container}>
+            <style>{`
+                @media (max-width: 768px) {
+                    .game-grid { grid-template-columns: 1fr !important; }
+                    .game-title { font-size: 26px !important; }
+                }
+            `}</style>
             {/* Header / Banner */}
             <div style={S.hero}>
                 <button onClick={() => navigate("/community/feed")} style={S.backBtn}>← BACK TO FEED</button>
-                <h1 style={S.title}>{game.title}</h1>
+                <h1 style={S.title} className="game-title">{game.title}</h1>
                 <p style={S.venue}>📍 {game.venue}</p>
             </div>
 
-            <div style={S.grid}>
+            <div style={S.grid} className="game-grid">
                 {/* Left: Info */}
                 <div style={S.infoCol}>
                     <div className="glass-panel" style={S.card}>

@@ -16,6 +16,16 @@ function NavItem({ label, icon, active, onClick }) {
     );
 }
 
+// ── Bottom Nav Item (mobile) ──────────────────────────────────────────────────
+function BottomNavItem({ icon, label, active, onClick }) {
+    return (
+        <button className={`bnav-item${active ? " bnav-active" : ""}`} onClick={onClick}>
+            <span className="bnav-icon">{icon}</span>
+            <span className="bnav-label">{label}</span>
+        </button>
+    );
+}
+
 export default function CommunityLayout() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -47,10 +57,42 @@ export default function CommunityLayout() {
                 ::-webkit-scrollbar { width: 5px; }
                 ::-webkit-scrollbar-track { background: transparent; }
                 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+                /* ── Mobile: hide sidebar, remove main margin ── */
+                @media (max-width: 768px) {
+                    .nuvra-sidebar { display: none !important; }
+                    .nuvra-main   { margin-left: 0 !important; }
+                    .nuvra-content { padding: 24px 16px 90px !important; }
+                    .nuvra-bottom-nav { display: flex !important; }
+                }
+
+                /* ── Bottom Nav ── */
+                .nuvra-bottom-nav {
+                    display: none;
+                    position: fixed;
+                    bottom: 0; left: 0; right: 0;
+                    height: 68px;
+                    background: #121620;
+                    border-top: 1px solid rgba(255,255,255,0.06);
+                    z-index: 100;
+                    align-items: center;
+                    justify-content: space-around;
+                    padding: 0 8px;
+                }
+                .bnav-item {
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    gap: 4px; flex: 1; background: none; border: none;
+                    color: rgba(255,255,255,0.35); cursor: pointer;
+                    padding: 8px 4px; border-radius: 12px;
+                    transition: color 0.2s;
+                }
+                .bnav-item.bnav-active { color: #00D4EC; }
+                .bnav-icon { font-size: 22px; line-height: 1; }
+                .bnav-label { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; font-family: 'Inter', sans-serif; }
             `}</style>
 
             {/* ── LEFT SIDEBAR ── */}
-            <aside style={S.sidebar}>
+            <aside style={S.sidebar} className="nuvra-sidebar">
                 {/* Brand / Logo */}
                 <div style={S.brand} onClick={() => navigate("/")}>
                     <div style={S.logoContainer}>
@@ -113,10 +155,10 @@ export default function CommunityLayout() {
                 {user ? (
                     <div style={S.userBox} onClick={() => setShowUserMenu(!showUserMenu)}>
                         <div style={S.userAvatar}>
-                            {user.avatar_url ? (
-                                <img src={user.avatar_url} alt="" style={S.avatarImg} />
+                            {user.avatar ? (
+                                <img src={user.avatar} alt="" style={S.avatarImg} />
                             ) : (
-                                <img src="/images/playerImage/beckam.jpg" alt="" style={S.avatarImg} />
+                                <div style={S.avatarPlaceholder}>{user.name[0].toUpperCase()}</div>
                             )}
                         </div>
                         <div style={S.userInfo}>
@@ -138,11 +180,21 @@ export default function CommunityLayout() {
                 )}
             </aside>
 
+            {/* ── MOBILE BOTTOM NAV ── */}
+            <nav className="nuvra-bottom-nav">
+                <BottomNavItem icon="📊" label="HOME" active={isActive("/community/feed")} onClick={() => navigate("/community/feed")} />
+                <BottomNavItem icon="✨" label="COMMUNITY" active={isActive("/community/members")} onClick={() => navigate("/community/members")} />
+                <BottomNavItem icon="👤" label="PROFILE" active={isActive("/community/profile")} onClick={() => navigate("/community/profile")} />
+                {(user?.role === "club_owner" || user?.role === "admin") && (
+                    <BottomNavItem icon="⚙️" label="ADMIN" active={location.pathname.startsWith("/community/admin")} onClick={() => navigate("/community/admin/create-game")} />
+                )}
+            </nav>
+
             {/* ── MAIN CONTENT ── */}
-            <main style={S.main}>
+            <main style={S.main} className="nuvra-main">
                 <div style={S.bgImage} />
                 <div style={S.bgOverlay} />
-                <div style={S.contentWrapper}>
+                <div style={S.contentWrapper} className="nuvra-content">
                     <Outlet />
                 </div>
             </main>
@@ -261,6 +313,15 @@ const S = {
         borderRadius: 12,
         overflow: "hidden",
         border: "1px solid rgba(255,255,255,0.1)",
+        background: "rgba(255,255,255,0.05)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    avatarPlaceholder: {
+        fontSize: 16,
+        fontWeight: 900,
+        color: "#00D4EC",
     },
     avatarImg: {
         width: "100%",

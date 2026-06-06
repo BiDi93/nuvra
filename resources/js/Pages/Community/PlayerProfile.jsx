@@ -21,8 +21,41 @@ export default function PlayerProfile() {
             });
             const data = await res.json();
             setProfile(data);
+            
+            if (data.user) {
+                localStorage.setItem("community_user", JSON.stringify(data.user));
+            }
         } catch (err) {
             console.error("Failed to fetch profile", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem("community_token");
+            const res = await fetch(`${API}/profile/avatar`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            });
+            const resData = await res.json();
+            if (res.ok) {
+                fetchProfile();
+                window.location.reload(); 
+            } else {
+                alert(resData.message);
+            }
+        } catch (err) {
+            alert("Error uploading avatar");
         } finally {
             setLoading(false);
         }
@@ -36,17 +69,31 @@ export default function PlayerProfile() {
 
     return (
         <div style={S.container}>
+            <style>{`
+                @media (max-width: 768px) {
+                    .profile-main  { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; }
+                    .profile-name  { font-size: 24px !important; }
+                    .stats-grid    { grid-template-columns: repeat(2, 1fr) !important; }
+                    .history-item  { flex-wrap: wrap !important; gap: 8px !important; }
+                }
+            `}</style>
             <header style={S.header}>
-                <div style={S.profileMain}>
-                    <div style={S.avatarLarge}>
-                        {user.avatar ? (
-                            <img src={user.avatar} alt="" style={S.avatarImg} />
-                        ) : (
-                            user.name[0].toUpperCase()
-                        )}
+                <div style={S.profileMain} className="profile-main">
+                    <div style={S.avatarWrapper}>
+                        <div style={S.avatarLarge}>
+                            {user.avatar ? (
+                                <img src={user.avatar} alt="" style={S.avatarImg} />
+                            ) : (
+                                user.name[0].toUpperCase()
+                            )}
+                        </div>
+                        <label style={S.avatarEdit}>
+                            <input type="file" hidden onChange={handleAvatarUpload} accept="image/*" />
+                            <span>📷</span>
+                        </label>
                     </div>
                     <div style={S.userMeta}>
-                        <h1 style={S.name}>{user.name}</h1>
+                        <h1 style={S.name} className="profile-name">{user.name}</h1>
                         <p style={S.roleBadge}>{user.role?.toUpperCase()}</p>
                         <p style={S.email}>{user.email}</p>
                     </div>
@@ -73,7 +120,7 @@ export default function PlayerProfile() {
                 {/* SECTION 2: Stats */}
                 <section style={S.section}>
                     <h2 style={S.sectionTitle}>{isOwner ? "MANAGEMENT STATS" : "PERFORMANCE OVERVIEW"}</h2>
-                    <div style={S.statsGrid}>
+                    <div style={S.statsGrid} className="stats-grid">
                         {isOwner ? (
                             <>
                                 <StatCard label="GAMES ORGANIZED" value={stats.total_organized} />
@@ -124,7 +171,7 @@ export default function PlayerProfile() {
                         <h2 style={S.sectionTitle}>MATCH HISTORY</h2>
                         <div style={S.historyList}>
                             {history.map(m => (
-                                <div key={m.id} style={S.historyItem}>
+                                <div key={m.id} style={S.historyItem} className="history-item">
                                     <div style={S.historyDate}>{new Date(m.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div>
                                     <div style={S.historyMain}>
                                         <div style={S.historyTitle}>{m.title}</div>
@@ -167,6 +214,8 @@ const S = {
     header: { marginBottom: 48 },
     profileMain: { display: "flex", alignItems: "center", gap: 32 },
     avatarLarge: { width: 120, height: 120, borderRadius: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden" },
+    avatarWrapper: { position: "relative" },
+    avatarEdit: { position: "absolute", bottom: -10, right: -10, width: 40, height: 40, borderRadius: "50%", background: BRAND_BLUE, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "4px solid #0d111a", fontSize: 16 },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
     userMeta: { flex: 1 },
     name: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: -0.5 },

@@ -372,4 +372,26 @@ class CommunityGameController extends Controller
 
         return response()->json($data);
     }
+
+    // Update User Avatar
+    public function updateAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|max:2048',
+        ]);
+
+        $user = $request->user();
+        
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $user->update(['avatar' => '/storage/' . $path]);
+            
+            return response()->json([
+                'message' => 'Profile picture updated!',
+                'avatar' => $user->avatar
+            ]);
+        }
+
+        return response()->json(['message' => 'Upload failed'], 400);
+    }
 }
