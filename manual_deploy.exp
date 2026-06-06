@@ -10,7 +10,7 @@ expect {
     }
 }
 expect "abdulmuhaimin@nuvra-uat:/var/www/html$"
-send "sudo git fetch origin uat\r"
+send "sudo env GIT_SSH_COMMAND='ssh -i /home/abdulmuhaimin/.ssh/id_ed25519 -o StrictHostKeyChecking=no' git fetch origin uat\r"
 expect {
     "Are you sure you want to continue connecting (yes/no/[fingerprint])?" {
         send "yes\r"
