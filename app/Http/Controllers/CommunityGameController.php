@@ -92,13 +92,33 @@ class CommunityGameController extends Controller
     }
 
     // Match details
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $match = FootballMatch::with(['owner', 'players' => function($query) {
             $query->where('match_player.status', 'confirmed');
         }])->find($id);
 
         if (!$match) return response()->json(['message' => 'Match not found'], 404);
+
+        // Optional auth: detect the requesting user (token may be sent on this public route)
+        $me = auth('sanctum')->user();
+        $myBooking = null;
+        $isOwner = false;
+
+        if ($me) {
+            $isOwner = ((int) $match->club_owner_id === (int) $me->id) || $me->role === 'admin';
+            $booking = DB::table('match_player')
+                ->where('match_id', $id)
+                ->where('user_id', $me->id)
+                ->first();
+            if ($booking) {
+                $myBooking = [
+                    'status'      => $booking->status,
+                    'has_receipt' => !empty($booking->payment_receipt),
+                    'receipt_url' => $booking->payment_receipt,
+                ];
+            }
+        }
 
         return response()->json([
             'game' => [
@@ -119,7 +139,9 @@ class CommunityGameController extends Controller
                 'id' => $u->id,
                 'name' => $u->name,
                 'avatar' => $u->avatar,
-            ])
+            ]),
+            'my_booking' => $myBooking,
+            'is_owner'   => $isOwner,
         ]);
     }
 
@@ -156,8 +178,46 @@ class CommunityGameController extends Controller
         }
 
         return response()->json([
-            'message' => $status === 'confirmed' ? 'Successfully joined the match!' : 'Registration submitted. Please upload payment receipt.',
+            'message' => $status === 'confirmed' ? 'Successfully joined the match!' : 'Registration submitted. Please upload your payment receipt.',
             'status' => $status
+        ]);
+    }
+
+    // Upload payment receipt for a pending booking
+    public function uploadReceipt(Request $request, $id)
+    {
+        $request->validate([
+            'receipt' => 'required|image|max:4096',
+        ]);
+
+        $user = $request->user();
+
+        $booking = DB::table('match_player')
+            ->where('match_id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$booking) {
+            return response()->json(['message' => 'You have not joined this match yet'], 404);
+        }
+        if ($booking->status === 'confirmed') {
+            return response()->json(['message' => 'Your booking is already confirmed'], 400);
+        }
+
+        $path = $request->file('receipt')->store('receipts', 'public');
+
+        DB::table('match_player')
+            ->where('id', $booking->id)
+            ->update([
+                'payment_receipt' => '/storage/' . $path,
+                'paid_at'         => now(),
+                'status'          => 'awaiting_approval',
+                'updated_at'      => now(),
+            ]);
+
+        return response()->json([
+            'message' => 'Receipt uploaded! Waiting for organizer approval.',
+            'status'  => 'awaiting_approval',
         ]);
     }
 
@@ -189,17 +249,39 @@ class CommunityGameController extends Controller
         return response()->json(['message' => 'Match cancelled']);
     }
 
-    // Get bookings for a match (Admin only)
-    public function bookings($id)
+    // Get bookings for a match (Organizer only)
+    public function bookings(Request $request, $id)
     {
-        $match = FootballMatch::with(['players' => function($query) {
-            $query->select('users.id', 'users.name', 'users.email', 'users.avatar')
-                  ->withPivot('status', 'id as booking_id');
-        }])->find($id);
-
+        $match = FootballMatch::find($id);
         if (!$match) return response()->json(['message' => 'Match not found'], 404);
 
-        return response()->json($match->players);
+        $me = $request->user();
+        if ((int) $match->club_owner_id !== (int) $me->id && $me->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $bookings = DB::table('match_player')
+            ->join('users', 'match_player.user_id', '=', 'users.id')
+            ->where('match_player.match_id', $id)
+            ->where('match_player.status', '!=', 'cancelled')
+            ->select(
+                'match_player.id as booking_id',
+                'match_player.status',
+                'match_player.payment_receipt',
+                'match_player.paid_at',
+                'users.id as user_id',
+                'users.name',
+                'users.email',
+                'users.avatar'
+            )
+            ->orderByRaw("CASE match_player.status
+                WHEN 'awaiting_approval' THEN 0
+                WHEN 'pending' THEN 1
+                WHEN 'confirmed' THEN 2
+                ELSE 3 END")
+            ->get();
+
+        return response()->json($bookings);
     }
 
     // Approve booking
@@ -223,7 +305,7 @@ class CommunityGameController extends Controller
         $updated = DB::table('match_player')
             ->where('id', $bookingId)
             ->update([
-                'status' => 'cancelled',
+                'status' => 'rejected',
                 'updated_at' => now()
             ]);
 
@@ -275,6 +357,7 @@ class CommunityGameController extends Controller
         ->with(['performances' => function($q) use ($user) {
             $q->where('user_id', $user->id);
         }])
+        ->where('match_date', '<', now())   // past matches only
         ->orderBy('match_date', 'desc')
         ->limit(10)
         ->get()

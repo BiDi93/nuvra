@@ -132,20 +132,40 @@ class PlayerDummySeeder extends Seeder
                 'team_b_name'   => 'Lions United',
             ]);
 
-            // Assign roughly half the players to each upcoming match
+            // Assign a realistic mix of booking states to each upcoming match.
+            // player1 (index 0) is intentionally LEFT OUT of matches k >= 7 so the
+            // join → pay → upload flow can be tested on a fresh match.
             foreach ($players as $idx => $player) {
-                if ($idx % 2 === 0) {
-                    DB::table('match_player')->insert([
-                        'match_id'   => $match->id,
-                        'user_id'    => $player->id,
-                        'status'     => 'confirmed',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                if ($idx === 0 && $k >= 7) continue;          // leave matches 8,9,10 open for player1
+                if ($idx % 2 !== 0 && $idx > 10) continue;    // only a subset joins
+
+                // Vary status so the organizer review screen has content to act on
+                if ($idx % 4 === 1) {
+                    $status  = 'awaiting_approval';
+                    $receipt = "https://picsum.photos/seed/receipt{$match->id}_{$idx}/400/600";
+                    $paidAt  = now();
+                } elseif ($idx % 4 === 3) {
+                    $status  = 'pending';     // joined but not paid yet
+                    $receipt = null;
+                    $paidAt  = null;
+                } else {
+                    $status  = 'confirmed';
+                    $receipt = null;
+                    $paidAt  = now();
                 }
+
+                DB::table('match_player')->insert([
+                    'match_id'        => $match->id,
+                    'user_id'         => $player->id,
+                    'status'          => $status,
+                    'payment_receipt' => $receipt,
+                    'paid_at'         => $paidAt,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
             }
         }
 
-        $this->command->info('✅ Seeded 20 matches (10 past + 10 upcoming) with 20 players.');
+        $this->command->info('✅ Seeded 20 matches (10 past + 10 upcoming) with 20 players + booking states.');
     }
 }
