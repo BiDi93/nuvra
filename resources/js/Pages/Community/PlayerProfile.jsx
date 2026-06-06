@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -6,8 +7,17 @@ const API = "/api/community";
 const BRAND_BLUE = "#00D4EC";
 
 export default function PlayerProfile() {
+    const navigate = useNavigate();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const handleLogout = () => {
+        const token = localStorage.getItem("community_token");
+        if (token) fetch(`${API}/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        localStorage.removeItem("community_token");
+        localStorage.removeItem("community_user");
+        navigate("/community");
+    };
 
     useEffect(() => {
         fetchProfile();
@@ -70,11 +80,13 @@ export default function PlayerProfile() {
     return (
         <div style={S.container}>
             <style>{`
+                .mobile-signout { display: none; }
                 @media (max-width: 768px) {
                     .profile-main  { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; }
                     .profile-name  { font-size: 24px !important; }
                     .stats-grid    { grid-template-columns: repeat(2, 1fr) !important; }
                     .history-item  { flex-wrap: wrap !important; gap: 8px !important; }
+                    .mobile-signout { display: block !important; }
                 }
             `}</style>
             <header style={S.header}>
@@ -186,6 +198,11 @@ export default function PlayerProfile() {
                         </div>
                     </section>
                 )}
+
+                {/* Mobile-only sign out (sidebar logout is hidden on phones) */}
+                <button className="mobile-signout" style={S.signOutBtn} onClick={handleLogout}>
+                    SIGN OUT
+                </button>
             </div>
         </div>
     );
@@ -248,4 +265,6 @@ const S = {
     historyStatBadge: { padding: "6px 10px", borderRadius: 8, background: "rgba(0,0,0,0.2)", fontSize: 11, fontWeight: 800, color: "#fff" },
 
     empty: { padding: 100, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 14 },
+
+    signOutBtn: { width: "100%", padding: 16, borderRadius: 16, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: 14, fontWeight: 800, letterSpacing: 1, cursor: "pointer", marginTop: 8 },
 };
