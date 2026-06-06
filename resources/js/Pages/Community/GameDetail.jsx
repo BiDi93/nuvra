@@ -348,7 +348,7 @@ const S = {
     payBlock: { marginTop: 30, padding: 20, borderRadius: 16, background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" },
     payTitle: { fontSize: 12, fontWeight: 900, color: "#fff", letterSpacing: 1, marginBottom: 6 },
     paySub: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 14, lineHeight: 1.5 },
-    qr: { width: 180, height: 180, borderRadius: 12, margin: "0 auto", background: "#fff", padding: 8 },
+    qr: { width: "100%", maxWidth: 360, height: "auto", display: "block", borderRadius: 12, margin: "0 auto", background: "#fff", padding: 12 },
     uploadBtn: { display: "block", marginTop: 12, padding: 14, borderRadius: 12, background: "linear-gradient(135deg, #00D4EC, #D040EF)", color: "#080810", fontWeight: 800, fontSize: 13, cursor: "pointer" },
 
     // players / bookings
