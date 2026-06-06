@@ -345,10 +345,10 @@ class CommunityGameController extends Controller
                 ->first();
 
             $data['stats'] = [
-                'total_matches' => $stats->total_matches ?? 0,
-                'total_goals' => $stats->total_goals ?? 0,
+                'total_matches' => $stats->total_games ?? 0,
+                'total_goals'   => $stats->total_goals ?? 0,
                 'total_assists' => $stats->total_assists ?? 0,
-                'avg_rating' => round($stats->avg_rating ?? 0, 1),
+                'avg_rating'    => round($stats->avg_rating ?? 0, 1),
             ];
 
             $data['history'] = FootballMatch::whereHas('players', function($q) use ($user) {
@@ -357,15 +357,16 @@ class CommunityGameController extends Controller
             ->with(['performances' => function($q) use ($user) {
                 $q->where('user_id', $user->id);
             }])
+            ->where('match_date', '<', now())   // past matches only
             ->orderBy('match_date', 'desc')
             ->limit(10)
             ->get()
             ->map(fn($m) => [
-                'id' => $m->id,
-                'title' => $m->title ?? ($m->team_a_name . ' vs ' . $m->team_b_name),
-                'venue' => $m->venue,
-                'date' => $m->match_date,
-                'goals' => $m->performances->first()->goals ?? 0,
+                'id'     => $m->id,
+                'title'  => $m->title ?? ($m->team_a_name . ' vs ' . $m->team_b_name),
+                'venue'  => $m->venue,
+                'date'   => $m->match_date,
+                'goals'  => $m->performances->first()->goals ?? 0,
                 'rating' => $m->performances->first()->rating ?? 0,
             ]);
         }
