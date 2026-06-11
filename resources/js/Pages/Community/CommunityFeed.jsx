@@ -88,6 +88,9 @@ export default function CommunityFeed() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("ALL");
 
+    const currentUser = JSON.parse(localStorage.getItem("community_user") || "null");
+    const isOrganizer = currentUser?.role === "club_owner" || currentUser?.role === "admin";
+
     useEffect(() => {
         fetchGames();
     }, []);
@@ -105,6 +108,9 @@ export default function CommunityFeed() {
     };
 
     const filteredGames = games.filter(g => {
+        // Organizers only see games they created
+        if (isOrganizer && g.club_owner_id !== currentUser.id) return false;
+
         if (filter === "ALL") return true;
         const gameDate = new Date(g.game_date);
         const today = new Date();

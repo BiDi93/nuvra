@@ -31,6 +31,7 @@ class CommunityGameController extends Controller
                 'total_slots' => $match->total_slots,
                 'filled_slots' => $match->confirmed_players,
                 'status' => $match->status,
+                'club_owner_id' => $match->club_owner_id,
             ];
         });
 
@@ -312,6 +313,45 @@ class CommunityGameController extends Controller
         if (!$updated) return response()->json(['message' => 'Booking not found'], 404);
 
         return response()->json(['message' => 'Booking rejected']);
+    }
+
+    // Record player performances for a completed match (organizer only)
+    public function recordPerformances(Request $request, $id)
+    {
+        $match = FootballMatch::find($id);
+        if (!$match) return response()->json(['message' => 'Match not found'], 404);
+
+        $me = $request->user();
+        if ((int) $match->club_owner_id !== (int) $me->id && $me->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'performances'                  => 'required|array',
+            'performances.*.user_id'        => 'required|integer|exists:users,id',
+            'performances.*.goals'          => 'required|integer|min:0',
+            'performances.*.assists'        => 'required|integer|min:0',
+            'performances.*.rating'         => 'required|numeric|min:0|max:10',
+            'performances.*.cleansheet'     => 'required|boolean',
+            'performances.*.minutes_played' => 'required|integer|min:0',
+        ]);
+
+        foreach ($request->performances as $p) {
+            DB::table('performances')->updateOrInsert(
+                ['user_id' => $p['user_id'], 'match_id' => $id],
+                [
+                    'goals'          => $p['goals'],
+                    'assists'        => $p['assists'],
+                    'rating'         => $p['rating'],
+                    'cleansheet'     => $p['cleansheet'],
+                    'minutes_played' => $p['minutes_played'],
+                    'updated_at'     => now(),
+                    'created_at'     => now(),
+                ]
+            );
+        }
+
+        return response()->json(['message' => 'Performances saved successfully']);
     }
 
     // List all community members

@@ -61,6 +61,7 @@ Route::prefix('community')->group(function () {
         Route::get('/games/{id}/bookings',             [CommunityGameController::class, 'bookings']);
         Route::patch('/bookings/{bookingId}/approve',  [CommunityGameController::class, 'approveBooking']);
         Route::patch('/bookings/{bookingId}/reject',   [CommunityGameController::class, 'rejectBooking']);
+        Route::post('/games/{id}/performances',        [CommunityGameController::class, 'recordPerformances']);
 
         // ── Announcements ─────────────────────────────────────────────────────────
         Route::get('/announcements',         [CommunityAnnouncementController::class, 'index']);

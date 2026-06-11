@@ -21,6 +21,10 @@ export default function GameDetail() {
     // Organizer review panel
     const [bookings, setBookings] = useState([]);
 
+    // Performance recording
+    const [perfMap, setPerfMap] = useState({});
+    const [perfSaving, setPerfSaving] = useState(false);
+
     useEffect(() => {
         fetchDetail();
     }, [id]);
@@ -31,12 +35,41 @@ export default function GameDetail() {
             const json = await res.json();
             if (res.ok) {
                 setData(json);
-                if (json.is_owner) fetchBookings();
+                if (json.is_owner) {
+                    fetchBookings();
+                    // Seed perfMap with confirmed players
+                    const seed = {};
+                    (json.players || []).forEach(p => {
+                        seed[p.id] = { goals: 0, assists: 0, rating: 7, cleansheet: false, minutes_played: 90 };
+                    });
+                    setPerfMap(seed);
+                }
             }
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSavePerformances = async () => {
+        setPerfSaving(true);
+        try {
+            const performances = Object.entries(perfMap).map(([user_id, stats]) => ({
+                user_id: parseInt(user_id),
+                ...stats,
+            }));
+            const res = await fetch(`${API}/games/${id}/performances`, {
+                method: "POST",
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({ performances }),
+            });
+            const resData = await res.json();
+            alert(resData.message);
+        } catch {
+            alert("Failed to save performances");
+        } finally {
+            setPerfSaving(false);
         }
     };
 
@@ -156,7 +189,16 @@ export default function GameDetail() {
                         )}
 
                         {is_owner && (
-                            <div style={S.ownerNote}>You are the organizer of this match.</div>
+                            <>
+                                <div style={S.ownerNote}>You are the organizer of this match.</div>
+                                <PerformancePanel
+                                    players={players}
+                                    perfMap={perfMap}
+                                    setPerfMap={setPerfMap}
+                                    onSave={handleSavePerformances}
+                                    saving={perfSaving}
+                                />
+                            </>
                         )}
                     </div>
                 </div>
@@ -300,8 +342,8 @@ function OrganizerReview({ bookings, total, onApprove, onReject }) {
                             </div>
 
                             {b.payment_receipt && (
-                                <a href={b.payment_receipt} target="_blank" rel="noreferrer">
-                                    <img src={b.payment_receipt} alt="receipt" style={S.receiptThumb} />
+                                <a href={b.payment_receipt} target="_blank" rel="noreferrer" style={S.viewReceiptLink}>
+                                    📄 View Receipt →
                                 </a>
                             )}
 
@@ -318,6 +360,61 @@ function OrganizerReview({ bookings, total, onApprove, onReject }) {
                     ))
                 )}
             </div>
+        </div>
+    );
+}
+
+// ── Organizer: record player stats ───────────────────────────────────────────
+function PerformancePanel({ players, perfMap, setPerfMap, onSave, saving }) {
+    if (!players || players.length === 0)
+        return <div style={S.ownerNote}>No confirmed players to record stats for.</div>;
+
+    const update = (userId, field, value) => {
+        setPerfMap(prev => ({ ...prev, [userId]: { ...prev[userId], [field]: value } }));
+    };
+
+    return (
+        <div style={S.perfPanel}>
+            <div style={S.cardTitle}>RECORD PLAYER STATS</div>
+            <div style={S.perfGrid}>
+                {players.map(p => {
+                    const s = perfMap[p.id] || { goals: 0, assists: 0, rating: 7, cleansheet: false, minutes_played: 90 };
+                    return (
+                        <div key={p.id} style={S.perfRow}>
+                            <div style={S.perfName}>
+                                <div style={S.avatar}>{p.avatar ? <img src={p.avatar} alt="" style={S.avatarImg} /> : p.name[0]}</div>
+                                <span>{p.name}</span>
+                            </div>
+                            <div style={S.perfFields}>
+                                <label style={S.perfLabel}>Goals
+                                    <input type="number" min="0" value={s.goals} style={S.perfInput}
+                                        onChange={e => update(p.id, "goals", parseInt(e.target.value) || 0)} />
+                                </label>
+                                <label style={S.perfLabel}>Assists
+                                    <input type="number" min="0" value={s.assists} style={S.perfInput}
+                                        onChange={e => update(p.id, "assists", parseInt(e.target.value) || 0)} />
+                                </label>
+                                <label style={S.perfLabel}>Rating (0–10)
+                                    <input type="number" min="0" max="10" step="0.1" value={s.rating} style={S.perfInput}
+                                        onChange={e => update(p.id, "rating", parseFloat(e.target.value) || 0)} />
+                                </label>
+                                <label style={S.perfLabel}>Mins
+                                    <input type="number" min="0" value={s.minutes_played} style={S.perfInput}
+                                        onChange={e => update(p.id, "minutes_played", parseInt(e.target.value) || 0)} />
+                                </label>
+                                <label style={{ ...S.perfLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                                    <input type="checkbox" checked={s.cleansheet}
+                                        onChange={e => update(p.id, "cleansheet", e.target.checked)} />
+                                    Clean Sheet
+                                </label>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <button style={{ ...S.joinBtn, marginTop: 20, opacity: saving ? 0.6 : 1 }} onClick={onSave} disabled={saving}>
+                {saving ? "SAVING..." : "SAVE PERFORMANCES"}
+            </button>
         </div>
     );
 }
@@ -367,4 +464,13 @@ const S = {
     approveBtn: { flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "rgba(34,197,94,0.15)", color: "#22c55e", fontWeight: 800, fontSize: 12, cursor: "pointer" },
     rejectBtn: { flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "rgba(239,68,68,0.15)", color: "#ef4444", fontWeight: 800, fontSize: 12, cursor: "pointer" },
     awaitingPay: { marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.35)", fontStyle: "italic" },
+
+    // performance panel
+    perfPanel: { marginTop: 30 },
+    perfGrid: { display: "flex", flexDirection: "column", gap: 16, marginTop: 16 },
+    perfRow: { padding: 14, borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" },
+    perfName: { display: "flex", alignItems: "center", gap: 10, marginBottom: 12, fontSize: 14, fontWeight: 700, color: "#fff" },
+    perfFields: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 10 },
+    perfLabel: { display: "flex", flexDirection: "column", gap: 4, fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 },
+    perfInput: { padding: "6px 8px", borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 14, fontWeight: 600, width: "100%", outline: "none" },
 };
