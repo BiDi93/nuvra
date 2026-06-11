@@ -62,18 +62,18 @@ const IconArrowDown = () => (
 
 // ── Gallery Strip ──────────────────────────────────────────────────────────────
 const ROW_A = [
-    "/images/gallery/g1.jpg",
-    "/images/gallery/g3.jpg",
-    "/images/gallery/g5.jpg",
-    "/images/gallery/g7.jpg",
-    "/images/gallery/g9.jpg",
+    "/images/gallery/g1.webp",
+    "/images/gallery/g3.webp",
+    "/images/gallery/g5.webp",
+    "/images/gallery/g7.webp",
+    "/images/gallery/g9.webp",
 ];
 const ROW_B = [
-    "/images/gallery/g2.jpg",
-    "/images/gallery/g4.jpg",
-    "/images/gallery/g6.jpg",
-    "/images/gallery/g8.jpg",
-    "/images/gallery/g10.jpg",
+    "/images/gallery/g2.webp",
+    "/images/gallery/g4.webp",
+    "/images/gallery/g6.webp",
+    "/images/gallery/g8.webp",
+    "/images/gallery/g10.webp",
 ];
 
 function GalleryStrip() {
@@ -157,11 +157,11 @@ export default function NuvraPortal() {
 
             <nav style={{ ...S.nav, ...(scrolled ? S.navScrolled : {}) }}>
                 <div style={S.navLogo} onClick={() => navigate("/")}>
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={{ height: 40 }} />
+                    <img src="/images/logoImage/NUVRA_LOGO.webp" alt="Nuvra" style={{ height: 40 }} />
                 </div>
                 <div className="portal-nav-links" style={S.navLinks}>
                     <button className="portal-nav-link" style={S.navLink} onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>How It Works</button>
-                    <button className="portal-nav-link" style={S.navLink} onClick={() => navigate("/community")}>Join Game</button>
+                    <button className="portal-nav-link" style={S.navLink} onClick={() => navigate("/games")}>Join Game</button>
                     <button className="btn-primary" style={S.navCta} onClick={() => navigate("/community")}>Sign In</button>
                 </div>
             </nav>
@@ -170,7 +170,7 @@ export default function NuvraPortal() {
                 <h1 style={S.heroTitle}>THE FOOTBALL<br /><span style={{ color: "#00D4EC" }}>COMMUNITY</span></h1>
                 <p style={S.heroTagline}>The platform for amateur players and match organizers to connect, play, and track records.</p>
                 <div style={{ display: 'flex', gap: 16 }}>
-                    <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/community")}>EXPLORE GAMES</button>
+                    <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/games")}>EXPLORE GAMES</button>
                     <button style={S.btnSecondaryHero} onClick={() => navigate("/community")}>ORGANIZER LOGIN</button>
                 </div>
             </section>

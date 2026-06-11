@@ -80,14 +80,14 @@ export default function CreateGame() {
 
                 <form onSubmit={handleSubmit} style={styles.form}>
                     <div style={styles.typeToggle}>
-                        <button 
+                        <button
                             type="button"
                             onClick={() => set("match_type", "pickup")}
                             style={form.match_type === "pickup" ? styles.activeToggle : styles.inactiveToggle}
                         >
                             Pickup Game (2 Teams)
                         </button>
-                        <button 
+                        <button
                             type="button"
                             onClick={() => set("match_type", "external")}
                             style={form.match_type === "external" ? styles.activeToggle : styles.inactiveToggle}
@@ -99,11 +99,11 @@ export default function CreateGame() {
                     <Field label="Game Title *" value={form.title} onChange={v => set("title", v)} placeholder="e.g. Midnight Futsal — Cheras" />
 
                     <div style={styles.row}>
-                        <Field 
-                            label={form.match_type === "external" ? "Your Team Name" : "Team A Name"} 
-                            value={form.team_a_name} 
-                            onChange={v => set("team_a_name", v)} 
-                            placeholder="e.g. Nuvra FC" 
+                        <Field
+                            label={form.match_type === "external" ? "Your Team Name" : "Team A Name"}
+                            value={form.team_a_name}
+                            onChange={v => set("team_a_name", v)}
+                            placeholder="e.g. Nuvra FC"
                         />
                         {form.match_type === "pickup" ? (
                             <Field label="Team B Name" value={form.team_b_name} onChange={v => set("team_b_name", v)} placeholder="Team B" />
@@ -195,7 +195,7 @@ export default function CreateGame() {
                     </div>
 
                     <button style={styles.submitBtn} type="submit" disabled={loading}>
-                        {loading ? "Posting..." : "📣 POST GAME & NOTIFY PLAYERS"}
+                        {loading ? "Posting..." : "POST GAME"}
                     </button>
                 </form>
             </div>

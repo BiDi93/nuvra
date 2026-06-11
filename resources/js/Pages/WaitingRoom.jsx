@@ -74,7 +74,7 @@ const WaitingRoom = () => {
             {/* ── Top bar ── */}
             <div style={S.topBar}>
                 <img
-                    src="/images/logoImage/NUVRA_LOGO.png"
+                    src="/images/logoImage/NUVRA_LOGO.webp"
                     alt="NUVRA"
                     style={S.logoImg}
                     onClick={() => navigate('/')}

@@ -15,7 +15,7 @@ const Login = () => {
             <DynamicBackground />
             <div className="glass-panel p-8 w-96 text-center relative z-10">
                 <div className="flex items-center justify-center gap-3 mb-6">
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-10 w-10 object-contain" />
+                    <img src="/images/logoImage/NUVRA_LOGO.webp" alt="NUVRA" className="h-10 w-10 object-contain" />
                     <span className="text-2xl font-black text-white tracking-tighter">
                         NUVRA
                     </span>

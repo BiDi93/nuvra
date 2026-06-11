@@ -151,7 +151,7 @@ const AuthPage = () => {
                 <div style={S.heroOverlayBottom} />
                 <div style={S.heroContent}>
                     <div style={S.heroLogo} onClick={() => navigate('/')} role="button">
-                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={S.heroLogoImg} />
+                        <img src="/images/logoImage/NUVRA_LOGO.webp" alt="NUVRA" style={S.heroLogoImg} />
                     </div>
                     <div style={S.heroTagline}>
                         <h2 style={S.heroTaglineHeading}>Play Together.<br />Grow Together.</h2>

@@ -97,7 +97,7 @@ export default function CommunityLayout() {
                 <div style={S.brand} onClick={() => navigate("/")}>
                     <div style={S.logoContainer}>
                         <img 
-                            src="/images/logoImage/NUVRA_LOGO.png" 
+                            src="/images/logoImage/NUVRA_LOGO.webp" 
                             alt="Nuvra Logo" 
                             style={S.logoImg} 
                         />

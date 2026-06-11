@@ -84,7 +84,7 @@ const Onboarding = () => {
             {/* ── Left decorative panel ── */}
             <div style={S.leftPanel}>
                 <div style={S.leftInner}>
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" style={S.logo} onClick={() => navigate('/')} />
+                    <img src="/images/logoImage/NUVRA_LOGO.webp" alt="NUVRA" style={S.logo} onClick={() => navigate('/')} />
                     <div style={S.leftText}>
                         <h2 style={S.leftHeading}>One more step.</h2>
                         <p style={S.leftSub}>Tell us about yourself so your coach can find you.</p>

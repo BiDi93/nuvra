@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DynamicBackground from "../../Components/DynamicBackground";
 import PageLoader from "../../Components/PageLoader";
@@ -8,6 +8,11 @@ const API = "/api/community";
 export default function CommunityHome() {
     const navigate = useNavigate();
     const [tab, setTab] = useState("login"); // 'login' | 'register' | 'forgot'
+
+    useEffect(() => {
+        const token = localStorage.getItem("community_token");
+        if (token) navigate("/community/feed", { replace: true });
+    }, []);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(false);
@@ -96,7 +101,7 @@ export default function CommunityHome() {
             <div style={styles.container}>
                 {/* Header */}
                 <div style={styles.header}>
-                    <img src="/images/logoImage/NUVRA_LOGO.png" alt="Nuvra" style={styles.iconWrap} onClick={() => navigate("/")} />
+                    <img src="/images/logoImage/NUVRA_LOGO.webp" alt="Nuvra" style={styles.iconWrap} onClick={() => navigate("/")} />
                     <h1 style={styles.title}>Nuvra Community</h1>
                     <p style={styles.subtitle}>Football for everyone — join your favorite game</p>
                 </div>

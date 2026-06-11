@@ -14,6 +14,7 @@ import CommunityLayout from "./Layouts/CommunityLayout.jsx";
 import CommunityHome from "./Pages/Community/CommunityHome.jsx";
 import CommunityGoogleCallback from "./Pages/Community/CommunityGoogleCallback.jsx";
 import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
+import PublicGames from "./Pages/Community/PublicGames.jsx";
 import CommunityMembers from "./Pages/Community/CommunityMembers.jsx";
 import PublicPlayerProfile from "./Pages/Community/PublicPlayerProfile.jsx";
 import GameDetail from "./Pages/Community/GameDetail.jsx";
@@ -39,6 +40,7 @@ function App() {
                     2. COMMUNITY ROUTES
                    ========================================= */}
                 <Route path="/community" element={<CommunityHome />} />
+                <Route path="/games" element={<PublicGames />} />
                 <Route path="/community/auth/callback" element={<CommunityGoogleCallback />} />
                 
                 <Route path="/community" element={<CommunityLayout />}>

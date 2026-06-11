@@ -85,14 +85,14 @@ export default function LandingPage() {
     return (
         <div className="relative min-h-screen w-full font-sans overflow-x-hidden overflow-y-auto flex items-center justify-center py-10 bg-gray-900">
             <div className="fixed inset-0 z-0">
-                <img src="/images/landingPage/image_landing_page.jpeg" alt="Background" className="w-full h-full object-cover" />
+                <img src="/images/landingPage/landing_page.webp" alt="Background" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-900/95 via-gray-900/80 to-purple-900/50 backdrop-blur-[2px]"></div>
             </div>
 
             <div className="relative z-10 w-full max-w-md px-4 animate-fade-in-up my-auto">
                 <div className="text-center mb-8 flex flex-col items-center justify-center">
                     <div className="flex items-center gap-4 mb-4">
-                        <img src="/images/logoImage/NUVRA_LOGO.png" alt="NUVRA" className="h-24 w-24 object-cover object-left" />
+                        <img src="/images/logoImage/NUVRA_LOGO.webp" alt="NUVRA" className="h-24 w-24 object-cover object-left" />
                         <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 tracking-tighter drop-shadow-2xl">
                             NUVRA
                         </span>
