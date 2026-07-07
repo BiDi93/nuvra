@@ -32,5 +32,6 @@ TECHNICAL_DOCUMENT.docx
 CLAUDE.md
 .gemini/
 GEMINI.md
-
-
+# Shell and MVP files
+*.sh
+*.mvp
