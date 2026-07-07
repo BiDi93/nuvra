@@ -7,6 +7,7 @@ use App\Models\MatchPlayer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
+use App\Notifications\BookingStatusUpdated;
 
 class CommunityGameController extends Controller
 {
@@ -288,14 +289,22 @@ class CommunityGameController extends Controller
     // Approve booking
     public function approveBooking(Request $request, $bookingId)
     {
-        $updated = DB::table('match_player')
+        $booking = DB::table('match_player')->where('id', $bookingId)->first();
+        if (!$booking) return response()->json(['message' => 'Booking not found'], 404);
+
+        DB::table('match_player')
             ->where('id', $bookingId)
             ->update([
                 'status' => 'confirmed',
                 'updated_at' => now()
             ]);
 
-        if (!$updated) return response()->json(['message' => 'Booking not found'], 404);
+        $match = FootballMatch::find($booking->match_id);
+        $player = User::find($booking->user_id);
+
+        if ($player && $match) {
+            $player->notify(new BookingStatusUpdated($match, 'approved'));
+        }
 
         return response()->json(['message' => 'Booking approved']);
     }
@@ -303,14 +312,22 @@ class CommunityGameController extends Controller
     // Reject booking
     public function rejectBooking(Request $request, $bookingId)
     {
-        $updated = DB::table('match_player')
+        $booking = DB::table('match_player')->where('id', $bookingId)->first();
+        if (!$booking) return response()->json(['message' => 'Booking not found'], 404);
+
+        DB::table('match_player')
             ->where('id', $bookingId)
             ->update([
                 'status' => 'rejected',
                 'updated_at' => now()
             ]);
 
-        if (!$updated) return response()->json(['message' => 'Booking not found'], 404);
+        $match = FootballMatch::find($booking->match_id);
+        $player = User::find($booking->user_id);
+
+        if ($player && $match) {
+            $player->notify(new BookingStatusUpdated($match, 'rejected'));
+        }
 
         return response()->json(['message' => 'Booking rejected']);
     }
@@ -357,7 +374,7 @@ class CommunityGameController extends Controller
     // List all community members
     public function members()
     {
-        $users = User::select('id', 'name', 'avatar', 'role', 'created_at')
+        $users = User::select('id', 'name', 'avatar', 'club_logo', 'role', 'created_at')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($user) {
@@ -370,6 +387,7 @@ class CommunityGameController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'avatar' => $user->avatar,
+                    'club_logo' => $user->club_logo,
                     'role' => $user->role,
                     'joined' => $user->created_at->format('M Y'),
                     'games' => $stats->total_games ?? 0,
@@ -416,6 +434,7 @@ class CommunityGameController extends Controller
                 'avatar' => $user->avatar,
                 'role' => $user->role,
                 'joined' => $user->created_at->format('M Y'),
+                'club_logo' => $user->club_logo,
             ],
             'stats' => [
                 'total_matches' => $stats->total_matches ?? 0,
@@ -442,6 +461,7 @@ class CommunityGameController extends Controller
                 'address' => $user->address,
                 'role' => $user->role,
                 'avatar' => $user->avatar,
+                'club_logo' => $user->club_logo,
             ]
         ];
 
@@ -513,6 +533,28 @@ class CommunityGameController extends Controller
             return response()->json([
                 'message' => 'Profile picture updated!',
                 'avatar' => $user->avatar
+            ]);
+        }
+
+        return response()->json(['message' => 'Upload failed'], 400);
+    }
+
+    // Update User Club Logo
+    public function updateClubLogo(Request $request)
+    {
+        $request->validate([
+            'club_logo' => 'required|image|max:2048',
+        ]);
+
+        $user = $request->user();
+        
+        if ($request->hasFile('club_logo')) {
+            $path = $request->file('club_logo')->store('logos', 'public');
+            $user->update(['club_logo' => '/storage/' . $path]);
+            
+            return response()->json([
+                'message' => 'Club logo updated!',
+                'club_logo' => $user->club_logo
             ]);
         }
 

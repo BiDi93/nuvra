@@ -42,11 +42,18 @@ export default function PublicPlayerProfile() {
             
             <header style={S.header}>
                 <div style={S.profileMain}>
-                    <div style={S.avatarLarge}>
-                        {user.avatar ? (
-                            <img src={user.avatar} alt="" style={S.avatarImg} />
-                        ) : (
-                            user.name[0].toUpperCase()
+                    <div style={S.avatarWrapper}>
+                        <div style={S.avatarLarge}>
+                            {user.avatar ? (
+                                <img src={user.avatar} alt="" style={S.avatarImg} />
+                            ) : (
+                                user.name[0].toUpperCase()
+                            )}
+                        </div>
+                        {user.club_logo && (
+                            <div style={S.logoBadgeWrapper}>
+                                <img src={user.club_logo} alt="Club Logo" style={S.logoBadgeImg} />
+                            </div>
                         )}
                     </div>
                     <div style={S.userMeta}>
@@ -138,7 +145,10 @@ const S = {
     header: { marginBottom: 48 },
     profileMain: { display: "flex", alignItems: "center", gap: 32 },
     avatarLarge: { width: 120, height: 120, borderRadius: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden" },
+    avatarWrapper: { position: "relative" },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
+    logoBadgeWrapper: { position: "absolute", bottom: -8, right: -8, width: 52, height: 52, borderRadius: "50%", background: "#1e2330", border: "3px solid #0d111a", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", zIndex: 10 },
+    logoBadgeImg: { width: "100%", height: "100%", objectFit: "cover" },
     userMeta: { flex: 1 },
     name: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: -0.5 },
     roleBadge: { display: "inline-block", padding: "4px 12px", borderRadius: 8, background: "rgba(0,212,236,0.1)", color: BRAND_BLUE, fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 8 },

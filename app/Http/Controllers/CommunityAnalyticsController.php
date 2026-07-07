@@ -4,53 +4,57 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class CommunityAnalyticsController extends Controller
 {
     public function index()
     {
-        $totalGames = DB::table('community_games')->count();
+        $totalGames = DB::table('matches')->count();
 
-        $playersRegistered = DB::table('community_users')
+        $playersRegistered = DB::table('users')
             ->where('role', 'player')
             ->count();
 
-        $revenueThisMonth = DB::table('community_bookings')
-            ->join('community_games', 'community_bookings.game_id', '=', 'community_games.id')
-            ->where('community_bookings.status', 'confirmed')
-            ->whereMonth('community_bookings.updated_at', now()->month)
-            ->whereYear('community_bookings.updated_at', now()->year)
-            ->sum('community_games.price_per_player');
+        $revenueThisMonth = DB::table('match_player')
+            ->join('matches', 'match_player.match_id', '=', 'matches.id')
+            ->where('match_player.status', 'confirmed')
+            ->whereMonth('match_player.updated_at', now()->month)
+            ->whereYear('match_player.updated_at', now()->year)
+            ->sum('matches.price');
 
-        $recentBookings = DB::table('community_bookings')
-            ->join('community_games', 'community_bookings.game_id', '=', 'community_games.id')
-            ->join('community_users', 'community_bookings.community_user_id', '=', 'community_users.id')
+        $recentBookings = DB::table('match_player')
+            ->join('matches', 'match_player.match_id', '=', 'matches.id')
+            ->join('users', 'match_player.user_id', '=', 'users.id')
             ->select(
-                'community_bookings.id',
-                'community_bookings.status',
-                'community_bookings.created_at',
-                'community_games.title as game_title',
-                'community_games.game_date',
-                'community_users.name as player_name'
+                'match_player.id',
+                'match_player.status',
+                'match_player.created_at',
+                'matches.title as game_title',
+                'matches.match_date as game_date',
+                'users.name as player_name'
             )
-            ->orderByDesc('community_bookings.created_at')
+            ->orderByDesc('match_player.created_at')
             ->limit(5)
             ->get()
             ->map(function ($b) {
-                $gameDate = \Carbon\Carbon::parse($b->game_date);
+                $gameDate = Carbon::parse($b->game_date);
                 $timeStr  = $gameDate->isToday()
                     ? 'Kick-off: ' . $gameDate->format('H:i') . ' Today'
                     : 'Kick-off: ' . $gameDate->format('d M, H:i');
 
-                if ($b->status === 'payment_submitted') {
+                if ($b->status === 'awaiting_approval') {
                     $icon    = '💳';
                     $message = "Payment submitted by {$b->player_name} for '{$b->game_title}'";
                 } elseif ($b->status === 'confirmed') {
                     $icon    = '✅';
                     $message = "Booking confirmed for '{$b->game_title}' — {$b->player_name}";
+                } elseif ($b->status === 'rejected') {
+                    $icon    = '❌';
+                    $message = "Booking rejected for '{$b->game_title}' — {$b->player_name}";
                 } else {
                     $icon    = '❌';
-                    $message = "Booking cancelled for '{$b->game_title}'";
+                    $message = "Booking status updated to {$b->status} for '{$b->game_title}'";
                 }
 
                 return [
@@ -62,7 +66,7 @@ class CommunityAnalyticsController extends Controller
                 ];
             });
 
-        $recentRegistrations = DB::table('community_users')
+        $recentRegistrations = DB::table('users')
             ->where('role', 'player')
             ->select('id', 'name', 'created_at')
             ->orderByDesc('created_at')
@@ -72,7 +76,7 @@ class CommunityAnalyticsController extends Controller
                 'id'         => 'reg_' . $u->id,
                 'icon'       => '👤',
                 'message'    => "New player registered: {$u->name}",
-                'time'       => \Carbon\Carbon::parse($u->created_at)->diffForHumans(),
+                'time'       => Carbon::parse($u->created_at)->diffForHumans(),
                 'created_at' => $u->created_at,
             ]);
 

@@ -20,6 +20,12 @@ export default function CommunityMembers() {
             const res = await fetch(`${API}/members`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            if (res.status === 401) {
+                localStorage.removeItem("community_token");
+                localStorage.removeItem("community_user");
+                window.location.href = "/community";
+                return;
+            }
             const data = await res.json();
             setMembers(Array.isArray(data) ? data : []);
         } catch {
@@ -35,7 +41,7 @@ export default function CommunityMembers() {
             <style>{`
                 .member-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; cursor: pointer; }
             `}</style>
-            <h1 style={S.title}>COMMUNITY MEMBERS</h1>
+            <h1 style={S.title}>MEMBERS</h1>
             <p style={S.subtitle}>List of all registered football enthusiasts in NUVRA</p>
 
             {loading ? (
@@ -46,11 +52,18 @@ export default function CommunityMembers() {
                 <div style={S.grid}>
                     {members.map(m => (
                         <div key={m.id} style={S.card} className="member-card" onClick={() => navigate(`/community/members/${m.id}`)}>
-                            <div style={S.avatar}>
-                                {m.avatar ? (
-                                    <img src={m.avatar} alt="" style={S.avatarImg} />
-                                ) : (
-                                    m.name[0].toUpperCase()
+                            <div style={S.avatarWrapper}>
+                                <div style={S.avatar}>
+                                    {m.avatar ? (
+                                        <img src={m.avatar} alt="" style={S.avatarImg} />
+                                    ) : (
+                                        m.name[0].toUpperCase()
+                                    )}
+                                </div>
+                                {m.club_logo && (
+                                    <div style={S.logoBadgeWrapper}>
+                                        <img src={m.club_logo} alt="Club Logo" style={S.logoBadgeImg} />
+                                    </div>
                                 )}
                             </div>
                             <div style={S.info}>
@@ -81,10 +94,10 @@ const S = {
     title: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 42, fontWeight: 900, color: "#fff", letterSpacing: 1, marginBottom: 8 },
     subtitle: { fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 40 },
     grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 },
-    card: { 
-        background: "rgba(30, 31, 35, 0.8)", 
-        borderRadius: 20, 
-        padding: "24px", 
+    card: {
+        background: "rgba(30, 31, 35, 0.8)",
+        borderRadius: 20,
+        padding: "24px",
         border: "1px solid rgba(255,255,255,0.05)",
         display: "flex",
         flexDirection: "column",
@@ -92,7 +105,10 @@ const S = {
         textAlign: "center",
         transition: "all 0.2s ease"
     },
-    avatar: { width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: BRAND_BLUE, marginBottom: 16, overflow: "hidden", border: `2px solid ${BRAND_BLUE}33` },
+    avatar: { width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden", border: `2px solid ${BRAND_BLUE}33` },
+    avatarWrapper: { position: "relative", marginBottom: 16 },
+    logoBadgeWrapper: { position: "absolute", bottom: -4, right: -4, width: 32, height: 32, borderRadius: "50%", background: "#1e2330", border: "2px solid #0d111a", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", zIndex: 10 },
+    logoBadgeImg: { width: "100%", height: "100%", objectFit: "cover" },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
     info: { marginBottom: 20 },
     name: { fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 },

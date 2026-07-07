@@ -27,6 +27,11 @@ class User extends Authenticatable
         'avatar',    // And this!
         'role',
         'qr_code_path',
+        'club_logo',
+        'address',
+        'club_name',
+        'established_at',
+        'location',
     ];
 
     /**

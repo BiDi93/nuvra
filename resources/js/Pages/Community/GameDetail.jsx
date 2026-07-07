@@ -32,6 +32,12 @@ export default function GameDetail() {
     const fetchDetail = async () => {
         try {
             const res = await fetch(`${API}/games/${id}`, { headers: { ...authHeaders() } });
+            if (res.status === 401) {
+                localStorage.removeItem("community_token");
+                localStorage.removeItem("community_user");
+                window.location.href = "/community";
+                return;
+            }
             const json = await res.json();
             if (res.ok) {
                 setData(json);

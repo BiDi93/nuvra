@@ -6,12 +6,16 @@ import PageLoader from "../Components/PageLoader";
 const API = "/api/community";
 
 // ── Sidebar Nav Item ──────────────────────────────────────────────────────────
-function NavItem({ label, icon, active, onClick }) {
+function NavItem({ label, icon, active, onClick, noIndicator }) {
     return (
-        <button style={{ ...S.navItem, ...(active ? S.navItemActive : {}) }} onClick={onClick}>
+        <button 
+            style={{ ...S.navItem, ...((active && !noIndicator) ? S.navItemActive : {}) }} 
+            onClick={onClick}
+            className={noIndicator ? "notif-nav-btn" : ""}
+        >
             {icon && <span style={S.navIcon}>{icon}</span>}
             <span style={S.navLabel}>{label}</span>
-            {active && <div style={S.activeIndicator} />}
+            {active && !noIndicator && <div style={S.activeIndicator} />}
         </button>
     );
 }
@@ -31,11 +35,69 @@ export default function CommunityLayout() {
     const location = useLocation();
     const [user, setUser] = useState(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [showNotifications, setShowNotifications] = useState(false);
+
+    const fetchNotifications = async () => {
+        const token = localStorage.getItem("community_token");
+        if (!token) return;
+        try {
+            const res = await fetch(`${API}/notifications`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.status === 401) {
+                localStorage.removeItem("community_token");
+                localStorage.removeItem("community_user");
+                window.location.href = "/community";
+                return;
+            }
+            const data = await res.json();
+            if (res.ok) {
+                setNotifications(data.notifications || []);
+                setUnreadCount(data.unread_count || 0);
+            }
+        } catch (err) {
+            console.error("Failed to fetch notifications", err);
+        }
+    };
 
     useEffect(() => {
         const stored = localStorage.getItem("community_user");
         if (stored) setUser(JSON.parse(stored));
-    }, []);
+
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 20000);
+
+        const handleClickOutside = (e) => {
+            if (showNotifications && !e.target.closest(".notifications-dropdown") && !e.target.closest(".notif-nav-btn")) {
+                setShowNotifications(false);
+            }
+        };
+        document.addEventListener("click", handleClickOutside);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener("click", handleClickOutside);
+        };
+    }, [showNotifications]);
+
+    const handleMarkAsRead = async (id, matchId) => {
+        const token = localStorage.getItem("community_token");
+        try {
+            await fetch(`${API}/notifications/${id}/read`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchNotifications();
+            setShowNotifications(false);
+            if (matchId) {
+                navigate(`/community/games/${matchId}`);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const logout = () => {
         const token = localStorage.getItem("community_token");
@@ -58,12 +120,28 @@ export default function CommunityLayout() {
                 ::-webkit-scrollbar-track { background: transparent; }
                 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
 
+                .notifications-dropdown {
+                    animation: fadeIn 0.2s ease-out;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
                 /* ── Mobile: hide sidebar, remove main margin ── */
                 @media (max-width: 768px) {
                     .nuvra-sidebar { display: none !important; }
                     .nuvra-main   { margin-left: 0 !important; }
                     .nuvra-content { padding: 24px 16px 90px !important; }
                     .nuvra-bottom-nav { display: flex !important; }
+                    .notifications-dropdown {
+                        position: fixed !important;
+                        left: 16px !important;
+                        right: 16px !important;
+                        top: 20px !important;
+                        width: auto !important;
+                        z-index: 200 !important;
+                    }
                 }
 
                 /* ── Bottom Nav ── */
@@ -96,10 +174,10 @@ export default function CommunityLayout() {
                 {/* Brand / Logo */}
                 <div style={S.brand} onClick={() => navigate("/")}>
                     <div style={S.logoContainer}>
-                        <img 
-                            src="/images/logoImage/NUVRA_LOGO.webp" 
-                            alt="Nuvra Logo" 
-                            style={S.logoImg} 
+                        <img
+                            src="/images/logoImage/NUVRA_LOGO.webp"
+                            alt="Nuvra Logo"
+                            style={S.logoImg}
                         />
                         <div style={S.brandText}>NUVRA</div>
                     </div>
@@ -107,43 +185,114 @@ export default function CommunityLayout() {
 
                 {/* Nav */}
                 <nav style={S.sideNav}>
-                    <NavItem 
-                        label="DASHBOARD" 
+                    <NavItem
+                        label="DASHBOARD"
                         icon="📊"
-                        active={isActive("/community/feed")} 
-                        onClick={() => navigate("/community/feed")} 
+                        active={isActive("/community/feed")}
+                        onClick={() => navigate("/community/feed")}
                     />
-                    <NavItem 
-                        label="COMMUNITY" 
+                    <NavItem
+                        label="MEMBERS"
                         icon="✨" // New prettier icon
-                        active={isActive("/community/members")} 
-                        onClick={() => navigate("/community/members")} 
+                        active={isActive("/community/members")}
+                        onClick={() => navigate("/community/members")}
                     />
-                    <NavItem 
-                        label="PROFILE" 
+                    <NavItem
+                        label="PROFILE"
                         icon="👤"
-                        active={isActive("/community/profile")} 
-                        onClick={() => navigate("/community/profile")} 
+                        active={isActive("/community/profile")}
+                        onClick={() => navigate("/community/profile")}
                     />
+                    
+                    {user && (
+                        <div style={{ position: "relative" }}>
+                            <NavItem
+                                label={unreadCount > 0 ? `NOTIFICATIONS (${unreadCount})` : "NOTIFICATIONS"}
+                                icon={unreadCount > 0 ? "🔔" : "🔕"}
+                                active={showNotifications}
+                                noIndicator={true}
+                                onClick={() => setShowNotifications(!showNotifications)}
+                            />
+                            {unreadCount > 0 && (
+                                <span style={{
+                                    position: "absolute",
+                                    right: 20,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    background: "#ff5050",
+                                    color: "#fff",
+                                    fontSize: 9,
+                                    fontWeight: 800,
+                                    padding: "2px 6px",
+                                    borderRadius: 10,
+                                    pointerEvents: "none"
+                                }}>
+                                    NEW
+                                </span>
+                            )}
+                            
+                            {showNotifications && (
+                                <div style={S.notificationsDropdown} className="notifications-dropdown">
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                        <h4 style={S.notifTitle}>RECENT NOTIFICATIONS</h4>
+                                        {unreadCount > 0 && (
+                                            <button 
+                                                style={{ background: "none", border: "none", color: "#00D4EC", fontSize: 10, fontWeight: 700, cursor: "pointer" }}
+                                                onClick={async () => {
+                                                    const token = localStorage.getItem("community_token");
+                                                    await fetch(`${API}/notifications/read-all`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+                                                    fetchNotifications();
+                                                }}
+                                            >
+                                                Mark all read
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div style={S.notifList}>
+                                        {notifications.length === 0 ? (
+                                            <p style={S.emptyNotif}>No recent notifications.</p>
+                                        ) : (
+                                            notifications.map(n => (
+                                                <div 
+                                                    key={n.id} 
+                                                    style={{ ...S.notifItem, opacity: n.read_at ? 0.5 : 1 }} 
+                                                    onClick={() => handleMarkAsRead(n.id, n.data?.match_id)}
+                                                >
+                                                    <div style={S.notifIcon}>
+                                                        {n.data?.status === "approved" ? "✅" : "❌"}
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={S.notifMessage}>{n.data?.message}</div>
+                                                        <div style={S.notifTime}>{n.created_at}</div>
+                                                    </div>
+                                                    {!n.read_at && <div style={S.unreadDot} />}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* ADMIN / ORGANIZER ONLY */}
                     {(user?.role === "club_owner" || user?.role === "admin") && (
                         <>
                             <div style={S.navDivider}>ORGANIZER CONTROL</div>
-                            <NavItem 
-                                label="CREATE GAME" 
-                                active={isActive("/community/admin/create-game")} 
-                                onClick={() => navigate("/community/admin/create-game")} 
+                            <NavItem
+                                label="CREATE GAME"
+                                active={isActive("/community/admin/create-game")}
+                                onClick={() => navigate("/community/admin/create-game")}
                             />
-                            <NavItem 
-                                label="POST NEWS" 
-                                active={isActive("/community/admin/post-announcement")} 
-                                onClick={() => navigate("/community/admin/post-announcement")} 
+                            <NavItem
+                                label="POST NEWS"
+                                active={isActive("/community/admin/post-announcement")}
+                                onClick={() => navigate("/community/admin/post-announcement")}
                             />
-                            <NavItem 
-                                label="ANALYTICS" 
-                                active={isActive("/community/admin/analytics")} 
-                                onClick={() => navigate("/community/admin/analytics")} 
+                            <NavItem
+                                label="ANALYTICS"
+                                active={isActive("/community/admin/analytics")}
+                                onClick={() => navigate("/community/admin/analytics")}
                             />
                         </>
                     )}
@@ -166,7 +315,7 @@ export default function CommunityLayout() {
                             <div style={S.userRole}>{user.role?.toUpperCase() || "PLAYER"}</div>
                         </div>
                         <div style={S.dropdownArrow}>⌄</div>
-                        
+
                         {showUserMenu && (
                             <div style={S.userMenu}>
                                 <button style={S.menuItem} onClick={logout}>Sign out</button>
@@ -410,4 +559,74 @@ const S = {
         zIndex: 2,
         padding: "60px 48px", // More spacious
     },
+    notificationsDropdown: {
+        position: "absolute",
+        left: 250,
+        top: 0,
+        width: 320,
+        background: "#1e2330",
+        borderRadius: 16,
+        padding: 16,
+        boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        zIndex: 100,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12
+    },
+    notifTitle: {
+        fontSize: 11,
+        fontWeight: 800,
+        color: "rgba(255,255,255,0.3)",
+        letterSpacing: 1,
+        textTransform: "uppercase",
+        margin: 0
+    },
+    notifList: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        maxHeight: 280,
+        overflowY: "auto"
+    },
+    notifItem: {
+        display: "flex",
+        gap: 12,
+        padding: 12,
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.02)",
+        cursor: "pointer",
+        transition: "background 0.2s",
+        alignItems: "center"
+    },
+    notifIcon: {
+        fontSize: 18
+    },
+    notifMessage: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: "#fff",
+        lineHeight: "1.4",
+        textAlign: "left"
+    },
+    notifTime: {
+        fontSize: 10,
+        color: "rgba(255,255,255,0.3)",
+        marginTop: 4,
+        textAlign: "left"
+    },
+    unreadDot: {
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: "#00D4EC",
+        flexShrink: 0
+    },
+    emptyNotif: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.3)",
+        textAlign: "center",
+        padding: "20px 0",
+        width: "100%"
+    }
 };

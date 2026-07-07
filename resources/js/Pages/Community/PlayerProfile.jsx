@@ -29,14 +29,24 @@ export default function PlayerProfile() {
             const res = await fetch(`${API}/profile`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            if (res.status === 401) {
+                localStorage.removeItem("community_token");
+                localStorage.removeItem("community_user");
+                window.location.href = "/community";
+                return;
+            }
             const data = await res.json();
-            setProfile(data);
-            
-            if (data.user) {
-                localStorage.setItem("community_user", JSON.stringify(data.user));
+            if (res.ok) {
+                setProfile(data);
+                if (data.user) {
+                    localStorage.setItem("community_user", JSON.stringify(data.user));
+                }
+            } else {
+                setProfile(null);
             }
         } catch (err) {
             console.error("Failed to fetch profile", err);
+            setProfile(null);
         } finally {
             setLoading(false);
         }
@@ -71,6 +81,35 @@ export default function PlayerProfile() {
         }
     };
 
+    const handleClubLogoUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('club_logo', file);
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem("community_token");
+            const res = await fetch(`${API}/profile/logo`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            });
+            const resData = await res.json();
+            if (res.ok) {
+                fetchProfile();
+                window.location.reload(); 
+            } else {
+                alert(resData.message);
+            }
+        } catch (err) {
+            alert("Error uploading club logo");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (loading) return <PageLoader />;
     if (!profile) return <div style={S.empty}>No profile data found.</div>;
 
@@ -81,6 +120,61 @@ export default function PlayerProfile() {
         <div style={S.container}>
             <style>{`
                 .mobile-signout { display: none; }
+                .avatar-hover-container {
+                    position: relative;
+                }
+                .avatar-hover-overlay {
+                    position: absolute;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.6);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0;
+                    cursor: pointer;
+                    transition: opacity 0.2s ease;
+                    color: #fff;
+                    border-radius: 32px;
+                }
+                .avatar-hover-container:hover .avatar-hover-overlay {
+                    opacity: 1;
+                }
+                .logo-badge-wrapper {
+                    position: absolute;
+                    bottom: -8px;
+                    right: -8px;
+                    width: 52px;
+                    height: 52px;
+                    border-radius: 50%;
+                    background: #1e2330;
+                    border: 3px solid #0d111a;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    overflow: hidden;
+                    transition: transform 0.2s;
+                    z-index: 10;
+                }
+                .logo-badge-wrapper:hover {
+                    transform: scale(1.08);
+                }
+                .logo-badge-hover {
+                    position: absolute;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #fff;
+                    font-size: 14px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                }
+                .logo-badge-wrapper:hover .logo-badge-hover {
+                    opacity: 1;
+                }
                 @media (max-width: 768px) {
                     .profile-main  { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; }
                     .profile-name  { font-size: 24px !important; }
@@ -92,16 +186,28 @@ export default function PlayerProfile() {
             <header style={S.header}>
                 <div style={S.profileMain} className="profile-main">
                     <div style={S.avatarWrapper}>
-                        <div style={S.avatarLarge}>
+                        <div style={S.avatarLarge} className="avatar-hover-container">
                             {user.avatar ? (
                                 <img src={user.avatar} alt="" style={S.avatarImg} />
                             ) : (
                                 user.name[0].toUpperCase()
                             )}
+                            <label className="avatar-hover-overlay">
+                                <input type="file" hidden onChange={handleAvatarUpload} accept="image/*" />
+                                <span style={{ fontSize: 24, marginBottom: 4 }}>📷</span>
+                                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>CHANGE PHOTO</span>
+                            </label>
                         </div>
-                        <label style={S.avatarEdit}>
-                            <input type="file" hidden onChange={handleAvatarUpload} accept="image/*" />
-                            <span>📷</span>
+                        <label className="logo-badge-wrapper">
+                            <input type="file" hidden onChange={handleClubLogoUpload} accept="image/*" />
+                            {user.club_logo ? (
+                                <img src={user.club_logo} alt="Club Logo" style={S.logoBadgeImg} />
+                            ) : (
+                                <span style={S.logoPlaceholder}>🛡️</span>
+                            )}
+                            <div className="logo-badge-hover">
+                                <span>✎</span>
+                            </div>
                         </label>
                     </div>
                     <div style={S.userMeta}>
@@ -230,10 +336,11 @@ const S = {
     container: { maxWidth: 1000, margin: "0 auto", paddingBottom: 80 },
     header: { marginBottom: 48 },
     profileMain: { display: "flex", alignItems: "center", gap: 32 },
-    avatarLarge: { width: 120, height: 120, borderRadius: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden" },
+    avatarLarge: { width: 120, height: 120, borderRadius: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden", position: "relative" },
     avatarWrapper: { position: "relative" },
-    avatarEdit: { position: "absolute", bottom: -10, right: -10, width: 40, height: 40, borderRadius: "50%", background: BRAND_BLUE, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "4px solid #0d111a", fontSize: 16 },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
+    logoBadgeImg: { width: "100%", height: "100%", objectFit: "cover" },
+    logoPlaceholder: { fontSize: 20, color: BRAND_BLUE },
     userMeta: { flex: 1 },
     name: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: -0.5 },
     roleBadge: { display: "inline-block", padding: "4px 12px", borderRadius: 8, background: "rgba(0,212,236,0.1)", color: BRAND_BLUE, fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 8 },

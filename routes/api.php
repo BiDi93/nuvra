@@ -11,6 +11,7 @@ use App\Http\Controllers\CommunityAuthController;
 use App\Http\Controllers\CommunityGameController;
 use App\Http\Controllers\CommunityAnnouncementController;
 use App\Http\Controllers\CommunityAnalyticsController;
+use App\Http\Controllers\CommunityNotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,8 +50,14 @@ Route::prefix('community')->group(function () {
         Route::get('/me',        [CommunityAuthController::class, 'me']);
         Route::get('/profile',   [CommunityGameController::class, 'getProfile']);
         Route::post('/profile/avatar', [CommunityGameController::class, 'updateAvatar']);
+        Route::post('/profile/logo', [CommunityGameController::class, 'updateClubLogo']);
         Route::get('/members',   [CommunityGameController::class, 'members']);
         Route::get('/members/{id}', [CommunityGameController::class, 'memberProfile']);
+
+        // ── Notifications ──────────────────────────────────────────────────────────
+        Route::get('/notifications', [CommunityNotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [CommunityNotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [CommunityNotificationController::class, 'markAllAsRead']);
 
         // ── Games (auth required) ─────────────────────────────────────────────────
         Route::post('/games',                          [CommunityGameController::class, 'store']);

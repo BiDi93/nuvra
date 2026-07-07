@@ -174,6 +174,9 @@ export default function CommunityHome() {
                                 value={regData.name} onChange={v => setRegData({ ...regData, name: v })} />
                             <Field label="Email" type="email" placeholder="you@email.com"
                                 value={regData.email} onChange={v => setRegData({ ...regData, email: v })} />
+                            <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", marginTop: -8, lineHeight: "1.4" }}>
+                                💡 <em>Please enter a valid email. We will send match confirmations, booking approvals, and notifications to this address.</em>
+                            </span>
                             <Field label="Phone (Optional)" type="tel" placeholder="+60123456789"
                                 value={regData.phone} onChange={v => setRegData({ ...regData, phone: v })} />
                             <Field label="Password" type="password" placeholder="••••••••"

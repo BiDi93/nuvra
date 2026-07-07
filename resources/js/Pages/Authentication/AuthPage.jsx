@@ -279,6 +279,9 @@ const AuthPage = () => {
                             <form onSubmit={handleRegister} style={S.form}>
                                 <Field label="Full Name" type="text" placeholder="Your Name" {...field('name')} />
                                 <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
+                                <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", marginTop: -8, marginBottom: 4, lineHeight: "1.4" }}>
+                                    💡 <em>Please enter a valid email. We will send match confirmations, booking approvals, and notifications to this address.</em>
+                                </span>
                                 <Field label="Password" type="password" placeholder="Min. 8 characters" {...field('password')} />
                                 <Field label="Confirm Password" type="password" placeholder="••••••••" {...field('password_confirmation')} />
                                 {error && <p style={S.errorMsg}>{error}</p>}

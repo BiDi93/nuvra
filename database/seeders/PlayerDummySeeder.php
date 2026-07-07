@@ -128,8 +128,8 @@ class PlayerDummySeeder extends Seeder
                 'price'         => 25,
                 'total_slots'   => 22,
                 'status'        => 'open',
-                'team_a_name'   => 'Tigers FC',
-                'team_b_name'   => 'Lions United',
+                'team_a_name'   => $upcomingTitles[$k] === 'Grand Community Clash' ? 'Komu FC' : 'Tigers FC',
+                'team_b_name'   => $upcomingTitles[$k] === 'Grand Community Clash' ? 'AI Football Club' : 'Lions United',
             ]);
 
             // Assign a realistic mix of booking states to each upcoming match.

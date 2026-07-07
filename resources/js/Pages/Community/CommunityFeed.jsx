@@ -39,6 +39,14 @@ function MatchCard({ game, onClick }) {
     const teamBSlots = Math.floor(filled / 2);
     const maxPerTeam = Math.ceil(max / 2);
 
+    const logoA = game.team_a_name?.toLowerCase().includes("komu") 
+        ? "/images/logoImage/komu_fc.jpg" 
+        : null;
+
+    const logoB = game.team_b_name?.toLowerCase().includes("ai") 
+        ? "/images/logoImage/ai_fc.jpg" 
+        : null;
+
     return (
         <div style={S.card} onClick={onClick} className="match-card">
             <div style={S.cardHeader}>
@@ -48,23 +56,31 @@ function MatchCard({ game, onClick }) {
 
             <div style={S.matchDisplay}>
                 <div style={S.teamCol}>
-                    <div style={S.teamCircle}>
-                        <div style={S.teamShield}>A</div>
+                    <div style={{ ...S.teamCircle, padding: logoA ? 0 : 8, overflow: "hidden" }}>
+                        {logoA ? (
+                            <img src={logoA} alt={game.team_a_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                            <div style={S.teamShield}>{game.team_a_name ? game.team_a_name[0].toUpperCase() : "A"}</div>
+                        )}
                     </div>
                 </div>
                 <div style={S.scoreArea}>
                     {game.status === 'live' ? "3 - 3" : (game.status === 'completed' ? "1 - 2" : "VS")}
                 </div>
                 <div style={S.teamCol}>
-                    <div style={S.teamCircle}>
-                        <div style={S.teamShieldB}>B</div>
+                    <div style={{ ...S.teamCircle, padding: logoB ? 0 : 8, overflow: "hidden" }}>
+                        {logoB ? (
+                            <img src={logoB} alt={game.team_b_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                            <div style={S.teamShieldB}>{game.team_b_name ? game.team_b_name[0].toUpperCase() : "B"}</div>
+                        )}
                     </div>
                 </div>
             </div>
 
             <div style={S.teamLabels}>
-                <div style={S.teamLabel}>TEAM A ({teamASlots}/{maxPerTeam})</div>
-                <div style={S.teamLabel}>TEAM B ({teamBSlots}/{maxPerTeam})</div>
+                <div style={S.teamLabel}>{(game.team_a_name || "TEAM A").toUpperCase()} ({teamASlots}/{maxPerTeam})</div>
+                <div style={S.teamLabel}>{(game.team_b_name || "TEAM B").toUpperCase()} ({teamBSlots}/{maxPerTeam})</div>
             </div>
 
             <div style={S.progressWrapper}>

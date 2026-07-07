@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Models\CommunityUser;
+use App\Models\FootballMatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -13,26 +15,24 @@ class CommunityTest extends TestCase
     use RefreshDatabase;
 
     protected $user;
-    protected $communityUser;
+    protected $owner;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // 1. Create a unified User
+        // 1. Create a regular Player
         $this->user = User::factory()->create([
             'email' => 'community@nuvrasports.com',
             'password' => bcrypt('password'),
-            'role' => 'community_player'
+            'role' => 'player'
         ]);
 
-        // 2. Create Community Profile
-        $this->communityUser = CommunityUser::create([
-            'user_id'  => $this->user->id,
-            'name'     => 'Community Tester',
-            'email'    => 'community@nuvrasports.com',
+        // 2. Create an Organizer (Club Owner)
+        $this->owner = User::factory()->create([
+            'email' => 'owner@nuvrasports.com',
             'password' => bcrypt('password'),
-            'role'     => 'player',
+            'role' => 'club_owner'
         ]);
     }
 
@@ -51,7 +51,6 @@ class CommunityTest extends TestCase
                  ->assertJsonStructure(['token', 'user']);
         
         $this->assertDatabaseHas('users', ['email' => 'newcommunity@nuvrasports.com']);
-        $this->assertDatabaseHas('community_users', ['email' => 'newcommunity@nuvrasports.com']);
     }
 
     /**
@@ -73,16 +72,18 @@ class CommunityTest extends TestCase
      */
     public function test_can_list_community_games(): void
     {
-        // Seed a game manually using DB (since there might not be a Model yet or we want to test the Controller's DB usage)
-        DB::table('community_games')->insert([
-            'title'              => 'Friday Night Football',
-            'venue'              => 'Nuvra Arena',
-            'game_date'          => now()->addDays(2),
-            'max_slots_per_team' => 10,
-            'status'             => 'open',
-            'created_by'         => $this->communityUser->id,
-            'created_at'         => now(),
-            'updated_at'         => now(),
+        // Seed a match using Eloquent FootballMatch Model (matches table)
+        FootballMatch::create([
+            'club_owner_id' => $this->owner->id,
+            'title'         => 'Friday Night Football',
+            'venue'         => 'Nuvra Arena',
+            'match_date'    => now()->addDays(2)->toDateString(),
+            'match_time'    => '20:00:00',
+            'price'         => 10,
+            'total_slots'   => 20,
+            'status'        => 'open',
+            'team_a_name'   => 'Team A',
+            'team_b_name'   => 'Team B',
         ]);
 
         $response = $this->getJson('/api/community/games');
@@ -97,31 +98,113 @@ class CommunityTest extends TestCase
      */
     public function test_can_join_community_game(): void
     {
-        $gameId = DB::table('community_games')->insertGetId([
-            'title'              => 'Open Pitch',
-            'venue'              => 'Nuvra Arena',
-            'game_date'          => now()->addDays(1),
-            'max_slots_per_team' => 5,
-            'price_per_player'   => 0, // Free game
-            'status'             => 'open',
-            'created_by'         => $this->communityUser->id,
-            'created_at'         => now(),
-            'updated_at'         => now(),
+        $game = FootballMatch::create([
+            'club_owner_id' => $this->owner->id,
+            'title'         => 'Open Pitch',
+            'venue'         => 'Nuvra Arena',
+            'match_date'    => now()->addDays(1)->toDateString(),
+            'match_time'    => '20:00:00',
+            'price'         => 0, // Free game auto-confirms
+            'total_slots'   => 10,
+            'status'        => 'open',
+            'team_a_name'   => 'Team A',
+            'team_b_name'   => 'Team B',
         ]);
 
         $response = $this->actingAs($this->user)
-                         ->postJson("/api/community/games/{$gameId}/join", [
-                             'team_side' => 'team_a'
-                         ]);
+                         ->postJson("/api/community/games/{$game->id}/join");
 
-        $response->assertStatus(201)
-                 ->assertJson(['message' => 'Slot booked! See you on the pitch. 🔥']);
+        $response->assertStatus(200)
+                 ->assertJson(['status' => 'confirmed']);
 
-        $this->assertDatabaseHas('community_bookings', [
-            'game_id' => $gameId,
-            'community_user_id' => $this->communityUser->id,
-            'team_side' => 'team_a',
+        $this->assertDatabaseHas('match_player', [
+            'match_id' => $game->id,
+            'user_id' => $this->user->id,
             'status' => 'confirmed'
         ]);
+    }
+
+    /**
+     * Test uploading a club logo.
+     */
+    public function test_can_upload_club_logo(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image('komu_fc.png');
+
+        $response = $this->actingAs($this->user)
+                         ->postJson('/api/community/profile/logo', [
+                             'club_logo' => $file
+                         ]);
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure(['message', 'club_logo']);
+
+        $this->user->refresh();
+        $this->assertNotNull($this->user->club_logo);
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $this->user->club_logo));
+    }
+
+    /**
+     * Test receiving notifications on booking updates.
+     */
+    public function test_receives_notification_on_booking_approval(): void
+    {
+        // 1. Create a paid match
+        $game = FootballMatch::create([
+            'club_owner_id' => $this->owner->id,
+            'title'         => 'Champions Friendly',
+            'venue'         => 'Nuvra Arena',
+            'match_date'    => now()->addDays(3)->toDateString(),
+            'match_time'    => '20:00:00',
+            'price'         => 20.00,
+            'total_slots'   => 10,
+            'status'        => 'open',
+            'team_a_name'   => 'Team A',
+            'team_b_name'   => 'Team B',
+        ]);
+
+        // 2. Player joins (starts as pending since price > 0)
+        $this->actingAs($this->user)
+             ->postJson("/api/community/games/{$game->id}/join");
+
+        $bookingId = DB::table('match_player')
+            ->where('match_id', $game->id)
+            ->where('user_id', $this->user->id)
+            ->value('id');
+
+        // 3. Organizer approves booking
+        $response = $this->actingAs($this->owner)
+                         ->patchJson("/api/community/bookings/{$bookingId}/approve");
+
+        $response->assertStatus(200);
+
+        // 4. Verify player has notification in database
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_id' => $this->user->id,
+            'type' => 'App\Notifications\BookingStatusUpdated'
+        ]);
+
+        // 5. Test reading notifications API
+        $notifResponse = $this->actingAs($this->user)
+                              ->getJson('/api/community/notifications');
+        
+        $notifResponse->assertStatus(200)
+                     ->assertJsonCount(1, 'notifications')
+                     ->assertJsonPath('unread_count', 1);
+
+        $notifId = $notifResponse->json('notifications.0.id');
+
+        // 6. Test marking notification as read
+        $readResponse = $this->actingAs($this->user)
+                             ->postJson("/api/community/notifications/{$notifId}/read");
+        
+        $readResponse->assertStatus(200);
+
+        // Verify count is now 0
+        $this->actingAs($this->user)
+             ->getJson('/api/community/notifications')
+             ->assertJsonPath('unread_count', 0);
     }
 }
