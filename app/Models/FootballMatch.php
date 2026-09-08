@@ -12,6 +12,14 @@ class FootballMatch extends Model
     protected $table = 'matches';
 
     protected $fillable = [
+        'tournament_id',
+        'gameweek',
+        'home_team_id',
+        'away_team_id',
+        'home_team_name',
+        'away_team_name',
+        'home_score',
+        'away_score',
         'club_owner_id',
         'title',
         'description',
@@ -30,22 +38,24 @@ class FootballMatch extends Model
         'event_name'
     ];
 
-    /**
-     * The Club Owner who created this match.
-     */
+    public function tournament()
+    {
+        return $this->belongsTo(Tournament::class, 'tournament_id');
+    }
+
+    public function homeTeam()
+    {
+        return $this->belongsTo(TournamentTeam::class, 'home_team_id');
+    }
+
+    public function awayTeam()
+    {
+        return $this->belongsTo(TournamentTeam::class, 'away_team_id');
+    }
+
     public function owner()
     {
         return $this->belongsTo(User::class, 'club_owner_id');
-    }
-
-    /**
-     * Players who have joined this match.
-     */
-    public function players()
-    {
-        return $this->belongsToMany(User::class, 'match_player', 'match_id', 'user_id')
-                    ->withPivot('status')
-                    ->withTimestamps();
     }
 
     public function performances()

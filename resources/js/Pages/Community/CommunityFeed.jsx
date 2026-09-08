@@ -3,96 +3,49 @@ import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
 
 const API = "/api/community";
-const BRAND_BLUE = "#00D4EC";
+const BRAND_CYAN = "#00D4EC";
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }) {
-    const map = {
-        open: { label: "OPEN", color: BRAND_BLUE, bg: "rgba(0, 212, 236, 0.1)" },
-        live: { label: "LIVE", color: "#FF3B3B", bg: "rgba(255, 59, 59, 0.1)" },
-        full: { label: "FULL", color: "#6b7280", bg: "rgba(107,114,128,0.05)" },
-        cancelled: { label: "CANCELLED", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-    };
-    const s = map[status] || map.open;
+function TournamentCard({ tournament, onClick }) {
     return (
-        <span style={{
-            padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 900,
-            letterSpacing: 0.5, background: s.bg, color: s.color,
-            border: `1px solid ${s.color}33`,
-            fontFamily: "'Inter', sans-serif",
-            textTransform: "uppercase"
-        }}>
-            {s.label}
-        </span>
-    );
-}
-
-// ── Match Card ──────────────────────────────────────────────────────────────
-function MatchCard({ game, onClick }) {
-    const filled = game.filled_slots ?? 0;
-    const max = game.total_slots ?? 22;
-    const remaining = max - filled;
-    const progress = (filled / max) * 100;
-
-    // Split slots per team for display
-    const teamASlots = Math.ceil(filled / 2);
-    const teamBSlots = Math.floor(filled / 2);
-    const maxPerTeam = Math.ceil(max / 2);
-
-    const logoA = game.team_a_name?.toLowerCase().includes("komu") 
-        ? "/images/logoImage/komu_fc.jpg" 
-        : null;
-
-    const logoB = game.team_b_name?.toLowerCase().includes("ai") 
-        ? "/images/logoImage/ai_fc.jpg" 
-        : null;
-
-    return (
-        <div style={S.card} onClick={onClick} className="match-card">
+        <div style={S.card} onClick={onClick} className="tournament-card">
             <div style={S.cardHeader}>
-                <div style={S.gameTitle}>{game.title}</div>
-                <StatusBadge status={game.status || 'open'} />
-            </div>
-
-            <div style={S.matchDisplay}>
-                <div style={S.teamCol}>
-                    <div style={{ ...S.teamCircle, padding: logoA ? 0 : 8, overflow: "hidden" }}>
-                        {logoA ? (
-                            <img src={logoA} alt={game.team_a_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        ) : (
-                            <div style={S.teamShield}>{game.team_a_name ? game.team_a_name[0].toUpperCase() : "A"}</div>
-                        )}
-                    </div>
+                <div style={S.badgeRow}>
+                    <span style={S.formatBadge}>{tournament.format?.toUpperCase() || "LEAGUE"}</span>
+                    <span style={S.seasonBadge}>{tournament.season || "SEASON 2026"}</span>
                 </div>
-                <div style={S.scoreArea}>
-                    {game.status === 'live' ? "3 - 3" : (game.status === 'completed' ? "1 - 2" : "VS")}
+                <span style={S.statusBadge}>
+                    {tournament.status === "active" ? "🟢 SEDANG BERLANGSUNG" : tournament.status?.toUpperCase()}
+                </span>
+            </div>
+
+            <h3 style={S.tournamentTitle}>{tournament.name}</h3>
+            
+            <div style={S.metaRow}>
+                <span>📍 {tournament.venue || "Lokasi Rasmi"}</span>
+                {tournament.organizer && (
+                    <span>👑 {tournament.organizer.name}</span>
+                )}
+            </div>
+
+            <div style={S.statsBox}>
+                <div style={S.statCol}>
+                    <span style={S.statVal}>{tournament.teams_count || 0}</span>
+                    <span style={S.statLbl}>PASUKAN</span>
                 </div>
-                <div style={S.teamCol}>
-                    <div style={{ ...S.teamCircle, padding: logoB ? 0 : 8, overflow: "hidden" }}>
-                        {logoB ? (
-                            <img src={logoB} alt={game.team_b_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        ) : (
-                            <div style={S.teamShieldB}>{game.team_b_name ? game.team_b_name[0].toUpperCase() : "B"}</div>
-                        )}
-                    </div>
+                <div style={S.statDivider} />
+                <div style={S.statCol}>
+                    <span style={S.statVal}>{tournament.matches_count || 0}</span>
+                    <span style={S.statLbl}>PERLAWANAN</span>
                 </div>
-            </div>
-
-            <div style={S.teamLabels}>
-                <div style={S.teamLabel}>{(game.team_a_name || "TEAM A").toUpperCase()} ({teamASlots}/{maxPerTeam})</div>
-                <div style={S.teamLabel}>{(game.team_b_name || "TEAM B").toUpperCase()} ({teamBSlots}/{maxPerTeam})</div>
-            </div>
-
-            <div style={S.progressWrapper}>
-                <div style={{ ...S.progressBar, width: `${progress}%` }} />
-            </div>
-
-            <div style={S.slotsLeft}>
-                SLOTS: {remaining}/{max} left
+                <div style={S.statDivider} />
+                <div style={S.statCol}>
+                    <span style={{ ...S.statVal, color: BRAND_CYAN }}>AUTO</span>
+                    <span style={S.statLbl}>STANDINGS</span>
+                </div>
             </div>
 
             <button style={S.viewBtn}>
-                VIEW & JOIN →
+                LIHAT KEDUDUKAN & JADUAL →
             </button>
         </div>
     );
@@ -100,165 +53,292 @@ function MatchCard({ game, onClick }) {
 
 export default function CommunityFeed() {
     const navigate = useNavigate();
-    const [games, setGames] = useState([]);
+    const [tournaments, setTournaments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState("ALL");
+    const [filter, setFilter] = useState("ALL"); // ALL, LEAGUE, KNOCKOUT
 
-    const currentUser = JSON.parse(localStorage.getItem("community_user") || "null");
-    const isOrganizer = currentUser?.role === "club_owner" || currentUser?.role === "admin";
+    const user = JSON.parse(localStorage.getItem("community_user") || "null");
+    const isOrganizer = user && (user.role === "club_owner" || user.role === "admin");
 
     useEffect(() => {
-        fetchGames();
+        fetchTournaments();
     }, []);
 
-    const fetchGames = async () => {
+    const fetchTournaments = async () => {
         try {
-            const res = await fetch(`${API}/games`);
+            const res = await fetch(`${API}/tournaments`);
             const data = await res.json();
-            setGames(Array.isArray(data) ? data : []);
-        } catch {
-            setGames([]);
+            if (Array.isArray(data)) {
+                setTournaments(data);
+            }
+        } catch (err) {
+            console.error("Failed to load tournaments", err);
         } finally {
             setLoading(false);
         }
     };
 
-    const filteredGames = games.filter(g => {
-        // Organizers only see games they created
-        if (isOrganizer && g.club_owner_id !== currentUser.id) return false;
-
+    const filtered = tournaments.filter(t => {
         if (filter === "ALL") return true;
-        const gameDate = new Date(g.game_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (filter === "UPCOMING") return gameDate >= today;
-        if (filter === "PAST") return gameDate < today;
-        return true;
+        return t.format?.toLowerCase() === filter.toLowerCase();
     });
+
+    if (loading) return <PageLoader />;
 
     return (
         <div style={S.container}>
-            <PageLoader />
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&display=swap');
-                .match-card { transition: all 0.2s ease; cursor: pointer; }
-                .match-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; }
-                .filter-btn { transition: color 0.2s; }
+                .tournament-card {
+                    transition: transform 0.2s, border-color 0.2s;
+                }
+                .tournament-card:hover {
+                    transform: translateY(-2px);
+                    border-color: rgba(0, 212, 236, 0.4) !important;
+                }
                 @media (max-width: 768px) {
-                    .feed-header { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; margin-bottom: 32px !important; }
-                    .feed-title  { font-size: 36px !important; }
-                    .feed-grid   { grid-template-columns: 1fr !important; }
-                    .feed-filterbar { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+                    .feed-grid { grid-template-columns: 1fr !important; }
+                    .feed-header-row { flex-direction: column; align-items: flex-start !important; gap: 12px; }
                 }
             `}</style>
 
-            <header style={S.header} className="feed-header">
-                <h1 style={S.title} className="feed-title">DASHBOARD</h1>
-                <div style={S.statsRow}>
-                    <div style={S.statBadgeBlue}>
-                        <div style={S.statIcon}></div>
-                        OPEN GAMES: {games.filter(g => g.status === 'open').length}
-                    </div>
-                    <div style={S.statBadgeWhite}>
-                        <div style={S.statIconBlue}>🎾</div>
-                        TOTAL: {games.length}
-                    </div>
+            {/* Header / Intro */}
+            <div style={S.headerRow} className="feed-header-row">
+                <div>
+                    <h1 style={S.pageTitle}>Kejohanan & Liga Bola Sepak</h1>
+                    <p style={S.pageSubtitle}>
+                        Ikuti jadual perlawanan, keputusan rasmi, dan jadual kedudukan mata automatik.
+                    </p>
                 </div>
-            </header>
 
-            <div style={S.filterBar} className="feed-filterbar">
-                <div style={S.sectionLabel}>MATCHES</div>
-                <div style={S.tabs}>
-                    {["ALL", "UPCOMING", "PAST"].map(t => (
-                        <button
-                            key={t}
-                            style={{ ...S.tabBtn, ...(filter === t ? S.tabBtnActive : {}) }}
-                            onClick={() => setFilter(t)}
-                        >
-                            {t}
-                        </button>
-                    ))}
-                </div>
+                {isOrganizer && (
+                    <button
+                        onClick={() => navigate("/community/admin/create-tournament")}
+                        style={S.createBtn}
+                    >
+                        + CIPTA KEJOHANAN
+                    </button>
+                )}
             </div>
 
-            {loading ? (
-                <div style={S.emptyState}>LOADING DASHBOARD...</div>
-            ) : filteredGames.length === 0 ? (
-                <div style={S.emptyState}>NO MATCHES FOUND IN THIS CATEGORY</div>
-            ) : (
-                <div style={S.grid} className="feed-grid">
-                    {filteredGames.map(game => (
-                        <MatchCard
-                            key={game.id}
-                            game={game}
-                            onClick={() => navigate(`/community/games/${game.id}`)}
+            {/* Filter Pills */}
+            <div style={S.filterBar}>
+                {["ALL", "LEAGUE", "KNOCKOUT"].map((f) => (
+                    <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        style={{
+                            ...S.filterPill,
+                            ...(filter === f ? S.activeFilterPill : {})
+                        }}
+                    >
+                        {f === "ALL" ? "SEMUA FORMAT" : (f === "LEAGUE" ? "LIGA (ROUND-ROBIN)" : "KALAH MATI")}
+                    </button>
+                ))}
+            </div>
+
+            {/* Tournaments Grid */}
+            <div style={S.grid} className="feed-grid">
+                {filtered.length === 0 ? (
+                    <div style={S.emptyState}>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: "#888" }}>
+                            Tiada kejohanan ditemui.
+                        </p>
+                        {isOrganizer && (
+                            <button
+                                onClick={() => navigate("/community/admin/create-tournament")}
+                                style={{ ...S.createBtn, marginTop: 16 }}
+                            >
+                                Cipta Kejohanan Pertama Anda
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    filtered.map((t) => (
+                        <TournamentCard
+                            key={t.id}
+                            tournament={t}
+                            onClick={() => navigate(`/community/tournaments/${t.id}`)}
                         />
-                    ))}
-                </div>
-            )}
+                    ))
+                )}
+            </div>
         </div>
     );
 }
 
 const S = {
-    container: { maxWidth: 1200, margin: "0 auto" },
-    header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 60 },
-    title: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 48, fontWeight: 900, color: "#fff", letterSpacing: 1 },
-    statsRow: { display: "flex", gap: 12 },
-    statBadgeBlue: { background: "#00D4EC", padding: "12px 20px", borderRadius: 12, display: "flex", alignItems: "center", gap: 8, color: "#000", fontSize: 13, fontWeight: 800 },
-    statBadgeWhite: { background: "#fff", padding: "12px 20px", borderRadius: 12, display: "flex", alignItems: "center", gap: 8, color: "#000", fontSize: 13, fontWeight: 800 },
-    statIcon: { fontSize: 16 },
-    statIconBlue: { fontSize: 16, color: BRAND_BLUE },
-
-    filterBar: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 16, marginBottom: 32 },
-    sectionLabel: { fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: 0.5 },
-    tabs: { display: "flex", gap: 24 },
-    tabBtn: { background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: 800, cursor: "pointer", position: "relative", padding: "4px 0" },
-    tabBtnActive: { color: BRAND_BLUE, borderBottom: `2px solid ${BRAND_BLUE}` },
-
-    grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 24 },
-    card: {
-        background: "linear-gradient(145deg, #2a2d34, #1e2025)",
-        borderRadius: 24,
+    container: {
+        maxWidth: 1100,
+        margin: "0 auto",
+        padding: "16px 0 80px",
+        fontFamily: "'Inter', sans-serif",
+        color: "#fff",
+    },
+    headerRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    pageTitle: {
+        fontSize: 28,
+        fontWeight: 900,
+        letterSpacing: -0.5,
+        marginBottom: 4,
+    },
+    pageSubtitle: {
+        fontSize: 13,
+        color: "rgba(255,255,255,0.5)",
+    },
+    createBtn: {
+        background: BRAND_CYAN,
+        border: "none",
+        color: "#000",
+        padding: "10px 18px",
+        borderRadius: 10,
+        fontSize: 12,
+        fontWeight: 900,
+        letterSpacing: 0.5,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+    },
+    filterBar: {
+        display: "flex",
+        gap: 8,
+        marginBottom: 24,
+        overflowX: "auto",
+        paddingBottom: 4,
+    },
+    filterPill: {
+        background: "rgba(255,255,255,0.03)",
         border: "1px solid rgba(255,255,255,0.08)",
-        padding: 24,
+        color: "rgba(255,255,255,0.5)",
+        padding: "6px 14px",
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 800,
+        cursor: "pointer",
+        letterSpacing: 0.5,
+    },
+    activeFilterPill: {
+        background: "rgba(0, 212, 236, 0.12)",
+        color: BRAND_CYAN,
+        border: `1px solid ${BRAND_CYAN}`,
+    },
+    grid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))",
+        gap: 20,
+    },
+    card: {
+        background: "rgba(18, 22, 32, 0.85)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 14,
+        padding: 22,
+        cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+        backdropFilter: "blur(12px)",
     },
-    cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 },
-    gameTitle: { fontSize: 20, fontWeight: 800, color: "#fff", maxWidth: "70%" },
-
-    matchDisplay: { display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 32 },
-    teamCol: { display: "flex", flexDirection: "column", alignItems: "center" },
-    teamCircle: {
-        width: 72, height: 72, borderRadius: "50%",
-        background: "rgba(255,255,255,0.03)",
+    cardHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    badgeRow: {
+        display: "flex",
+        gap: 6,
+    },
+    formatBadge: {
+        background: "rgba(0, 212, 236, 0.12)",
+        color: BRAND_CYAN,
+        fontSize: 10,
+        fontWeight: 900,
+        padding: "3px 8px",
+        borderRadius: 4,
+        letterSpacing: 0.5,
+    },
+    seasonBadge: {
+        background: "rgba(255,255,255,0.05)",
+        color: "#888",
+        fontSize: 10,
+        fontWeight: 700,
+        padding: "3px 6px",
+        borderRadius: 4,
+    },
+    statusBadge: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: "#4ade80",
+    },
+    tournamentTitle: {
+        fontSize: 18,
+        fontWeight: 800,
+        marginBottom: 8,
+        color: "#fff",
+        lineHeight: 1.3,
+    },
+    metaRow: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        fontSize: 12,
+        color: "rgba(255,255,255,0.5)",
+        marginBottom: 18,
+    },
+    statsBox: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        background: "rgba(0,0,0,0.3)",
+        border: "1px solid rgba(255,255,255,0.04)",
+        borderRadius: 8,
+        padding: "10px 16px",
+        marginBottom: 16,
+    },
+    statCol: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+    },
+    statVal: {
+        fontSize: 15,
+        fontWeight: 900,
+        color: "#fff",
+    },
+    statLbl: {
+        fontSize: 9,
+        fontWeight: 800,
+        color: "rgba(255,255,255,0.35)",
+        letterSpacing: 0.5,
+        marginTop: 2,
+    },
+    statDivider: {
+        width: 1,
+        height: 24,
+        background: "rgba(255,255,255,0.06)",
+    },
+    viewBtn: {
+        marginTop: "auto",
+        background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.1)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 8
+        color: "#fff",
+        padding: "10px 14px",
+        borderRadius: 8,
+        fontSize: 12,
+        fontWeight: 800,
+        cursor: "pointer",
+        textAlign: "center",
+        letterSpacing: 0.5,
+        transition: "all 0.2s",
     },
-    teamShield: {
-        width: "100%", height: "100%", borderRadius: 12,
-        border: "2px solid rgba(255,255,255,0.4)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 24, fontWeight: 900, color: "#fff"
+    emptyState: {
+        gridColumn: "1 / -1",
+        textAlign: "center",
+        padding: "60px 20px",
+        background: "rgba(18, 22, 32, 0.4)",
+        borderRadius: 14,
+        border: "1px dashed rgba(255,255,255,0.1)",
     },
-    teamShieldB: {
-        width: "100%", height: "100%", borderRadius: 12,
-        border: "2px solid #00D4EC66",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 24, fontWeight: 900, color: "#00D4EC"
-    },
-    scoreArea: { fontSize: 32, fontWeight: 900, color: "rgba(255,255,255,0.8)", letterSpacing: 2 },
-    teamLabels: { display: "flex", justifyContent: "space-between", marginBottom: 12 },
-    teamLabel: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)" },
-    progressWrapper: { height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden", marginBottom: 12 },
-    progressBar: { height: "100%", background: BRAND_BLUE, borderRadius: 4 },
-    slotsLeft: { fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 20 },
-
-    viewBtn: { width: "100%", padding: "16px", borderRadius: 12, border: "none", background: BRAND_BLUE, color: "#000", fontSize: 14, fontWeight: 900, cursor: "pointer", transition: "transform 0.1s" },
-
-    emptyState: { padding: "100px 0", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 16, fontWeight: 800 }
 };

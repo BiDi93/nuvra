@@ -161,25 +161,25 @@ export default function NuvraPortal() {
                 </div>
                 <div className="portal-nav-links" style={S.navLinks}>
                     <button className="portal-nav-link" style={S.navLink} onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>How It Works</button>
-                    <button className="portal-nav-link" style={S.navLink} onClick={() => navigate("/games")}>Join Game</button>
+                    <button className="portal-nav-link" style={S.navLink} onClick={() => navigate("/tournaments")}>Tournaments</button>
                     <button className="btn-primary" style={S.navCta} onClick={() => navigate("/community")}>Sign In</button>
                 </div>
             </nav>
 
             <section style={S.hero}>
-                <h1 style={S.heroTitle}>THE FOOTBALL<br /><span style={{ color: "#00D4EC" }}>COMMUNITY</span></h1>
-                <p style={S.heroTagline}>The platform for amateur players and match organizers to connect, play, and track records.</p>
+                <h1 style={S.heroTitle}>TOURNAMENT & LEAGUE<br /><span style={{ color: "#00D4EC" }}>MANAGEMENT</span></h1>
+                <p style={S.heroTagline}>The all-in-one tournament platform for football and futsal leagues. Automated standings, gameweek fixtures, and team leaderboards.</p>
                 <div style={{ display: 'flex', gap: 16 }}>
-                    <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/games")}>EXPLORE GAMES</button>
+                    <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/tournaments")}>EXPLORE LEAGUES</button>
                     <button style={S.btnSecondaryHero} onClick={() => navigate("/community")}>ORGANIZER LOGIN</button>
                 </div>
             </section>
 
             <section style={S.statsSection}>
                 <div className="portal-stats-inner" style={S.statsInner}>
-                    <StatCard value={1000} suffix="+" label="Players" />
-                    <StatCard value={250} suffix="+" label="Matches" />
-                    <StatCard value={50} suffix="+" label="Organizers" />
+                    <StatCard value={1000} suffix="+" label="Registered Players" />
+                    <StatCard value={50} suffix="+" label="Active Tournaments" />
+                    <StatCard value={120} suffix="+" label="Football Teams" />
                 </div>
             </section>
 
@@ -188,13 +188,13 @@ export default function NuvraPortal() {
             <section id="how-it-works" style={S.section}>
                 <div style={{ textAlign: "center", marginBottom: 56 }}>
                     <h2 style={S.sectionTitle}>How It Works</h2>
-                    <p style={{ color: "#72727e" }}>Simple steps to get you on the pitch</p>
+                    <p style={{ color: "#72727e" }}>Simple steps to run professional leagues</p>
                 </div>
                 <div style={S.stepsGrid}>
                     {[
-                        { num: "01", title: "Browse", desc: "Find games hosted by organizers near you." },
-                        { num: "02", title: "Join", desc: "Book your slot and pay the organizer via QR code." },
-                        { num: "03", title: "Play & Record", desc: "Show up, play, and see your stats updated on your profile." },
+                        { num: "01", title: "Create & Format", desc: "Choose your format: League Round-Robin, Knockout Cup, or Group Stages." },
+                        { num: "02", title: "Schedule Gameweeks", desc: "Easily set matchdays, pitch venues, and kickoff times for every fixture." },
+                        { num: "03", title: "Auto Standings & Live Score", desc: "Enter match results and watch league tables & statistics update in real-time." },
                     ].map(s => (
                         <div key={s.num} className="portal-step" style={S.step}>
                             <div style={{ ...S.stepNum, color: "#00D4EC" }}>{s.num}</div>

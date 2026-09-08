@@ -1,232 +1,277 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import PageLoader from "../../Components/PageLoader";
 
 const API = "/api/community";
-const BRAND_BLUE = "#00D4EC";
+const BRAND_CYAN = "#00D4EC";
 
-function StatusBadge({ status }) {
-    const map = {
-        open: { label: "OPEN", color: BRAND_BLUE, bg: "rgba(0,212,236,0.1)" },
-        full: { label: "FULL", color: "#6b7280", bg: "rgba(107,114,128,0.05)" },
-        cancelled: { label: "CANCELLED", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-        completed: { label: "COMPLETED", color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
-    };
-    const s = map[status] || map.open;
+function TournamentCard({ tournament, onClick }) {
     return (
-        <span style={{
-            padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 900,
-            letterSpacing: 0.5, background: s.bg, color: s.color,
-            border: `1px solid ${s.color}33`, textTransform: "uppercase",
-        }}>
-            {s.label}
-        </span>
-    );
-}
-
-function MatchCard({ game, onClick }) {
-    const filled = game.filled_slots ?? 0;
-    const max = game.total_slots ?? 22;
-    const remaining = max - filled;
-    const progress = (filled / max) * 100;
-    const maxPerTeam = Math.ceil(max / 2);
-    const teamASlots = Math.ceil(filled / 2);
-    const teamBSlots = Math.floor(filled / 2);
-
-    return (
-        <div style={S.card} onClick={onClick} className="pub-card">
+        <div style={S.card} onClick={onClick} className="pub-tournament-card">
             <div style={S.cardHeader}>
-                <div style={S.gameTitle}>{game.title}</div>
-                <StatusBadge status={game.status || "open"} />
+                <span style={S.formatBadge}>{tournament.format?.toUpperCase() || "LEAGUE"}</span>
+                <span style={S.seasonBadge}>{tournament.season || "SEASON 2026"}</span>
             </div>
 
-            <div style={S.matchDisplay}>
-                <div style={S.teamCircle}><div style={S.shieldA}>A</div></div>
-                <div style={S.scoreArea}>VS</div>
-                <div style={S.teamCircle}><div style={S.shieldB}>B</div></div>
+            <h3 style={S.title}>{tournament.name}</h3>
+            
+            <div style={S.meta}>
+                <div>📍 {tournament.venue || "Lokasi Rasmi"}</div>
+                {tournament.organizer && <div>👑 {tournament.organizer.name}</div>}
             </div>
 
-            <div style={S.teamLabels}>
-                <span style={S.teamLabel}>TEAM A ({teamASlots}/{maxPerTeam})</span>
-                <span style={S.teamLabel}>TEAM B ({teamBSlots}/{maxPerTeam})</span>
+            <div style={S.statsBox}>
+                <div style={S.statCol}>
+                    <span style={S.statVal}>{tournament.teams_count || 0}</span>
+                    <span style={S.statLbl}>PASUKAN</span>
+                </div>
+                <div style={S.statDivider} />
+                <div style={S.statCol}>
+                    <span style={S.statVal}>{tournament.matches_count || 0}</span>
+                    <span style={S.statLbl}>PERLAWANAN</span>
+                </div>
+                <div style={S.statDivider} />
+                <div style={S.statCol}>
+                    <span style={{ ...S.statVal, color: BRAND_CYAN }}>AUTO</span>
+                    <span style={S.statLbl}>STANDINGS</span>
+                </div>
             </div>
 
-            <div style={S.progressWrapper}>
-                <div style={{ ...S.progressBar, width: `${progress}%` }} />
-            </div>
-
-            <div style={S.slotsLeft}>SLOTS: {remaining}/{max} left</div>
-
-            <button style={S.viewBtn}>VIEW & JOIN →</button>
+            <button style={S.viewBtn}>
+                LIHAT KEDUDUKAN & JADUAL →
+            </button>
         </div>
     );
 }
 
 export default function PublicGames() {
     const navigate = useNavigate();
-    const [games, setGames] = useState([]);
+    const [tournaments, setTournaments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState("ALL");
-    const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
-        const onScroll = () => setScrolled(window.scrollY > 50);
-        window.addEventListener("scroll", onScroll);
-        return () => window.removeEventListener("scroll", onScroll);
-    }, []);
-
-    useEffect(() => {
-        fetch(`${API}/games`)
+        fetch(`${API}/tournaments`)
             .then(r => r.json())
-            .then(d => setGames(Array.isArray(d) ? d : []))
-            .catch(() => setGames([]))
+            .then(d => setTournaments(Array.isArray(d) ? d : []))
+            .catch(() => setTournaments([]))
             .finally(() => setLoading(false));
     }, []);
 
-    const handleGameClick = (gameId) => {
-        const token = localStorage.getItem("community_token");
-        if (!token) {
-            navigate("/community");
-        } else {
-            navigate(`/community/games/${gameId}`);
-        }
+    const handleCardClick = (id) => {
+        navigate(`/community/tournaments/${id}`);
     };
 
-    const filtered = games.filter(g => {
-        if (filter === "ALL") return true;
-        const gDate = new Date(g.game_date);
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        if (filter === "UPCOMING") return gDate >= today;
-        if (filter === "PAST") return gDate < today;
-        return true;
-    });
+    if (loading) return <PageLoader />;
 
     return (
         <div style={S.root}>
             <style>{`
-                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-                ::-webkit-scrollbar { width: 4px; }
-                ::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 2px; }
-                .pub-card { transition: transform 0.2s, border-color 0.2s; cursor: pointer; }
-                .pub-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; }
-                .pub-tab-btn { transition: color 0.2s; background: none; border: none; cursor: pointer; }
-                .signin-btn:hover { background: #33DDFF !important; transform: translateY(-1px); }
-                @media (max-width: 640px) {
-                    .pub-grid    { grid-template-columns: 1fr !important; }
-                    .pub-filters { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+                .pub-tournament-card {
+                    transition: transform 0.2s, border-color 0.2s;
+                }
+                .pub-tournament-card:hover {
+                    transform: translateY(-2px);
+                    border-color: rgba(0, 212, 236, 0.4) !important;
                 }
             `}</style>
 
-            {/* ── Top Nav ── */}
-            <nav style={{ ...S.nav, ...(scrolled ? S.navScrolled : {}) }}>
-                <div style={S.navLeft} onClick={() => navigate("/")}>
+            <nav style={S.nav}>
+                <div style={S.navLogo} onClick={() => navigate("/")}>
                     <img src="/images/logoImage/NUVRA_LOGO.webp" alt="Nuvra" style={{ height: 36 }} />
-
                 </div>
-                <button
-                    className="signin-btn"
-                    style={S.signInBtn}
-                    onClick={() => {
-                        const token = localStorage.getItem("community_token");
-                        navigate(token ? "/community/feed" : "/community");
-                    }}
-                >
-                    {localStorage.getItem("community_token") ? "Go to Dashboard" : "Sign In"}
-                </button>
+                <div style={S.navActions}>
+                    <button style={S.signInBtn} onClick={() => navigate("/community")}>
+                        Log Masuk Penganjur
+                    </button>
+                </div>
             </nav>
 
-            {/* ── Main content ── */}
-            <main style={S.main}>
-                <header style={S.pageHeader}>
-                    <div>
-                        <h1 style={S.pageTitle}>GAMES</h1>
-                        <p style={S.pageSubtitle}>Browse open matches and book your slot</p>
-                    </div>
-                    <div style={S.statRow}>
-                        <div style={S.statBadgeBlue}>
-                            OPEN: {games.filter(g => g.status === "open").length}
-                        </div>
-                        <div style={S.statBadgeWhite}>
-                            TOTAL: {games.length}
-                        </div>
-                    </div>
-                </header>
-
-                <div style={S.filterBar} className="pub-filters">
-                    <span style={S.filterLabel}>MATCHES</span>
-                    <div style={{ display: "flex", gap: 24 }}>
-                        {["ALL", "UPCOMING", "PAST"].map(t => (
-                            <button
-                                key={t}
-                                className="pub-tab-btn"
-                                style={{ ...S.tabBtn, ...(filter === t ? S.tabBtnActive : {}) }}
-                                onClick={() => setFilter(t)}
-                            >
-                                {t}
-                            </button>
-                        ))}
-                    </div>
+            <div style={S.content}>
+                <div style={S.heroArea}>
+                    <span style={S.heroTag}>🏆 TOURNAMENT HUB</span>
+                    <h1 style={S.heroTitle}>Kejohanan & Liga Rasmi</h1>
+                    <p style={S.heroSub}>
+                        Pantau kedudukan mata, jadual gameweek, dan statistik kejohanan tempatan secara langsung.
+                    </p>
                 </div>
 
-                {loading ? (
-                    <div style={S.empty}>LOADING GAMES...</div>
-                ) : filtered.length === 0 ? (
-                    <div style={S.empty}>NO MATCHES FOUND</div>
-                ) : (
-                    <div style={S.grid} className="pub-grid">
-                        {filtered.map(game => (
-                            <MatchCard
-                                key={game.id}
-                                game={game}
-                                onClick={() => handleGameClick(game.id)}
+                <div style={S.grid}>
+                    {tournaments.length === 0 ? (
+                        <div style={{ textAlign: "center", color: "#666", padding: 60, gridColumn: "1 / -1" }}>
+                            Tiada kejohanan aktif pada masa ini.
+                        </div>
+                    ) : (
+                        tournaments.map((t) => (
+                            <TournamentCard
+                                key={t.id}
+                                tournament={t}
+                                onClick={() => handleCardClick(t.id)}
                             />
-                        ))}
-                    </div>
-                )}
-            </main>
+                        ))
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
 
 const S = {
-    root: { background: "#0d0d10", minHeight: "100vh", color: "#F5F5F7", fontFamily: "'Inter', sans-serif" },
-
-    nav: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 48px", transition: "all 0.25s" },
-    navScrolled: { background: "rgba(13,13,16,0.96)", borderBottom: "1px solid #222228", padding: "12px 48px" },
-    navLeft: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer" },
-    navBrand: { fontSize: 18, fontWeight: 800, letterSpacing: 2 },
-    signInBtn: { padding: "8px 20px", background: BRAND_BLUE, color: "#0d0d10", border: "none", borderRadius: 4, fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" },
-
-    main: { maxWidth: 1200, margin: "0 auto", padding: "110px 24px 60px" },
-
-    pageHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 48, flexWrap: "wrap", gap: 16 },
-    pageTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 52, fontWeight: 900, letterSpacing: 1 },
-    pageSubtitle: { color: "#72727e", fontSize: 14, marginTop: 4 },
-    statRow: { display: "flex", gap: 12 },
-    statBadgeBlue: { background: BRAND_BLUE, padding: "10px 18px", borderRadius: 10, color: "#000", fontSize: 13, fontWeight: 800 },
-    statBadgeWhite: { background: "#fff", padding: "10px 18px", borderRadius: 10, color: "#000", fontSize: 13, fontWeight: 800 },
-
-    filterBar: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 16, marginBottom: 32 },
-    filterLabel: { fontSize: 18, fontWeight: 800 },
-    tabBtn: { fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.4)", padding: "4px 0" },
-    tabBtnActive: { color: BRAND_BLUE, borderBottom: `2px solid ${BRAND_BLUE}` },
-
-    grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 24 },
-    empty: { padding: "100px 0", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 16, fontWeight: 800 },
-
-    card: { background: "linear-gradient(145deg, #2a2d34, #1e2025)", borderRadius: 24, border: "1px solid rgba(255,255,255,0.08)", padding: 24, display: "flex", flexDirection: "column", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" },
-    cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 },
-    gameTitle: { fontSize: 20, fontWeight: 800, color: "#fff", maxWidth: "70%", lineHeight: 1.3 },
-
-    matchDisplay: { display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 28 },
-    teamCircle: { width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", padding: 8 },
-    shieldA: { width: "100%", height: "100%", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, color: "#fff" },
-    shieldB: { width: "100%", height: "100%", borderRadius: 12, border: `2px solid ${BRAND_BLUE}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, color: BRAND_BLUE },
-    scoreArea: { fontSize: 32, fontWeight: 900, color: "rgba(255,255,255,0.8)", letterSpacing: 2 },
-
-    teamLabels: { display: "flex", justifyContent: "space-between", marginBottom: 10 },
-    teamLabel: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)" },
-    progressWrapper: { height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden", marginBottom: 10 },
-    progressBar: { height: "100%", background: BRAND_BLUE, borderRadius: 4 },
-    slotsLeft: { fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 20 },
-    viewBtn: { width: "100%", padding: 16, borderRadius: 12, border: "none", background: BRAND_BLUE, color: "#000", fontSize: 14, fontWeight: 900, cursor: "pointer" },
+    root: {
+        minHeight: "100vh",
+        background: "#0d1117",
+        fontFamily: "'Inter', sans-serif",
+        color: "#fff",
+    },
+    nav: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 24px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(13, 17, 23, 0.9)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        backdropFilter: "blur(10px)",
+    },
+    navLogo: {
+        cursor: "pointer",
+    },
+    navActions: {
+        display: "flex",
+        gap: 12,
+    },
+    signInBtn: {
+        background: "none",
+        border: "1px solid rgba(255,255,255,0.2)",
+        color: "#fff",
+        padding: "8px 16px",
+        borderRadius: 8,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+    },
+    content: {
+        maxWidth: 1100,
+        margin: "0 auto",
+        padding: "40px 16px 100px",
+    },
+    heroArea: {
+        textAlign: "center",
+        marginBottom: 40,
+    },
+    heroTag: {
+        display: "inline-block",
+        fontSize: 10,
+        fontWeight: 900,
+        letterSpacing: 1,
+        color: BRAND_CYAN,
+        background: "rgba(0, 212, 236, 0.1)",
+        padding: "4px 10px",
+        borderRadius: 20,
+        marginBottom: 10,
+    },
+    heroTitle: {
+        fontSize: 32,
+        fontWeight: 900,
+        marginBottom: 8,
+    },
+    heroSub: {
+        fontSize: 14,
+        color: "rgba(255,255,255,0.5)",
+        maxWidth: 560,
+        margin: "0 auto",
+    },
+    grid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+        gap: 20,
+    },
+    card: {
+        background: "rgba(22, 27, 38, 0.75)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 14,
+        padding: 22,
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+    },
+    cardHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    formatBadge: {
+        background: "rgba(0, 212, 236, 0.1)",
+        color: BRAND_CYAN,
+        fontSize: 10,
+        fontWeight: 900,
+        padding: "3px 8px",
+        borderRadius: 4,
+    },
+    seasonBadge: {
+        fontSize: 10,
+        color: "#888",
+        fontWeight: 700,
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: 800,
+        marginBottom: 8,
+        lineHeight: 1.3,
+    },
+    meta: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.5)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        marginBottom: 16,
+    },
+    statsBox: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        background: "rgba(0,0,0,0.3)",
+        border: "1px solid rgba(255,255,255,0.04)",
+        borderRadius: 8,
+        padding: "10px 16px",
+        marginBottom: 16,
+    },
+    statCol: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+    },
+    statVal: {
+        fontSize: 15,
+        fontWeight: 900,
+        color: "#fff",
+    },
+    statLbl: {
+        fontSize: 9,
+        fontWeight: 800,
+        color: "rgba(255,255,255,0.35)",
+        letterSpacing: 0.5,
+        marginTop: 2,
+    },
+    statDivider: {
+        width: 1,
+        height: 24,
+        background: "rgba(255,255,255,0.06)",
+    },
+    viewBtn: {
+        marginTop: "auto",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        color: "#fff",
+        padding: "10px 14px",
+        borderRadius: 8,
+        fontSize: 12,
+        fontWeight: 800,
+        cursor: "pointer",
+        textAlign: "center",
+        letterSpacing: 0.5,
+    },
 };

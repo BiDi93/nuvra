@@ -186,8 +186,8 @@ export default function CommunityLayout() {
                 {/* Nav */}
                 <nav style={S.sideNav}>
                     <NavItem
-                        label="DASHBOARD"
-                        icon="📊"
+                        label="TOURNAMENTS"
+                        icon="🏆"
                         active={isActive("/community/feed")}
                         onClick={() => navigate("/community/feed")}
                     />
@@ -280,9 +280,9 @@ export default function CommunityLayout() {
                         <>
                             <div style={S.navDivider}>ORGANIZER CONTROL</div>
                             <NavItem
-                                label="CREATE GAME"
-                                active={isActive("/community/admin/create-game")}
-                                onClick={() => navigate("/community/admin/create-game")}
+                                label="CREATE TOURNAMENT"
+                                active={isActive("/community/admin/create-tournament")}
+                                onClick={() => navigate("/community/admin/create-tournament")}
                             />
                             <NavItem
                                 label="POST NEWS"
@@ -331,11 +331,11 @@ export default function CommunityLayout() {
 
             {/* ── MOBILE BOTTOM NAV ── */}
             <nav className="nuvra-bottom-nav">
-                <BottomNavItem icon="📊" label="HOME" active={isActive("/community/feed")} onClick={() => navigate("/community/feed")} />
+                <BottomNavItem icon="🏆" label="LEAGUES" active={isActive("/community/feed")} onClick={() => navigate("/community/feed")} />
                 <BottomNavItem icon="✨" label="COMMUNITY" active={isActive("/community/members")} onClick={() => navigate("/community/members")} />
                 <BottomNavItem icon="👤" label="PROFILE" active={isActive("/community/profile")} onClick={() => navigate("/community/profile")} />
                 {(user?.role === "club_owner" || user?.role === "admin") && (
-                    <BottomNavItem icon="⚙️" label="ADMIN" active={location.pathname.startsWith("/community/admin")} onClick={() => navigate("/community/admin/create-game")} />
+                    <BottomNavItem icon="⚙️" label="ADMIN" active={location.pathname.startsWith("/community/admin")} onClick={() => navigate("/community/admin/create-tournament")} />
                 )}
             </nav>
 

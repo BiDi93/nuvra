@@ -17,10 +17,11 @@ import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
 import PublicGames from "./Pages/Community/PublicGames.jsx";
 import CommunityMembers from "./Pages/Community/CommunityMembers.jsx";
 import PublicPlayerProfile from "./Pages/Community/PublicPlayerProfile.jsx";
-import GameDetail from "./Pages/Community/GameDetail.jsx";
+import TournamentDetail from "./Pages/Community/TournamentDetail.jsx";
 import PlayerProfile from "./Pages/Community/PlayerProfile.jsx";
 import CommunityAnnouncements from "./Pages/Community/CommunityAnnouncements.jsx";
-import CreateGame from "./Pages/Community/Admin/CreateGame.jsx";
+import CreateTournament from "./Pages/Community/Admin/CreateTournament.jsx";
+import TournamentManage from "./Pages/Community/Admin/TournamentManage.jsx";
 import PostAnnouncement from "./Pages/Community/Admin/PostAnnouncement.jsx";
 import Analytics from "./Pages/Community/Admin/Analytics.jsx";
 
@@ -37,22 +38,27 @@ function App() {
                 <Route path="/auth/callback" element={<GoogleCallback />} />
 
                 {/* =========================================
-                    2. COMMUNITY ROUTES
+                    2. TOURNAMENTS & COMMUNITY ROUTES
                    ========================================= */}
                 <Route path="/community" element={<CommunityHome />} />
                 <Route path="/games" element={<PublicGames />} />
+                <Route path="/tournaments" element={<PublicGames />} />
+                <Route path="/tournaments/:id" element={<TournamentDetail />} />
                 <Route path="/community/auth/callback" element={<CommunityGoogleCallback />} />
                 
                 <Route path="/community" element={<CommunityLayout />}>
                     <Route path="feed" element={<CommunityFeed />} />
+                    <Route path="tournaments/:id" element={<TournamentDetail />} />
                     <Route path="members" element={<CommunityMembers />} />
                     <Route path="members/:id" element={<PublicPlayerProfile />} />
                     <Route path="profile" element={<PlayerProfile />} />
-                    <Route path="games/:id" element={<GameDetail />} />
+                    <Route path="games/:id" element={<TournamentDetail />} />
                     <Route path="announcements" element={<CommunityAnnouncements />} />
                     
                     {/* Admin/Organizer Routes */}
-                    <Route path="admin/create-game" element={<CreateGame />} />
+                    <Route path="admin/create-tournament" element={<CreateTournament />} />
+                    <Route path="admin/create-game" element={<CreateTournament />} />
+                    <Route path="admin/tournaments/:id/manage" element={<TournamentManage />} />
                     <Route path="admin/post-announcement" element={<PostAnnouncement />} />
                     <Route path="admin/analytics" element={<Analytics />} />
                 </Route>
