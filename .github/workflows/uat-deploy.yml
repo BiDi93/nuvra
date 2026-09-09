@@ -1,4 +1,4 @@
-name: Deploy NUVRA to UAT VM
+name: Deploy NUVRA to Local Office Server (UAT)
 
 on:
   push:
@@ -6,41 +6,32 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, uat]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.UAT_VM_IP }}
-        username: ${{ secrets.UAT_VM_SSH_USER }}
-        key: ${{ secrets.UAT_SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || 22 }}
-        script: |
-          cd /var/www/html
-          git config --global --add safe.directory /var/www/html
-          
-          # Maintain maintenance mode
-          php artisan down || true
+      - name: Deploy UAT Codebase
+        run: |
+          cd /home/muhaimin/nuvra-uat
+          git config --global --add safe.directory /home/muhaimin/nuvra-uat
           
           # Sync with GitHub (Force)
           git fetch origin uat
           git reset --hard origin/uat
           
-          # Update Backend
-          composer install --no-dev --optimize-autoloader
+          # Backend dependencies
+          composer install --no-interaction --optimize-autoloader
           
-          # Update Frontend
+          # Frontend build
           npm install
           npm run build
           
           # Database & Optimization
           php artisan migrate --force
+          php artisan optimize:clear
           php artisan optimize
           php artisan view:cache
           
-          # Bring app back up
-          php artisan up
+          # Permissions for web server (nginx / php-fpm)
+          chmod 666 nuvra_db || true
+          chmod -R 777 storage bootstrap/cache || true
+
