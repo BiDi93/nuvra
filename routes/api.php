@@ -19,6 +19,8 @@ use App\Http\Controllers\CommunityNotificationController;
 | AUTHENTICATION & ONBOARDING
 |--------------------------------------------------------------------------
 */
+Route::post('/login', [CommunityAuthController::class, 'login']);
+Route::post('/register', [CommunityAuthController::class, 'register']);
 Route::post('/forgot-password', [NewPasswordController::class, 'forgotPassword'])->middleware('guest');
 Route::post('/reset-password', [NewPasswordController::class, 'resetPassword'])->middleware('guest');
 
