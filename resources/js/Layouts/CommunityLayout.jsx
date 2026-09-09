@@ -356,17 +356,20 @@ const S = {
     root: {
         display: "flex",
         minHeight: "100vh",
-        background: "#121212",
-        color: "#fff",
+        background: "#f8fafc",
+        color: "#0f172a",
         fontFamily: "'Inter', sans-serif",
         position: "relative",
     },
 
-    /* SIDEBAR */
+    /* SIDEBAR (Glossy Dark Glassmorphism) */
     sidebar: {
         width: 260,
         minWidth: 260,
-        background: "#121620", // Deep Navy
+        background: "linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(10, 15, 29, 0.98) 100%)",
+        backdropFilter: "blur(24px) saturate(190%)",
+        WebkitBackdropFilter: "blur(24px) saturate(190%)",
+        boxShadow: "inset -1px 0 0 0 rgba(255, 255, 255, 0.08), 4px 0 30px rgba(0, 0, 0, 0.15)",
         display: "flex",
         flexDirection: "column",
         position: "fixed",
@@ -374,10 +377,10 @@ const S = {
         left: 0,
         bottom: 0,
         zIndex: 50,
-        borderRight: "1px solid rgba(255,255,255,0.03)",
+        borderRight: "1px solid rgba(255, 255, 255, 0.08)",
     },
     brand: {
-        padding: "40px 24px",
+        padding: "36px 24px 28px",
         cursor: "pointer",
     },
     logoContainer: {
@@ -386,14 +389,15 @@ const S = {
         gap: 12,
     },
     logoImg: {
-        width: 40,
-        height: 40,
+        width: 38,
+        height: 38,
         objectFit: "contain",
+        filter: "drop-shadow(0 2px 8px rgba(0, 212, 236, 0.3))",
     },
     brandText: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 900,
-        letterSpacing: 1,
+        letterSpacing: 1.5,
         color: "#fff",
         fontFamily: "'Inter', sans-serif",
     },
@@ -406,11 +410,11 @@ const S = {
     navItem: {
         display: "flex",
         alignItems: "center",
-        padding: "14px 20px",
+        padding: "12px 18px",
         background: "transparent",
-        border: "none",
-        color: "rgba(255,255,255,0.4)",
-        fontSize: 14,
+        border: "1px solid transparent",
+        color: "rgba(255,255,255,0.65)",
+        fontSize: 13,
         fontWeight: 700,
         cursor: "pointer",
         fontFamily: "inherit",
@@ -421,40 +425,46 @@ const S = {
         position: "relative",
     },
     navItemActive: {
-        background: "rgba(255,255,255,0.05)",
+        background: "linear-gradient(90deg, rgba(0, 212, 236, 0.15) 0%, rgba(0, 212, 236, 0.04) 100%)",
+        border: "1px solid rgba(0, 212, 236, 0.25)",
         color: "#fff",
+        boxShadow: "0 4px 16px rgba(0, 212, 236, 0.1)",
     },
     navIcon: {
         fontSize: 18,
-        filter: "grayscale(1) brightness(2)",
     },
     activeIndicator: {
         position: "absolute",
         left: 0,
         top: "20%",
         bottom: "20%",
-        width: 4,
+        width: 3,
         background: "#00D4EC",
         borderRadius: "0 4px 4px 0",
+        boxShadow: "0 0 10px #00D4EC",
     },
     navDivider: {
         fontSize: 10,
         fontWeight: 800,
-        color: "rgba(255,255,255,0.15)",
+        color: "rgba(255,255,255,0.3)",
         letterSpacing: 1.5,
-        padding: "32px 20px 8px 20px",
+        padding: "24px 18px 8px 18px",
         textTransform: "uppercase",
     },
     userBox: {
         margin: "12px",
-        padding: "16px",
-        borderRadius: 16,
-        background: "rgba(255,255,255,0.02)",
+        padding: "14px",
+        borderRadius: 14,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(12px)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
         display: "flex",
         alignItems: "center",
         gap: 12,
         cursor: "pointer",
         position: "relative",
+        transition: "background 0.2s",
     },
     userAvatar: {
         width: 40,
@@ -536,28 +546,30 @@ const S = {
         cursor: "pointer",
     },
 
-    /* MAIN */
+    /* MAIN (Clean Light White Canvas) */
     main: {
         marginLeft: 260,
         flex: 1,
-        background: "#0d111a", // Master Background
+        background: "#f8fafc",
         minHeight: "100vh",
         position: "relative",
+        color: "#0f172a",
     },
     bgImage: {
-        display: "none", // Hide the old image
+        display: "none",
     },
     bgOverlay: {
         position: "fixed",
         inset: 0,
         marginLeft: 260,
-        background: "radial-gradient(circle at top right, rgba(0, 212, 236, 0.03), transparent 40%), radial-gradient(circle at bottom left, rgba(0, 212, 236, 0.02), transparent 40%)",
+        background: "radial-gradient(circle at top right, rgba(0, 212, 236, 0.05), transparent 45%), radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.03), transparent 45%)",
         zIndex: 1,
+        pointerEvents: "none",
     },
     contentWrapper: {
         position: "relative",
         zIndex: 2,
-        padding: "60px 48px", // More spacious
+        padding: "40px 48px 80px",
     },
     notificationsDropdown: {
         position: "absolute",

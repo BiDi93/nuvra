@@ -199,13 +199,13 @@ export default function TournamentDetail() {
                                     <th style={{ ...S.th, textAlign: "center" }}>GF</th>
                                     <th style={{ ...S.th, textAlign: "center" }}>GA</th>
                                     <th style={{ ...S.th, textAlign: "center" }}>GD</th>
-                                    <th style={{ ...S.th, textAlign: "center", color: BRAND_CYAN, fontWeight: 900 }}>PTS</th>
+                                    <th style={{ ...S.th, textAlign: "center", color: "#0284c7", fontWeight: 900 }}>PTS</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {(!standings || standings.length === 0) ? (
                                     <tr>
-                                        <td colSpan={10} style={{ textAlign: "center", padding: 30, color: "#666" }}>
+                                        <td colSpan={10} style={{ textAlign: "center", padding: 30, color: "#64748b" }}>
                                             Belum ada rekod kedudukan perlawanan.
                                         </td>
                                     </tr>
@@ -218,9 +218,9 @@ export default function TournamentDetail() {
                                                 <td style={{ ...S.td, textAlign: "center" }}>
                                                     <span style={{
                                                         ...S.posBadge,
-                                                        background: isTop ? "#f59e0b" : (row.position === 2 ? "#94a3b8" : (row.position === 3 ? "#b45309" : "rgba(255,255,255,0.05)")),
-                                                        color: isPodium ? "#000" : "#888",
-                                                        fontWeight: isPodium ? 900 : 600
+                                                        background: isTop ? "#f59e0b" : (row.position === 2 ? "#64748b" : (row.position === 3 ? "#d97706" : "#f1f5f9")),
+                                                        color: isPodium ? "#fff" : "#475569",
+                                                        fontWeight: isPodium ? 900 : 700
                                                     }}>
                                                         {row.position}
                                                     </span>
@@ -234,21 +234,21 @@ export default function TournamentDetail() {
                                                                 <span>{row.name.substring(0, 2).toUpperCase()}</span>
                                                             )}
                                                         </div>
-                                                        <span style={{ fontWeight: isTop ? 800 : 700, color: isTop ? "#fff" : "#e0e0e0" }}>
+                                                        <span style={{ fontWeight: 800, color: "#0f172a" }}>
                                                             {row.name}
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td style={{ ...S.td, textAlign: "center" }}>{row.played}</td>
-                                                <td style={{ ...S.td, textAlign: "center", color: "#4ade80" }}>{row.won}</td>
-                                                <td style={{ ...S.td, textAlign: "center", color: "#facc15" }}>{row.drawn}</td>
-                                                <td style={{ ...S.td, textAlign: "center", color: "#f87171" }}>{row.lost}</td>
-                                                <td style={{ ...S.td, textAlign: "center" }}>{row.gf}</td>
-                                                <td style={{ ...S.td, textAlign: "center" }}>{row.ga}</td>
-                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 700, color: row.gd > 0 ? "#4ade80" : (row.gd < 0 ? "#f87171" : "#aaa") }}>
+                                                <td style={{ ...S.td, textAlign: "center", color: "#334155" }}>{row.played}</td>
+                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 700, color: "#16a34a" }}>{row.won}</td>
+                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 700, color: "#d97706" }}>{row.drawn}</td>
+                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{row.lost}</td>
+                                                <td style={{ ...S.td, textAlign: "center", color: "#334155" }}>{row.gf}</td>
+                                                <td style={{ ...S.td, textAlign: "center", color: "#334155" }}>{row.ga}</td>
+                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 700, color: row.gd > 0 ? "#16a34a" : (row.gd < 0 ? "#dc2626" : "#64748b") }}>
                                                     {row.gd > 0 ? `+${row.gd}` : row.gd}
                                                 </td>
-                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 900, fontSize: 15, color: BRAND_CYAN }}>
+                                                <td style={{ ...S.td, textAlign: "center", fontWeight: 900, fontSize: 15, color: "#0284c7" }}>
                                                     {row.points}
                                                 </td>
                                             </tr>
@@ -475,7 +475,7 @@ const S = {
         margin: "0 auto",
         padding: "20px 16px 80px",
         fontFamily: "'Inter', sans-serif",
-        color: "#fff",
+        color: "#0f172a",
     },
     topBar: {
         display: "flex",
@@ -486,29 +486,34 @@ const S = {
     backBtn: {
         background: "none",
         border: "none",
-        color: "rgba(255,255,255,0.6)",
+        color: "#0284c7",
         fontSize: 12,
         fontWeight: 800,
         letterSpacing: 0.5,
         cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
     },
     manageBtn: {
-        background: "rgba(0, 212, 236, 0.15)",
-        border: "1px solid rgba(0, 212, 236, 0.4)",
-        color: BRAND_CYAN,
-        padding: "8px 16px",
-        borderRadius: 8,
+        background: "#0284c7",
+        border: "none",
+        color: "#fff",
+        padding: "8px 18px",
+        borderRadius: 10,
         fontSize: 12,
         fontWeight: 800,
         cursor: "pointer",
+        boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
+        transition: "background 0.2s",
     },
     heroCard: {
-        background: "linear-gradient(135deg, #161b26 0%, #0d1117 100%)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
         borderRadius: 16,
         padding: "28px 24px",
         marginBottom: 24,
-        boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
     },
     heroBadgeRow: {
         display: "flex",
@@ -516,9 +521,9 @@ const S = {
         marginBottom: 12,
     },
     badgeFormat: {
-        background: "rgba(0, 212, 236, 0.12)",
-        color: BRAND_CYAN,
-        border: "1px solid rgba(0, 212, 236, 0.3)",
+        background: "rgba(2, 132, 199, 0.08)",
+        color: "#0284c7",
+        border: "1px solid rgba(2, 132, 199, 0.2)",
         fontSize: 10,
         fontWeight: 900,
         padding: "4px 8px",
@@ -526,18 +531,18 @@ const S = {
         letterSpacing: 0.5,
     },
     badgeSeason: {
-        background: "rgba(255,255,255,0.05)",
-        color: "#aaa",
-        border: "1px solid rgba(255,255,255,0.1)",
+        background: "#f1f5f9",
+        color: "#475569",
+        border: "1px solid #e2e8f0",
         fontSize: 10,
         fontWeight: 800,
         padding: "4px 8px",
         borderRadius: 6,
     },
     badgeStatus: {
-        background: "rgba(34, 197, 94, 0.12)",
-        color: "#4ade80",
-        border: "1px solid rgba(34, 197, 94, 0.3)",
+        background: "rgba(22, 163, 74, 0.08)",
+        color: "#16a34a",
+        border: "1px solid rgba(22, 163, 74, 0.2)",
         fontSize: 10,
         fontWeight: 800,
         padding: "4px 8px",
@@ -547,6 +552,7 @@ const S = {
         fontSize: 32,
         fontWeight: 900,
         letterSpacing: -0.5,
+        color: "#0f172a",
         marginBottom: 8,
     },
     heroMeta: {
@@ -554,20 +560,20 @@ const S = {
         alignItems: "center",
         flexWrap: "wrap",
         gap: 12,
-        color: "rgba(255,255,255,0.6)",
+        color: "#64748b",
         fontSize: 13,
     },
     tabsWrapper: {
         display: "flex",
         gap: 8,
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        borderBottom: "1px solid #e2e8f0",
         marginBottom: 24,
         paddingBottom: 4,
     },
     tabBtn: {
         background: "none",
         border: "none",
-        color: "rgba(255,255,255,0.45)",
+        color: "#64748b",
         fontSize: 13,
         fontWeight: 800,
         padding: "10px 16px",
@@ -577,16 +583,16 @@ const S = {
         transition: "all 0.2s",
     },
     activeTabBtn: {
-        color: BRAND_CYAN,
-        background: "rgba(0, 212, 236, 0.08)",
-        borderBottom: `2px solid ${BRAND_CYAN}`,
+        color: "#0284c7",
+        background: "rgba(2, 132, 199, 0.08)",
+        borderBottom: "2px solid #0284c7",
     },
     card: {
-        background: "rgba(18, 22, 32, 0.8)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 14,
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 16,
         padding: 24,
-        backdropFilter: "blur(12px)",
+        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
     },
     cardHeader: {
         display: "flex",
@@ -599,10 +605,11 @@ const S = {
     cardTitle: {
         fontSize: 18,
         fontWeight: 800,
+        color: "#0f172a",
     },
     cardSub: {
         fontSize: 12,
-        color: "rgba(255,255,255,0.5)",
+        color: "#64748b",
     },
     table: {
         width: "100%",
@@ -610,26 +617,27 @@ const S = {
         fontSize: 13,
     },
     thRow: {
-        borderBottom: "1px solid rgba(255,255,255,0.1)",
+        borderBottom: "2px solid #e2e8f0",
+        background: "#f8fafc",
     },
     th: {
         padding: "12px 10px",
-        color: "rgba(255,255,255,0.45)",
+        color: "#64748b",
         fontSize: 11,
         fontWeight: 800,
         letterSpacing: 0.5,
         textAlign: "left",
     },
     tr: {
-        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        borderBottom: "1px solid #f1f5f9",
         transition: "background 0.2s",
     },
     trLeader: {
-        background: "rgba(0, 212, 236, 0.04)",
+        background: "rgba(2, 132, 199, 0.03)",
     },
     td: {
         padding: "12px 10px",
-        color: "#ddd",
+        color: "#334155",
     },
     posBadge: {
         display: "inline-flex",
@@ -644,14 +652,14 @@ const S = {
         width: 28,
         height: 28,
         borderRadius: 6,
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(255,255,255,0.1)",
+        background: "#f1f5f9",
+        border: "1px solid #e2e8f0",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         fontSize: 10,
         fontWeight: 800,
-        color: "#aaa",
+        color: "#64748b",
         overflow: "hidden",
     },
     gwPillsRow: {
@@ -662,9 +670,9 @@ const S = {
         marginBottom: 16,
     },
     gwPill: {
-        background: "rgba(18, 22, 32, 0.9)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        color: "rgba(255,255,255,0.6)",
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        color: "#475569",
         padding: "8px 16px",
         borderRadius: 20,
         fontSize: 12,
@@ -674,9 +682,10 @@ const S = {
         transition: "all 0.2s",
     },
     activeGwPill: {
-        background: BRAND_CYAN,
-        color: "#000",
-        border: `1px solid ${BRAND_CYAN}`,
+        background: "#0284c7",
+        color: "#ffffff",
+        border: "1px solid #0284c7",
+        boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
     },
     fixturesGrid: {
         display: "flex",
@@ -684,10 +693,11 @@ const S = {
         gap: 12,
     },
     fixtureCard: {
-        background: "rgba(18, 22, 32, 0.8)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
-        padding: 16,
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 14,
+        padding: 18,
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.03)",
     },
     fixtureMeta: {
         display: "flex",
@@ -696,7 +706,7 @@ const S = {
         flexWrap: "wrap",
         gap: 8,
         fontSize: 11,
-        color: "rgba(255,255,255,0.5)",
+        color: "#64748b",
         marginBottom: 12,
     },
     statusMini: {
@@ -723,11 +733,11 @@ const S = {
     teamNameText: {
         fontSize: 15,
         fontWeight: 800,
-        color: "#fff",
+        color: "#0f172a",
     },
     scoreBox: {
-        background: "rgba(0,0,0,0.4)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
         padding: "6px 16px",
         borderRadius: 8,
         minWidth: 70,
@@ -740,24 +750,24 @@ const S = {
         alignItems: "center",
         fontSize: 18,
         fontWeight: 900,
-        color: "#fff",
+        color: "#0f172a",
     },
     vsText: {
         fontSize: 12,
         fontWeight: 900,
-        color: "rgba(255,255,255,0.4)",
+        color: "#94a3b8",
     },
     organizerFixtureAction: {
         display: "flex",
         justifyContent: "flex-end",
         marginTop: 12,
-        borderTop: "1px solid rgba(255,255,255,0.04)",
+        borderTop: "1px solid #f1f5f9",
         paddingTop: 8,
     },
     quickScoreBtn: {
         background: "none",
         border: "none",
-        color: BRAND_CYAN,
+        color: "#0284c7",
         fontSize: 11,
         fontWeight: 800,
         cursor: "pointer",
@@ -768,37 +778,42 @@ const S = {
         gap: 16,
     },
     teamCard: {
-        background: "rgba(18, 22, 32, 0.8)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 14,
         padding: 24,
         textAlign: "center",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.03)",
     },
     teamCardLogo: {
         width: 64,
         height: 64,
         borderRadius: 16,
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.1)",
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 12,
         overflow: "hidden",
+        fontSize: 18,
+        fontWeight: 900,
+        color: "#64748b",
     },
     teamCardName: {
         fontSize: 15,
         fontWeight: 800,
-        color: "#fff",
+        color: "#0f172a",
     },
     teamGroupBadge: {
         marginTop: 6,
         fontSize: 10,
-        color: "rgba(255,255,255,0.5)",
-        background: "rgba(255,255,255,0.05)",
+        color: "#64748b",
+        background: "#f1f5f9",
+        border: "1px solid #e2e8f0",
         padding: "2px 8px",
         borderRadius: 4,
     },
@@ -814,7 +829,7 @@ const S = {
     },
     infoLabel: {
         fontSize: 11,
-        color: "rgba(255,255,255,0.45)",
+        color: "#64748b",
         fontWeight: 800,
         textTransform: "uppercase",
         letterSpacing: 0.5,
@@ -822,12 +837,12 @@ const S = {
     infoVal: {
         fontSize: 14,
         fontWeight: 700,
-        color: "#fff",
+        color: "#0f172a",
     },
     modalOverlay: {
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.8)",
+        background: "rgba(15, 23, 42, 0.6)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -836,22 +851,24 @@ const S = {
         padding: 16,
     },
     modalContent: {
-        background: "#161a24",
-        border: "1px solid rgba(255,255,255,0.12)",
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
         borderRadius: 16,
         padding: 24,
         width: "100%",
         maxWidth: 420,
         textAlign: "center",
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: 900,
         marginBottom: 4,
+        color: "#0f172a",
     },
     modalSub: {
         fontSize: 12,
-        color: "rgba(255,255,255,0.5)",
+        color: "#64748b",
         marginBottom: 20,
     },
     scoreEditRow: {
@@ -871,7 +888,7 @@ const S = {
     teamInputLabel: {
         fontSize: 12,
         fontWeight: 800,
-        color: "#ccc",
+        color: "#334155",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -880,12 +897,12 @@ const S = {
     scoreInput: {
         width: 70,
         height: 50,
-        background: "#0d1117",
-        border: `2px solid ${BRAND_CYAN}`,
+        background: "#f8fafc",
+        border: "2px solid #0284c7",
         borderRadius: 8,
         fontSize: 22,
         fontWeight: 900,
-        color: "#fff",
+        color: "#0f172a",
         textAlign: "center",
         outline: "none",
     },
@@ -895,9 +912,9 @@ const S = {
     },
     cancelBtn: {
         flex: 1,
-        background: "rgba(255,255,255,0.06)",
-        border: "none",
-        color: "#aaa",
+        background: "#f1f5f9",
+        border: "1px solid #e2e8f0",
+        color: "#64748b",
         padding: 12,
         borderRadius: 8,
         fontWeight: 800,
@@ -905,12 +922,13 @@ const S = {
     },
     saveScoreBtn: {
         flex: 2,
-        background: BRAND_CYAN,
+        background: "#0284c7",
         border: "none",
-        color: "#000",
+        color: "#ffffff",
         padding: 12,
         borderRadius: 8,
         fontWeight: 900,
         cursor: "pointer",
+        boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
     },
 };
