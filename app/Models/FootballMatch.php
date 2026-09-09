@@ -62,4 +62,9 @@ class FootballMatch extends Model
     {
         return $this->hasMany(Performance::class, 'match_id');
     }
+
+    public function players()
+    {
+        return $this->belongsToMany(User::class, 'match_player', 'match_id', 'user_id');
+    }
 }

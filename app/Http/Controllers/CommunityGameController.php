@@ -203,8 +203,8 @@ class CommunityGameController extends Controller
     // List all community members
     public function members()
     {
-        $users = User::select('id', 'name', 'avatar', 'club_logo', 'role', 'created_at')
-            ->orderBy('created_at', 'desc')
+        $users = User::select('id', 'name', 'avatar', 'club_logo', 'role', 'created_at', 'vellar_id', 'position', 'club_name')
+            ->orderBy('id', 'asc')
             ->get()
             ->map(function($user) {
                 $stats = DB::table('performances')
@@ -218,7 +218,10 @@ class CommunityGameController extends Controller
                     'avatar' => $user->avatar,
                     'club_logo' => $user->club_logo,
                     'role' => $user->role,
-                    'joined' => $user->created_at->format('M Y'),
+                    'vellar_id' => $user->vellar_id,
+                    'position' => $user->position,
+                    'club_name' => $user->club_name,
+                    'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
                     'games' => $stats->total_games ?? 0,
                     'goals' => $stats->goals ?? 0,
                 ];
@@ -238,13 +241,20 @@ class CommunityGameController extends Controller
             ->selectRaw('COUNT(match_id) as total_matches, SUM(goals) as total_goals, SUM(assists) as total_assists, AVG(rating) as avg_rating')
             ->first();
 
-        $history = FootballMatch::whereHas('players', function($q) use ($user) {
-            $q->where('user_id', $user->id)->where('match_player.status', 'confirmed');
+        $history = FootballMatch::where(function($q) use ($user) {
+            $q->whereHas('performances', function($pq) use ($user) {
+                $pq->where('user_id', $user->id);
+            });
+            if (\Illuminate\Support\Facades\Schema::hasTable('match_player')) {
+                $q->orWhereHas('players', function($mpq) use ($user) {
+                    $mpq->where('user_id', $user->id)->where('match_player.status', 'confirmed');
+                });
+            }
         })
         ->with(['performances' => function($q) use ($user) {
             $q->where('user_id', $user->id);
         }])
-        ->where('match_date', '<', now())   // past matches only
+        ->where('match_date', '<=', now()->toDateString())
         ->orderBy('match_date', 'desc')
         ->limit(10)
         ->get()
@@ -259,19 +269,24 @@ class CommunityGameController extends Controller
 
         return response()->json([
             'user' => [
+                'id' => $user->id,
                 'name' => $user->name,
                 'avatar' => $user->avatar,
                 'role' => $user->role,
-                'joined' => $user->created_at->format('M Y'),
+                'vellar_id' => $user->vellar_id,
+                'position' => $user->position,
+                'club_name' => $user->club_name,
+                'phone' => $user->phone,
+                'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
                 'club_logo' => $user->club_logo,
             ],
             'stats' => [
-                'total_matches' => $stats->total_matches ?? 0,
-                'total_goals' => $stats->total_goals ?? 0,
-                'total_assists' => $stats->total_assists ?? 0,
-                'avg_rating' => round($stats->avg_rating ?? 0, 1),
+                'total_matches' => (int)($stats->total_matches ?? 0),
+                'total_goals' => (int)($stats->total_goals ?? 0),
+                'total_assists' => (int)($stats->total_assists ?? 0),
+                'avg_rating' => round((float)($stats->avg_rating ?? 0), 1),
             ],
-            'history' => $history
+            'history' => $history ?? []
         ]);
     }
 
@@ -291,6 +306,9 @@ class CommunityGameController extends Controller
                 'role' => $user->role,
                 'avatar' => $user->avatar,
                 'club_logo' => $user->club_logo,
+                'vellar_id' => $user->vellar_id,
+                'position' => $user->position,
+                'club_name' => $user->club_name,
             ]
         ];
 
@@ -303,12 +321,12 @@ class CommunityGameController extends Controller
             
             $data['stats'] = [
                 'total_organized' => DB::table('matches')->where('club_owner_id', $user->id)->count(),
-                'active_players' => DB::table('match_player')
+                'active_players' => \Illuminate\Support\Facades\Schema::hasTable('match_player') ? DB::table('match_player')
                     ->join('matches', 'match_player.match_id', '=', 'matches.id')
                     ->where('matches.club_owner_id', $user->id)
                     ->where('match_player.status', 'confirmed')
                     ->distinct('user_id')
-                    ->count('user_id'),
+                    ->count('user_id') : 0,
             ];
         } else {
             $stats = DB::table('performances')
@@ -317,19 +335,26 @@ class CommunityGameController extends Controller
                 ->first();
 
             $data['stats'] = [
-                'total_matches' => $stats->total_games ?? 0,
-                'total_goals'   => $stats->total_goals ?? 0,
-                'total_assists' => $stats->total_assists ?? 0,
-                'avg_rating'    => round($stats->avg_rating ?? 0, 1),
+                'total_matches' => (int)($stats->total_games ?? 0),
+                'total_goals'   => (int)($stats->total_goals ?? 0),
+                'total_assists' => (int)($stats->total_assists ?? 0),
+                'avg_rating'    => round((float)($stats->avg_rating ?? 0), 1),
             ];
 
-            $data['history'] = FootballMatch::whereHas('players', function($q) use ($user) {
-                $q->where('user_id', $user->id)->where('match_player.status', 'confirmed');
+            $history = FootballMatch::where(function($q) use ($user) {
+                $q->whereHas('performances', function($pq) use ($user) {
+                    $pq->where('user_id', $user->id);
+                });
+                if (\Illuminate\Support\Facades\Schema::hasTable('match_player')) {
+                    $q->orWhereHas('players', function($mpq) use ($user) {
+                        $mpq->where('user_id', $user->id)->where('match_player.status', 'confirmed');
+                    });
+                }
             })
             ->with(['performances' => function($q) use ($user) {
                 $q->where('user_id', $user->id);
             }])
-            ->where('match_date', '<', now())   // past matches only
+            ->where('match_date', '<=', now()->toDateString())
             ->orderBy('match_date', 'desc')
             ->limit(10)
             ->get()
@@ -341,6 +366,7 @@ class CommunityGameController extends Controller
                 'goals'  => $m->performances->first()->goals ?? 0,
                 'rating' => $m->performances->first()->rating ?? 0,
             ]);
+            $data['history'] = $history ?? [];
         }
 
         return response()->json($data);

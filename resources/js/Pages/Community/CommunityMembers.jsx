@@ -7,6 +7,7 @@ const BRAND_BLUE = "#00D4EC";
 
 export default function CommunityMembers() {
     const [members, setMembers] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -18,7 +19,10 @@ export default function CommunityMembers() {
         try {
             const token = localStorage.getItem("community_token");
             const res = await fetch(`${API}/members`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { 
+                    Accept: "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                }
             });
             if (res.status === 401) {
                 localStorage.removeItem("community_token");
@@ -35,29 +39,54 @@ export default function CommunityMembers() {
         }
     };
 
+    const filtered = members.filter(m => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            (m.name && m.name.toLowerCase().includes(term)) ||
+            (m.vellar_id && m.vellar_id.toLowerCase().includes(term)) ||
+            (m.position && m.position.toLowerCase().includes(term)) ||
+            (m.club_name && m.club_name.toLowerCase().includes(term))
+        );
+    });
+
     return (
         <div style={S.container}>
             <PageLoader />
             <style>{`
                 .member-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; cursor: pointer; }
             `}</style>
-            <h1 style={S.title}>MEMBERS</h1>
-            <p style={S.subtitle}>List of all registered football enthusiasts in NUVRA</p>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
+                <div>
+                    <h1 style={S.title}>PLAYERS & MEMBERS</h1>
+                    <p style={S.subtitle}>Directory of official Vellar League players and tournament members ({members.length} registered)</p>
+                </div>
+                <div style={{ width: '100%', maxWidth: 320 }}>
+                    <input
+                        type="text"
+                        placeholder="🔍 Search name, Vellar ID, club..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={S.searchInput}
+                    />
+                </div>
+            </div>
 
             {loading ? (
                 <div style={S.emptyState}>LOADING MEMBERS...</div>
-            ) : members.length === 0 ? (
-                <div style={S.emptyState}>NO MEMBERS FOUND</div>
+            ) : filtered.length === 0 ? (
+                <div style={S.emptyState}>NO PLAYERS FOUND MATCHING "{searchTerm}"</div>
             ) : (
                 <div style={S.grid}>
-                    {members.map(m => (
+                    {filtered.map(m => (
                         <div key={m.id} style={S.card} className="member-card" onClick={() => navigate(`/community/members/${m.id}`)}>
                             <div style={S.avatarWrapper}>
                                 <div style={S.avatar}>
                                     {m.avatar ? (
                                         <img src={m.avatar} alt="" style={S.avatarImg} />
                                     ) : (
-                                        m.name[0].toUpperCase()
+                                        (m.name || "U")[0].toUpperCase()
                                     )}
                                 </div>
                                 {m.club_logo && (
@@ -68,8 +97,17 @@ export default function CommunityMembers() {
                             </div>
                             <div style={S.info}>
                                 <div style={S.name}>{m.name}</div>
-                                <div style={S.role}>{m.role?.toUpperCase() || "PLAYER"}</div>
-                                <div style={S.joined}>Joined {m.joined}</div>
+                                {m.vellar_id && (
+                                    <div style={S.vellarIdTag}>{m.vellar_id}</div>
+                                )}
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+                                    {m.position && (
+                                        <span style={S.positionTag}>{m.position}</span>
+                                    )}
+                                    {m.club_name && (
+                                        <span style={S.clubTag}>{m.club_name}</span>
+                                    )}
+                                </div>
                             </div>
                             <div style={S.stats}>
                                 <div style={S.statItem}>
@@ -118,5 +156,42 @@ const S = {
     statItem: { display: "flex", flexDirection: "column", gap: 2 },
     statVal: { fontSize: 16, fontWeight: 900, color: "#fff" },
     statLabel: { fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)" },
+    searchInput: {
+        width: "100%",
+        padding: "12px 16px",
+        borderRadius: 14,
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        color: "#fff",
+        fontSize: 14,
+        outline: "none"
+    },
+    vellarIdTag: {
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 6,
+        background: "rgba(0,212,236,0.15)",
+        color: BRAND_BLUE,
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: 0.5,
+        marginTop: 4
+    },
+    positionTag: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#10b981",
+        background: "rgba(16,185,129,0.1)",
+        padding: "2px 6px",
+        borderRadius: 4
+    },
+    clubTag: {
+        fontSize: 10,
+        fontWeight: 600,
+        color: "rgba(255,255,255,0.6)",
+        background: "rgba(255,255,255,0.05)",
+        padding: "2px 6px",
+        borderRadius: 4
+    },
     emptyState: { padding: "100px 0", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 14, fontWeight: 700 }
 };
