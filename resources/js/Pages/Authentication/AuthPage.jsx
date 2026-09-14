@@ -176,16 +176,15 @@ const AuthPage = () => {
                                         <span style={S.vellarPrefix}>VELLAR</span>
                                         <input
                                             className="auth-input"
-                                            type="number"
+                                            type="text"
                                             placeholder="82"
-                                            min="1"
                                             value={loginForm.vellar_id}
                                             onChange={e => { setError(''); setLoginForm(f => ({ ...f, vellar_id: e.target.value })); }}
                                             style={{ ...S.input, paddingLeft: 80 }}
                                             required
                                         />
                                     </div>
-                                    <span style={S.fieldHint}>Contoh: taip <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> untuk ID VELLAR 82</span>
+                                    <span style={S.fieldHint}>Contoh: taip <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> untuk ID VELLAR 82. Admin boleh guna email.</span>
                                 </div>
 
                                 {/* Password Field */}

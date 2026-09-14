@@ -95,7 +95,7 @@ class CommunityAuthController extends Controller
         ], 201);
     }
 
-    // ── Login (Guna Vellar ID Number) ─────────────────────────────────────────
+    // ── Login (Guna Vellar ID Number atau Email untuk Admin) ───────────────────
     public function login(Request $request)
     {
         $request->validate([
@@ -103,14 +103,21 @@ class CommunityAuthController extends Controller
             'password'  => 'required',
         ]);
 
-        // Bina email dari vellar_id number
-        $vellarNumber = preg_replace('/[^0-9]/', '', $request->vellar_id);
+        $input = trim($request->vellar_id);
 
-        if (empty($vellarNumber)) {
-            return response()->json(['message' => 'Vellar ID tidak sah. Masukkan nombor sahaja (cth: 82).'], 422);
+        // Jika input ada '@' → rawat sebagai email (untuk admin/organizer)
+        if (str_contains($input, '@')) {
+            $email = $input;
+        } else {
+            // Bina email dari nombor vellar_id
+            $vellarNumber = preg_replace('/[^0-9]/', '', $input);
+
+            if (empty($vellarNumber)) {
+                return response()->json(['message' => 'Vellar ID tidak sah. Masukkan nombor sahaja (cth: 82).'], 422);
+            }
+
+            $email = 'vellar' . $vellarNumber . '@vellarleague.com';
         }
-
-        $email = 'vellar' . $vellarNumber . '@vellarleague.com';
 
         // Cari user
         $user = User::where('email', $email)->first();
@@ -152,6 +159,7 @@ class CommunityAuthController extends Controller
             ],
         ]);
     }
+
 
     // ── Logout ────────────────────────────────────────────────────────────────
     public function logout(Request $request)
