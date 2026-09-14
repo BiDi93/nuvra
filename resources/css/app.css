@@ -30,6 +30,7 @@
     --accent: #00D4EC;           /* logo cyan */
     --accent-secondary: #D040EF; /* logo magenta */
     --accent-dim: rgba(0, 212, 236, 0.08);
+    --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
 
     /* Text */
     --text-primary: #F5F5F7;
@@ -39,6 +40,7 @@
     /* Status */
     --color-danger: #EF4444;
     --color-success: #22C55E;
+    --color-warning: #FBBF24;
 }
 
 body {

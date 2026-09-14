@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { IconCamera, IconShield, IconPencil, IconTarget, IconStar, IconMapPin, IconCalendar, IconArrowUpRight, IconBarChart, IconUsers } from "../../Components/Icons";
 
 const API = "/api/community";
 const BRAND_BLUE = "#00D4EC";
@@ -70,7 +71,7 @@ export default function PlayerProfile() {
             const resData = await res.json();
             if (res.ok) {
                 fetchProfile();
-                window.location.reload(); 
+                window.location.reload();
             } else {
                 alert(resData.message);
             }
@@ -99,7 +100,7 @@ export default function PlayerProfile() {
             const resData = await res.json();
             if (res.ok) {
                 fetchProfile();
-                window.location.reload(); 
+                window.location.reload();
             } else {
                 alert(resData.message);
             }
@@ -131,24 +132,25 @@ export default function PlayerProfile() {
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
+                    gap: 6px;
                     opacity: 0;
                     cursor: pointer;
                     transition: opacity 0.2s ease;
                     color: #fff;
-                    border-radius: 32px;
+                    border-radius: 29px;
                 }
                 .avatar-hover-container:hover .avatar-hover-overlay {
                     opacity: 1;
                 }
                 .logo-badge-wrapper {
                     position: absolute;
-                    bottom: -8px;
-                    right: -8px;
-                    width: 52px;
-                    height: 52px;
+                    bottom: -6px;
+                    right: -6px;
+                    width: 48px;
+                    height: 48px;
                     border-radius: 50%;
-                    background: #1e2330;
-                    border: 3px solid #0d111a;
+                    background: var(--bg-surface-raised);
+                    border: 3px solid var(--bg-base);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -168,7 +170,6 @@ export default function PlayerProfile() {
                     align-items: center;
                     justify-content: center;
                     color: #fff;
-                    font-size: 14px;
                     opacity: 0;
                     transition: opacity 0.2s;
                 }
@@ -186,32 +187,42 @@ export default function PlayerProfile() {
             <header style={S.header}>
                 <div style={S.profileMain} className="profile-main">
                     <div style={S.avatarWrapper}>
-                        <div style={S.avatarLarge} className="avatar-hover-container">
-                            {user.avatar ? (
-                                <img src={user.avatar} alt="" style={S.avatarImg} />
-                            ) : (
-                                user.name[0].toUpperCase()
-                            )}
-                            <label className="avatar-hover-overlay">
-                                <input type="file" hidden onChange={handleAvatarUpload} accept="image/*" />
-                                <span style={{ fontSize: 24, marginBottom: 4 }}>📷</span>
-                                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>CHANGE PHOTO</span>
-                            </label>
+                        <div style={S.avatarRing}>
+                            <div style={S.avatarLarge} className="avatar-hover-container">
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt="" style={S.avatarImg} />
+                                ) : (
+                                    user.name[0].toUpperCase()
+                                )}
+                                <label className="avatar-hover-overlay">
+                                    <input type="file" hidden onChange={handleAvatarUpload} accept="image/*" />
+                                    <IconCamera size={22} />
+                                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>CHANGE PHOTO</span>
+                                </label>
+                            </div>
                         </div>
                         <label className="logo-badge-wrapper">
                             <input type="file" hidden onChange={handleClubLogoUpload} accept="image/*" />
                             {user.club_logo ? (
                                 <img src={user.club_logo} alt="Club Logo" style={S.logoBadgeImg} />
                             ) : (
-                                <span style={S.logoPlaceholder}>🛡️</span>
+                                <span style={S.logoPlaceholder}><IconShield size={18} /></span>
                             )}
                             <div className="logo-badge-hover">
-                                <span>✎</span>
+                                <IconPencil size={14} />
                             </div>
                         </label>
                     </div>
                     <div style={S.userMeta}>
-                        <h1 style={S.name} className="profile-name">{user.name}</h1>
+                        <div style={S.nameRow}>
+                            <h1 style={S.name} className="profile-name">{user.name}</h1>
+                            {user.vellar_id && (
+                                <span style={S.vellarBadge}>
+                                    <span style={S.vellarDot} />
+                                    <span style={S.vellarText}>{user.vellar_id}</span>
+                                </span>
+                            )}
+                        </div>
                         <p style={S.roleBadge}>{user.role?.toUpperCase()}</p>
                         <p style={S.email}>{user.email}</p>
                     </div>
@@ -221,7 +232,7 @@ export default function PlayerProfile() {
             <div style={S.content}>
                 {/* SECTION 1: Basic Info */}
                 <section style={S.section}>
-                    <h2 style={S.sectionTitle}>BASIC INFORMATION</h2>
+                    <h2 style={S.sectionTitle}>Basic information</h2>
                     <div style={S.infoGrid}>
                         <InfoItem label="Address" value={user.address || "Not set"} />
                         <InfoItem label="Phone" value={user.phone || "Not set"} />
@@ -237,19 +248,19 @@ export default function PlayerProfile() {
 
                 {/* SECTION 2: Stats */}
                 <section style={S.section}>
-                    <h2 style={S.sectionTitle}>{isOwner ? "MANAGEMENT STATS" : "PERFORMANCE OVERVIEW"}</h2>
+                    <h2 style={S.sectionTitle}>{isOwner ? "Management stats" : "Performance overview"}</h2>
                     <div style={S.statsGrid} className="stats-grid">
                         {isOwner ? (
                             <>
-                                <StatCard label="GAMES ORGANIZED" value={stats.total_organized} />
-                                <StatCard label="ACTIVE PLAYERS" value={stats.active_players} />
+                                <StatCard icon={<IconBarChart size={20} />} label="GAMES ORGANIZED" value={stats.total_organized} />
+                                <StatCard icon={<IconUsers size={20} />} label="ACTIVE PLAYERS" value={stats.active_players} />
                             </>
                         ) : (
                             <>
-                                <StatCard label="MATCHES" value={stats.total_matches} />
-                                <StatCard label="GOALS" value={stats.total_goals} />
-                                <StatCard label="ASSISTS" value={stats.total_assists} />
-                                <StatCard label="AVG RATING" value={stats.avg_rating} />
+                                <StatCard icon={<IconCalendar size={20} />} label="MATCHES" value={stats.total_matches} />
+                                <StatCard icon={<IconTarget size={20} />} label="GOALS" value={stats.total_goals} />
+                                <StatCard icon={<IconArrowUpRight size={20} />} label="ASSISTS" value={stats.total_assists} />
+                                <StatCard icon={<IconStar size={20} />} label="AVG RATING" value={stats.avg_rating} featured />
                             </>
                         )}
                     </div>
@@ -258,7 +269,7 @@ export default function PlayerProfile() {
                 {/* SECTION 3: Visual History (Graph) - Player Only */}
                 {!isOwner && history && history.length > 0 && (
                     <section style={S.section}>
-                        <h2 style={S.sectionTitle}>PERFORMANCE GRAPH</h2>
+                        <h2 style={S.sectionTitle}>Performance graph</h2>
                         <div style={S.graphCard}>
                             <ResponsiveContainer width="100%" height={240}>
                                 <AreaChart data={history}>
@@ -271,8 +282,8 @@ export default function PlayerProfile() {
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                     <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={10} tickFormatter={(val) => new Date(val).toLocaleDateString('en-MY', {day:'numeric', month:'short'})} />
                                     <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} domain={[0, 10]} />
-                                    <Tooltip 
-                                        contentStyle={{ background: '#1e2025', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                                    <Tooltip
+                                        contentStyle={{ background: '#17181c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
                                         itemStyle={{ color: BRAND_BLUE, fontSize: 12, fontWeight: 700 }}
                                         labelStyle={{ color: '#fff', marginBottom: 4 }}
                                     />
@@ -286,22 +297,30 @@ export default function PlayerProfile() {
                 {/* SECTION 4: Match History Timeline */}
                 {!isOwner && history && (
                     <section style={S.section}>
-                        <h2 style={S.sectionTitle}>MATCH HISTORY</h2>
-                        <div style={S.historyList}>
-                            {history.map(m => (
-                                <div key={m.id} style={S.historyItem} className="history-item">
-                                    <div style={S.historyDate}>{new Date(m.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div>
-                                    <div style={S.historyMain}>
-                                        <div style={S.historyTitle}>{m.title}</div>
-                                        <div style={S.historyVenue}>📍 {m.venue}</div>
+                        <h2 style={S.sectionTitle}>Match history</h2>
+                        {history.length > 0 ? (
+                            <div style={S.historyList}>
+                                {history.map(m => (
+                                    <div key={m.id} style={S.historyItem} className="history-item">
+                                        <div style={S.historyDate}>{new Date(m.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div>
+                                        <div style={S.historyMain}>
+                                            <div style={S.historyTitle}>{m.title}</div>
+                                            <div style={S.historyVenue}><IconMapPin size={11} /> {m.venue}</div>
+                                        </div>
+                                        <div style={S.historyStats}>
+                                            <span style={S.historyStatBadge}><IconTarget size={12} /> {m.goals}</span>
+                                            <span style={{ ...S.historyStatBadge, ...S.historyStatBadgeAccent }}><IconStar size={12} /> {m.rating}</span>
+                                        </div>
                                     </div>
-                                    <div style={S.historyStats}>
-                                        <span style={S.historyStatBadge}>⚽ {m.goals}</span>
-                                        <span style={{...S.historyStatBadge, color: BRAND_BLUE}}>⭐ {m.rating}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={S.emptyHistory}>
+                                <div style={S.emptyHistoryIcon}><IconCalendar size={20} /></div>
+                                <div style={S.emptyHistoryTitle}>No matches played yet</div>
+                                <div style={S.emptyHistoryCaption}>Career stats and match history will appear here after your first official fixture.</div>
+                            </div>
+                        )}
                     </section>
                 )}
 
@@ -323,9 +342,10 @@ function InfoItem({ label, value }) {
     );
 }
 
-function StatCard({ label, value }) {
+function StatCard({ icon, label, value, featured }) {
     return (
-        <div style={S.statCard}>
+        <div style={{ ...S.statCard, ...(featured ? S.statCardFeatured : {}) }}>
+            <div style={{ ...S.statIcon, ...(featured ? S.statIconFeatured : {}) }}>{icon}</div>
             <div style={S.statVal}>{value}</div>
             <div style={S.statLabel}>{label}</div>
         </div>
@@ -335,43 +355,64 @@ function StatCard({ label, value }) {
 const S = {
     container: { maxWidth: 1000, margin: "0 auto", paddingBottom: 80 },
     header: { marginBottom: 48 },
-    profileMain: { display: "flex", alignItems: "center", gap: 32 },
-    avatarLarge: { width: 120, height: 120, borderRadius: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, fontWeight: 900, color: BRAND_BLUE, overflow: "hidden", position: "relative" },
+    profileMain: { display: "flex", alignItems: "center", gap: 28 },
+
     avatarWrapper: { position: "relative" },
+    avatarRing: { width: 120, height: 120, borderRadius: 32, background: "var(--accent-gradient)", padding: 3, flexShrink: 0 },
+    avatarLarge: { width: "100%", height: "100%", borderRadius: 29, background: "var(--bg-surface-raised)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, fontWeight: 800, color: "var(--text-primary)", overflow: "hidden", position: "relative" },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
     logoBadgeImg: { width: "100%", height: "100%", objectFit: "cover" },
-    logoPlaceholder: { fontSize: 20, color: BRAND_BLUE },
-    userMeta: { flex: 1 },
-    name: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: -0.5 },
-    roleBadge: { display: "inline-block", padding: "4px 12px", borderRadius: 8, background: "rgba(0,212,236,0.1)", color: BRAND_BLUE, fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 8 },
-    email: { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: 500 },
+    logoPlaceholder: { color: "var(--accent)", display: "flex" },
 
-    content: { display: "flex", flexDirection: "column", gap: 48 },
-    section: { background: "rgba(30, 31, 35, 0.4)", borderRadius: 24, padding: 32, border: "1px solid rgba(255,255,255,0.05)" },
-    sectionTitle: { fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, marginBottom: 24 },
-    
-    infoGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 24 },
+    userMeta: { flex: 1, minWidth: 0 },
+    nameRow: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 },
+    name: { fontSize: 28, fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: -0.5 },
+
+    vellarBadge: { display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px 5px 9px", borderRadius: 999, background: "var(--bg-surface-raised)", border: "1px solid var(--border-default)" },
+    vellarDot: { width: 6, height: 6, borderRadius: "50%", background: "var(--accent-gradient)", flexShrink: 0 },
+    vellarText: {
+        fontSize: 11.5, fontWeight: 800, letterSpacing: 0.6,
+        backgroundImage: "var(--accent-gradient)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+    },
+
+    roleBadge: { display: "inline-block", padding: "3px 10px", borderRadius: 6, background: "var(--bg-surface-raised)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: 10.5, fontWeight: 800, letterSpacing: 0.5, marginBottom: 8 },
+    email: { color: "var(--text-muted)", fontSize: 13.5, fontWeight: 500 },
+
+    content: { display: "flex", flexDirection: "column", gap: 24 },
+    section: { background: "var(--bg-surface)", borderRadius: 20, padding: 32, border: "1px solid var(--border-subtle)" },
+    sectionTitle: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 22 },
+
+    infoGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 22 },
     infoItem: { display: "flex", flexDirection: "column", gap: 4 },
-    infoLabel: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.2)", textTransform: "uppercase" },
-    infoValue: { fontSize: 15, fontWeight: 600, color: "#fff" },
+    infoLabel: { fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 },
+    infoValue: { fontSize: 14.5, fontWeight: 600, color: "var(--text-primary)" },
 
-    statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20 },
-    statCard: { background: "rgba(255,255,255,0.03)", borderRadius: 20, padding: "24px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" },
-    statVal: { fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 4 },
-    statLabel: { fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.2)", letterSpacing: 1 },
+    statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 },
+    statCard: { background: "var(--bg-surface-raised)", borderRadius: 16, padding: "20px 18px", border: "1px solid var(--border-subtle)" },
+    statCardFeatured: { borderColor: "rgba(99,102,241,0.35)" },
+    statIcon: { color: "var(--text-muted)", marginBottom: 14 },
+    statIconFeatured: { color: "var(--accent)" },
+    statVal: { fontSize: 28, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4, fontVariantNumeric: "tabular-nums" },
+    statLabel: { fontSize: 10, fontWeight: 800, color: "var(--text-muted)", letterSpacing: 1 },
 
-    graphCard: { paddingTop: 20 },
-    
-    historyList: { display: "flex", flexDirection: "column", gap: 12 },
-    historyItem: { display: "flex", alignItems: "center", gap: 20, padding: "16px 20px", borderRadius: 16, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.03)" },
-    historyDate: { fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.3)", width: 60 },
-    historyMain: { flex: 1 },
-    historyTitle: { fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 2 },
-    historyVenue: { fontSize: 12, color: "rgba(255,255,255,0.4)" },
-    historyStats: { display: "flex", gap: 12 },
-    historyStatBadge: { padding: "6px 10px", borderRadius: 8, background: "rgba(0,0,0,0.2)", fontSize: 11, fontWeight: 800, color: "#fff" },
+    graphCard: { paddingTop: 8 },
 
-    empty: { padding: 100, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 14 },
+    historyList: { display: "flex", flexDirection: "column", gap: 10 },
+    historyItem: { display: "flex", alignItems: "center", gap: 18, padding: "14px 18px", borderRadius: 14, background: "var(--bg-surface-raised)", border: "1px solid var(--border-subtle)" },
+    historyDate: { fontSize: 11.5, fontWeight: 800, color: "var(--text-muted)", width: 52, flexShrink: 0 },
+    historyMain: { flex: 1, minWidth: 0 },
+    historyTitle: { fontSize: 14.5, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 },
+    historyVenue: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-muted)" },
+    historyStats: { display: "flex", gap: 8, flexShrink: 0 },
+    historyStatBadge: { display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", fontSize: 11.5, fontWeight: 800, color: "var(--text-primary)" },
+    historyStatBadgeAccent: { color: "var(--accent)" },
+
+    emptyHistory: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 24px", gap: 10 },
+    emptyHistoryIcon: { width: 46, height: 46, borderRadius: "50%", background: "var(--bg-surface-raised)", border: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" },
+    emptyHistoryTitle: { fontSize: 14, fontWeight: 700, color: "var(--text-primary)" },
+    emptyHistoryCaption: { fontSize: 12.5, color: "var(--text-muted)", maxWidth: 320, lineHeight: 1.55 },
+
+    empty: { padding: 100, textAlign: "center", color: "var(--text-muted)", fontSize: 14 },
 
     signOutBtn: { width: "100%", padding: 16, borderRadius: 16, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: 14, fontWeight: 800, letterSpacing: 1, cursor: "pointer", marginTop: 8 },
 };
