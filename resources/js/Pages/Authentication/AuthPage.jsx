@@ -14,10 +14,10 @@ const HERO_IMAGES = [
 ];
 
 const POSITIONS = [
-    'Penjaga Gol (Goalkeeper)',
-    'Bek (Defender)',
-    'Gelandang (Midfielder)',
-    'Penyerang (Forward / Striker)',
+    'Goalkeeper',
+    'Defender',
+    'Midfielder',
+    'Forward / Striker',
 ];
 
 const AuthPage = () => {
@@ -60,7 +60,6 @@ const AuthPage = () => {
             const { token, user, status } = res.data;
 
             if (status === 'pending') {
-                // Should not happen since backend blocks it, but handle gracefully
                 navigate('/waiting-room', { state: { vellar_id: loginForm.vellar_id } });
                 return;
             }
@@ -72,15 +71,10 @@ const AuthPage = () => {
             localStorage.setItem('vellar_id', user.vellar_id ?? '');
             localStorage.setItem('player_name', user.name ?? '');
 
-
-            // Admin/organizer goes to admin area
-            if (user.role === 'club_owner' || user.role === 'admin') {
-                navigate('/community/feed');
-            } else {
-                navigate('/community/feed');
-            }
+            // Navigate to community feed
+            navigate('/community/feed');
         } catch (err) {
-            const msg = err.response?.data?.message ?? 'Ralat semasa log masuk. Cuba lagi.';
+            const msg = err.response?.data?.message ?? 'An error occurred during sign in. Please try again.';
             setError(msg);
         } finally {
             setLoading(false);
@@ -91,7 +85,7 @@ const AuthPage = () => {
     const handleRegister = async (e) => {
         e.preventDefault();
         if (signupForm.password !== signupForm.password_confirmation) {
-            setError('Kata laluan tidak sepadan.');
+            setError('Passwords do not match.');
             return;
         }
         setLoading(true);
@@ -115,7 +109,7 @@ const AuthPage = () => {
         } catch (err) {
             const msg = err.response?.data?.message
                 ?? err.response?.data?.errors
-                ?? 'Pendaftaran gagal. Cuba lagi.';
+                ?? 'Registration failed. Please try again.';
             setError(typeof msg === 'object' ? JSON.stringify(msg) : msg);
         } finally {
             setLoading(false);
@@ -148,8 +142,8 @@ const AuthPage = () => {
                         <img src="/images/logoImage/NUVRA_LOGO.webp" alt="NUVRA" style={S.heroLogoImg} />
                     </div>
                     <div style={S.heroTagline}>
-                        <h2 style={S.heroTaglineHeading}>Liga Awak.<br />Rekod Awak.</h2>
-                        <p style={S.heroTaglineSub}>Platform pengurusan liga dan kejohanan rasmi untuk Vellar League.</p>
+                        <h2 style={S.heroTaglineHeading}>Your League.<br />Your Legacy.</h2>
+                        <p style={S.heroTaglineSub}>The official tournament and league management platform for Vellar League.</p>
                     </div>
                 </div>
             </div>
@@ -164,8 +158,8 @@ const AuthPage = () => {
                     {view === 'login' && (
                         <div style={S.viewWrap}>
                             <div style={S.viewHeader}>
-                                <h1 style={S.viewTitle}>Log Masuk</h1>
-                                <p style={S.viewSubtitle}>Masukkan Vellar ID dan kata laluan anda.</p>
+                                <h1 style={S.viewTitle}>Sign In</h1>
+                                <p style={S.viewSubtitle}>Enter your Vellar ID and password.</p>
                             </div>
 
                             <form onSubmit={handleLogin} style={S.form}>
@@ -184,12 +178,12 @@ const AuthPage = () => {
                                             required
                                         />
                                     </div>
-                                    <span style={S.fieldHint}>Contoh: taip <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> untuk ID VELLAR 82. Admin boleh guna email.</span>
+                                    <span style={S.fieldHint}>Example: enter <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> for VELLAR 82. Admins can enter their email.</span>
                                 </div>
 
                                 {/* Password Field */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Kata Laluan</label>
+                                    <label style={S.fieldLabel}>Password</label>
                                     <input
                                         className="auth-input"
                                         type="password"
@@ -208,14 +202,14 @@ const AuthPage = () => {
                                     disabled={loading}
                                     style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
                                 >
-                                    {loading ? 'Log masuk…' : 'Log Masuk'}
+                                    {loading ? 'Signing in…' : 'Sign In'}
                                 </button>
                             </form>
 
                             <p style={{ ...S.switchText, marginTop: 24 }}>
-                                Pemain baharu?{' '}
+                                New player?{' '}
                                 <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToSignup}>
-                                    Daftar di sini
+                                    Register here
                                 </button>
                             </p>
                         </div>
@@ -226,20 +220,20 @@ const AuthPage = () => {
                     ══════════════════════════════════════ */}
                     {view === 'signup' && (
                         <div style={S.viewWrap}>
-                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Kembali ke Log Masuk</button>
+                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
 
                             <div style={S.viewHeader}>
-                                <h1 style={S.viewTitle}>Daftar Pemain Baharu</h1>
-                                <p style={S.viewSubtitle}>Isi maklumat anda. Vellar ID akan dijana secara automatik dan perlu kelulusan admin.</p>
+                                <h1 style={S.viewTitle}>New Player Registration</h1>
+                                <p style={S.viewSubtitle}>Fill in your details. Your Vellar ID will be auto-generated and reviewed by the admin.</p>
                             </div>
 
                             <form onSubmit={handleRegister} style={S.form}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Nama Penuh</label>
+                                    <label style={S.fieldLabel}>Full Name</label>
                                     <input
                                         className="auth-input"
                                         type="text"
-                                        placeholder="Nama anda"
+                                        placeholder="Your full name"
                                         value={signupForm.name}
                                         onChange={e => { setError(''); setSignupForm(f => ({ ...f, name: e.target.value })); }}
                                         style={S.input}
@@ -248,11 +242,11 @@ const AuthPage = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>No. Telefon</label>
+                                    <label style={S.fieldLabel}>Phone Number</label>
                                     <input
                                         className="auth-input"
                                         type="tel"
-                                        placeholder="01X-XXXXXXX"
+                                        placeholder="+6012-3456789"
                                         value={signupForm.phone}
                                         onChange={e => { setError(''); setSignupForm(f => ({ ...f, phone: e.target.value })); }}
                                         style={S.input}
@@ -260,24 +254,24 @@ const AuthPage = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Posisi Bermain</label>
+                                    <label style={S.fieldLabel}>Position</label>
                                     <select
                                         className="auth-input"
                                         value={signupForm.position}
                                         onChange={e => { setError(''); setSignupForm(f => ({ ...f, position: e.target.value })); }}
                                         style={{ ...S.input, appearance: 'none' }}
                                     >
-                                        <option value="">-- Pilih posisi --</option>
+                                        <option value="">-- Select position --</option>
                                         {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Kata Laluan</label>
+                                    <label style={S.fieldLabel}>Password</label>
                                     <input
                                         className="auth-input"
                                         type="password"
-                                        placeholder="Min. 6 aksara"
+                                        placeholder="Min. 6 characters"
                                         value={signupForm.password}
                                         onChange={e => { setError(''); setSignupForm(f => ({ ...f, password: e.target.value })); }}
                                         style={S.input}
@@ -286,7 +280,7 @@ const AuthPage = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Sahkan Kata Laluan</label>
+                                    <label style={S.fieldLabel}>Confirm Password</label>
                                     <input
                                         className="auth-input"
                                         type="password"
@@ -305,14 +299,14 @@ const AuthPage = () => {
                                     disabled={loading}
                                     style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
                                 >
-                                    {loading ? 'Mendaftar…' : 'Hantar Permohonan'}
+                                    {loading ? 'Submitting…' : 'Submit Application'}
                                 </button>
                             </form>
 
                             <p style={{ ...S.switchText, marginTop: 20 }}>
-                                Sudah ada akaun?{' '}
+                                Already have an account?{' '}
                                 <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToLogin}>
-                                    Log masuk
+                                    Sign in
                                 </button>
                             </p>
                         </div>
@@ -325,20 +319,20 @@ const AuthPage = () => {
                         <div style={S.viewWrap}>
                             <div style={S.successIcon}>✅</div>
                             <div style={{ ...S.viewHeader, textAlign: 'center' }}>
-                                <h1 style={S.viewTitle}>Pendaftaran Berjaya!</h1>
-                                <p style={S.viewSubtitle}>Permohonan anda telah diterima dan sedang menunggu kelulusan admin.</p>
+                                <h1 style={S.viewTitle}>Registration Successful!</h1>
+                                <p style={S.viewSubtitle}>Your application has been received and is pending admin approval.</p>
                             </div>
 
                             {/* Vellar ID Card */}
                             <div style={S.vellarCard}>
-                                <p style={S.vellarCardLabel}>Vellar ID Anda</p>
+                                <p style={S.vellarCardLabel}>Your Vellar ID</p>
                                 <p style={S.vellarCardId}>{successData.vellar_id}</p>
                                 <p style={S.vellarCardName}>{successData.name}</p>
                             </div>
 
                             <div style={S.infoBox}>
                                 <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, textAlign: 'center' }}>
-                                    💡 Simpan Vellar ID anda. Setelah admin meluluskan permohonan, anda boleh log masuk menggunakan <strong style={{ color: '#00D4EC' }}>nombor {successData.vellar_number}</strong> sebagai ID dan kata laluan yang anda daftarkan.
+                                    💡 Keep your Vellar ID safe. Once approved by the administrator, sign in using <strong style={{ color: '#00D4EC' }}>number {successData.vellar_number}</strong> as your ID and your chosen password.
                                 </p>
                             </div>
 
@@ -346,12 +340,12 @@ const AuthPage = () => {
                                 onClick={switchToLogin}
                                 style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 8 }}
                             >
-                                Kembali ke Log Masuk
+                                Back to Sign In
                             </button>
                         </div>
                     )}
 
-                    <p style={S.terms}>Dengan menggunakan NUVRA, anda bersetuju dengan Terma Perkhidmatan kami.</p>
+                    <p style={S.terms}>By using NUVRA, you agree to our Terms of Service.</p>
                 </div>
             </div>
         </div>

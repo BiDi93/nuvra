@@ -47,7 +47,7 @@ class CommunityAuthController extends Controller
         }
     }
 
-    // ── Register (Pemain Baharu) ───────────────────────────────────────────────
+    // ── Register (New Player) ──────────────────────────────────────────────────
     public function register(Request $request)
     {
         $request->validate([
@@ -57,7 +57,7 @@ class CommunityAuthController extends Controller
             'password'              => 'required|string|min:6|confirmed',
         ]);
 
-        // Auto-increment Vellar ID: ambil nombor tertinggi + 1
+        // Auto-increment Vellar ID: get highest number + 1
         $maxNumber = User::whereNotNull('vellar_id')
             ->get()
             ->map(fn($u) => (int) preg_replace('/[^0-9]/', '', $u->vellar_id))
@@ -67,7 +67,7 @@ class CommunityAuthController extends Controller
         $vellarId   = 'VELLAR ' . $nextNumber;
         $email      = 'vellar' . $nextNumber . '@vellarleague.com';
 
-        // Pastikan email/vellar_id unik (edge case)
+        // Ensure email/vellar_id is unique (edge case check)
         while (User::where('email', $email)->exists()) {
             $nextNumber++;
             $vellarId = 'VELLAR ' . $nextNumber;
@@ -79,15 +79,14 @@ class CommunityAuthController extends Controller
             'email'     => $email,
             'password'  => Hash::make($request->password),
             'role'      => 'player',
-            'status'    => 'pending',   // Tunggu kelulusan admin
+            'status'    => 'pending',   // Awaiting admin approval
             'vellar_id' => $vellarId,
             'phone'     => $request->phone ?? null,
             'position'  => $request->position ?? null,
         ]);
 
-        // Pemain pending tidak dapat token — kena tunggu approve dulu
         return response()->json([
-            'message'       => 'Pendaftaran berjaya! Sila tunggu kelulusan admin.',
+            'message'       => 'Registration successful! Awaiting admin approval.',
             'vellar_id'     => $vellarId,
             'vellar_number' => $nextNumber,
             'name'          => $user->name,
@@ -95,7 +94,7 @@ class CommunityAuthController extends Controller
         ], 201);
     }
 
-    // ── Login (Guna Vellar ID Number atau Email untuk Admin) ───────────────────
+    // ── Login (Vellar ID Number or Email for Admin) ───────────────────────────
     public function login(Request $request)
     {
         $request->validate([
@@ -105,38 +104,38 @@ class CommunityAuthController extends Controller
 
         $input = trim($request->vellar_id);
 
-        // Jika input ada '@' → rawat sebagai email (untuk admin/organizer)
+        // If input contains '@', treat as email (for admin/organizer)
         if (str_contains($input, '@')) {
             $email = $input;
         } else {
-            // Bina email dari nombor vellar_id
+            // Build email from vellar_id number
             $vellarNumber = preg_replace('/[^0-9]/', '', $input);
 
             if (empty($vellarNumber)) {
-                return response()->json(['message' => 'Vellar ID tidak sah. Masukkan nombor sahaja (cth: 82).'], 422);
+                return response()->json(['message' => 'Invalid Vellar ID. Please enter numbers only (e.g. 82).'], 422);
             }
 
             $email = 'vellar' . $vellarNumber . '@vellarleague.com';
         }
 
-        // Cari user
+        // Find user
         $user = User::where('email', $email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Vellar ID atau kata laluan tidak betul.'], 401);
+            return response()->json(['message' => 'Incorrect Vellar ID or password.'], 401);
         }
 
-        // Semak status
+        // Check account status
         if ($user->status === 'pending') {
             return response()->json([
-                'message' => 'Akaun anda masih menunggu kelulusan admin. Sila cuba sebentar lagi.',
+                'message' => 'Your account is pending admin approval. Please check back shortly.',
                 'status'  => 'pending',
             ], 403);
         }
 
         if ($user->status === 'suspended') {
             return response()->json([
-                'message' => 'Akaun anda telah digantung. Sila hubungi admin untuk maklumat lanjut.',
+                'message' => 'Your account has been suspended. Please contact support/admin.',
                 'status'  => 'suspended',
             ], 403);
         }
@@ -144,7 +143,7 @@ class CommunityAuthController extends Controller
         $token = $user->createToken('community_token')->plainTextToken;
 
         return response()->json([
-            'message'    => 'Log masuk berjaya.',
+            'message'    => 'Login successful.',
             'token'      => $token,
             'status'     => $user->status,
             'user' => [
@@ -160,12 +159,11 @@ class CommunityAuthController extends Controller
         ]);
     }
 
-
     // ── Logout ────────────────────────────────────────────────────────────────
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Log keluar berjaya.']);
+        return response()->json(['message' => 'Logged out successfully.']);
     }
 
     // ── Me ────────────────────────────────────────────────────────────────────
@@ -178,12 +176,12 @@ class CommunityAuthController extends Controller
     // ADMIN — Player Approval Management
     // =========================================================================
 
-    // Senarai pemain pending
+    // List pending players
     public function pendingPlayers(Request $request)
     {
         // Only admin/club_owner can access
         if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
-            return response()->json(['message' => 'Akses ditolak.'], 403);
+            return response()->json(['message' => 'Access denied.'], 403);
         }
 
         $players = User::where('status', 'pending')
@@ -197,38 +195,38 @@ class CommunityAuthController extends Controller
         ]);
     }
 
-    // Approve pemain
+    // Approve player
     public function approvePlayer(Request $request, $id)
     {
         if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
-            return response()->json(['message' => 'Akses ditolak.'], 403);
+            return response()->json(['message' => 'Access denied.'], 403);
         }
 
         $player = User::findOrFail($id);
 
         if ($player->role !== 'player') {
-            return response()->json(['message' => 'Pengguna ini bukan pemain.'], 422);
+            return response()->json(['message' => 'This user is not a player.'], 422);
         }
 
         $player->update(['status' => 'active']);
 
         return response()->json([
-            'message'   => "Pemain {$player->name} ({$player->vellar_id}) telah diluluskan.",
+            'message'   => "Player {$player->name} ({$player->vellar_id}) has been approved.",
             'player'    => $player->only(['id', 'name', 'vellar_id', 'position', 'status']),
         ]);
     }
 
-    // Reject / delete pemain
+    // Reject / delete player
     public function rejectPlayer(Request $request, $id)
     {
         if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
-            return response()->json(['message' => 'Akses ditolak.'], 403);
+            return response()->json(['message' => 'Access denied.'], 403);
         }
 
         $player = User::findOrFail($id);
 
         if ($player->role !== 'player') {
-            return response()->json(['message' => 'Pengguna ini bukan pemain.'], 422);
+            return response()->json(['message' => 'This user is not a player.'], 422);
         }
 
         $name     = $player->name;
@@ -236,24 +234,24 @@ class CommunityAuthController extends Controller
         $player->delete();
 
         return response()->json([
-            'message' => "Pemain {$name} ({$vellarId}) telah ditolak dan dipadam.",
+            'message' => "Player {$name} ({$vellarId}) has been rejected and removed.",
         ]);
     }
 
-    // Semak status sendiri (untuk WaitingRoom polling)
+    // Check status endpoint (for WaitingRoom polling)
     public function checkStatus(Request $request)
     {
         $vellarNumber = preg_replace('/[^0-9]/', '', $request->input('vellar_id', ''));
 
         if (empty($vellarNumber)) {
-            return response()->json(['message' => 'Vellar ID tidak sah.'], 422);
+            return response()->json(['message' => 'Invalid Vellar ID.'], 422);
         }
 
         $email = 'vellar' . $vellarNumber . '@vellarleague.com';
         $user  = User::where('email', $email)->first(['id', 'name', 'vellar_id', 'position', 'status']);
 
         if (!$user) {
-            return response()->json(['message' => 'Pemain tidak dijumpai.'], 404);
+            return response()->json(['message' => 'Player not found.'], 404);
         }
 
         return response()->json([

@@ -29,7 +29,7 @@ const WaitingRoom = () => {
                 // Approved! Redirect to login
                 localStorage.removeItem('pending_vellar_id');
                 navigate('/login', {
-                    state: { message: `✅ Akaun anda telah diluluskan! Log masuk dengan Vellar ID ${vellarId}.` }
+                    state: { message: `✅ Your account has been approved! Sign in using Vellar ID ${vellarId}.` }
                 });
             }
         } catch {
@@ -88,7 +88,7 @@ const WaitingRoom = () => {
                     onClick={() => navigate('/')}
                 />
                 <button style={S.logoutBtn} onClick={handleLogout}>
-                    Keluar
+                    Sign Out
                 </button>
             </div>
 
@@ -108,36 +108,36 @@ const WaitingRoom = () => {
                 </div>
 
                 {/* Heading */}
-                <h1 style={S.title}>Menunggu Kelulusan Admin</h1>
+                <h1 style={S.title}>Awaiting Admin Approval</h1>
                 <p style={S.subtitle}>
                     {player?.name
-                        ? <>Hai <strong style={{ color: '#fff' }}>{player.name}</strong>, permohonan anda sedang disemak oleh admin NUVRA.</>
-                        : 'Permohonan anda sedang disemak oleh admin NUVRA.'}
+                        ? <>Hi <strong style={{ color: '#fff' }}>{player.name}</strong>, your application is currently under review by the NUVRA admin team.</>
+                        : 'Your application is currently under review by the NUVRA admin team.'}
                 </p>
 
                 {/* Info card */}
                 {(vellarId || player) && (
                     <div style={S.infoCard}>
                         <InfoRow label="Vellar ID" value={player?.vellar_id ?? `VELLAR ${vellarId}`} highlight />
-                        {player?.position && <InfoRow label="Posisi" value={player.position} />}
+                        {player?.position && <InfoRow label="Position" value={player.position} />}
                         <InfoRow label="Status" value={
-                            <span style={S.statusBadge}>⏳ Menunggu Kelulusan</span>
+                            <span style={S.statusBadge}>⏳ Pending Approval</span>
                         } />
                         {lastChecked && (
-                            <InfoRow label="Semakan Terakhir" value={lastChecked.toLocaleTimeString('ms-MY')} />
+                            <InfoRow label="Last Checked" value={lastChecked.toLocaleTimeString()} />
                         )}
                     </div>
                 )}
 
                 {/* Progress steps */}
                 <div style={S.steps}>
-                    <Step label="Akaun Dicipta" done />
+                    <Step label="Account Created" done />
                     <StepConnector done />
-                    <Step label="Vellar ID Dijana" done />
+                    <Step label="Vellar ID Assigned" done />
                     <StepConnector />
-                    <Step label="Kelulusan Admin" active />
+                    <Step label="Admin Approval" active />
                     <StepConnector />
-                    <Step label="Akses Diberikan" />
+                    <Step label="Access Granted" />
                 </div>
 
                 {/* CTA */}
@@ -147,13 +147,13 @@ const WaitingRoom = () => {
                     disabled={checking}
                 >
                     {checking
-                        ? <><span className="spin" style={S.spinner} />Menyemak…</>
-                        : '🔄 Semak Status Sekarang'}
+                        ? <><span className="spin" style={S.spinner} />Checking…</>
+                        : '🔄 Check Status Now'}
                 </button>
 
                 <p style={S.note}>
-                    Status disemak secara automatik setiap 30 saat.<br />
-                    Hubungi admin terus jika ini mengambil masa terlalu lama.
+                    Status updates automatically every 30 seconds.<br />
+                    Reach out to the league organizers if this is taking longer than expected.
                 </p>
             </div>
         </div>

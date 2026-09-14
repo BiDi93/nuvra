@@ -6,10 +6,10 @@ import PageLoader from "../../Components/PageLoader";
 const API = "/api/community";
 
 const POSITIONS = [
-    'Penjaga Gol (Goalkeeper)',
-    'Bek (Defender)',
-    'Gelandang (Midfielder)',
-    'Penyerang (Forward / Striker)',
+    'Goalkeeper',
+    'Defender',
+    'Midfielder',
+    'Forward / Striker',
 ];
 
 export default function CommunityHome() {
@@ -41,13 +41,12 @@ export default function CommunityHome() {
             const data = await res.json();
 
             if (data.status === "pending") {
-                // Redirect ke waiting room
                 localStorage.setItem("pending_vellar_id", loginData.vellar_id);
                 navigate("/waiting-room");
                 return;
             }
 
-            if (!res.ok) throw new Error(data.message || "Log masuk gagal.");
+            if (!res.ok) throw new Error(data.message || "Login failed.");
 
             localStorage.setItem("community_token", data.token);
             localStorage.setItem("auth_token", data.token);
@@ -64,7 +63,7 @@ export default function CommunityHome() {
     const handleRegister = async (e) => {
         e.preventDefault();
         if (regData.password !== regData.password_confirmation) {
-            setError("Kata laluan tidak sepadan.");
+            setError("Passwords do not match.");
             return;
         }
         setError(""); setLoading(true);
@@ -75,7 +74,7 @@ export default function CommunityHome() {
                 body: JSON.stringify(regData),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Pendaftaran gagal.");
+            if (!res.ok) throw new Error(data.message || "Registration failed.");
 
             // Show success with Vellar ID
             setSuccessData({ vellar_id: data.vellar_id, vellar_number: data.vellar_number, name: data.name });
@@ -104,7 +103,7 @@ export default function CommunityHome() {
                 <div style={styles.header}>
                     <img src="/images/logoImage/NUVRA_LOGO.webp" alt="Nuvra" style={styles.logoImg} onClick={() => navigate("/")} />
                     <h1 style={styles.title}>Vellar League</h1>
-                    <p style={styles.subtitle}>Platform Liga & Kejohanan Rasmi</p>
+                    <p style={styles.subtitle}>Official Tournament & League Platform</p>
                 </div>
 
                 {/* Card */}
@@ -114,8 +113,8 @@ export default function CommunityHome() {
                     {tab === "login" && (
                         <>
                             <div style={styles.tabBar}>
-                                <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>Log Masuk</button>
-                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("register"); setError(""); }}>Daftar Baharu</button>
+                                <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>Sign In</button>
+                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("register"); setError(""); }}>Create Account</button>
                             </div>
 
                             {error && <div style={styles.errorBox}>⚠ {error}</div>}
@@ -135,12 +134,12 @@ export default function CommunityHome() {
                                             required
                                         />
                                     </div>
-                                    <span style={styles.hint}>Pemain: taip nombor (cth: <strong style={{ color: "rgba(255,255,255,0.5)" }}>82</strong>). Admin: guna email penuh.</span>
+                                    <span style={styles.hint}>Player: enter ID number (e.g. <strong style={{ color: "rgba(255,255,255,0.5)" }}>82</strong>). Admin: enter full email.</span>
                                 </div>
 
                                 {/* Password */}
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <label style={styles.label}>Kata Laluan</label>
+                                    <label style={styles.label}>Password</label>
                                     <input
                                         type="password"
                                         placeholder="••••••••"
@@ -152,12 +151,12 @@ export default function CommunityHome() {
                                 </div>
 
                                 <button style={styles.submitBtn} type="submit" disabled={loading}>
-                                    {loading ? "Log masuk…" : "LOG MASUK →"}
+                                    {loading ? "Signing in…" : "SIGN IN →"}
                                 </button>
                             </form>
 
                             <p style={styles.browseHint} onClick={() => navigate("/community/feed")}>
-                                Layari kejohanan tanpa log masuk →
+                                Browse tournaments without signing in →
                             </p>
                         </>
                     )}
@@ -166,52 +165,52 @@ export default function CommunityHome() {
                     {tab === "register" && (
                         <>
                             <div style={styles.tabBar}>
-                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("login"); setError(""); }}>Log Masuk</button>
-                                <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>Daftar Baharu</button>
+                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("login"); setError(""); }}>Sign In</button>
+                                <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>Create Account</button>
                             </div>
 
                             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 16, lineHeight: 1.6 }}>
-                                Vellar ID akan dijana automatik. Perlu kelulusan admin sebelum boleh log masuk.
+                                Your Vellar ID will be auto-generated. Admin approval is required before logging in.
                             </p>
 
                             {error && <div style={styles.errorBox}>⚠ {error}</div>}
 
                             <form onSubmit={handleRegister} style={styles.form}>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <label style={styles.label}>Nama Penuh</label>
-                                    <input type="text" placeholder="Nama anda" value={regData.name}
+                                    <label style={styles.label}>Full Name</label>
+                                    <input type="text" placeholder="Your full name" value={regData.name}
                                         onChange={e => { setError(""); setRegData({ ...regData, name: e.target.value }); }}
                                         style={styles.input} required />
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <label style={styles.label}>No. Telefon</label>
-                                    <input type="tel" placeholder="01X-XXXXXXX" value={regData.phone}
+                                    <label style={styles.label}>Phone Number</label>
+                                    <input type="tel" placeholder="+6012-3456789" value={regData.phone}
                                         onChange={e => setRegData({ ...regData, phone: e.target.value })}
                                         style={styles.input} />
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <label style={styles.label}>Posisi Bermain</label>
+                                    <label style={styles.label}>Position</label>
                                     <select value={regData.position}
                                         onChange={e => setRegData({ ...regData, position: e.target.value })}
                                         style={{ ...styles.input, appearance: "none" }}>
-                                        <option value="">-- Pilih posisi --</option>
+                                        <option value="">-- Select position --</option>
                                         {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <label style={styles.label}>Kata Laluan</label>
-                                    <input type="password" placeholder="Min. 6 aksara" value={regData.password}
+                                    <label style={styles.label}>Password</label>
+                                    <input type="password" placeholder="Min. 6 characters" value={regData.password}
                                         onChange={e => { setError(""); setRegData({ ...regData, password: e.target.value }); }}
                                         style={styles.input} required />
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    <label style={styles.label}>Sahkan Kata Laluan</label>
+                                    <label style={styles.label}>Confirm Password</label>
                                     <input type="password" placeholder="••••••••" value={regData.password_confirmation}
                                         onChange={e => { setError(""); setRegData({ ...regData, password_confirmation: e.target.value }); }}
                                         style={styles.input} required />
                                 </div>
                                 <button style={styles.submitBtn} type="submit" disabled={loading}>
-                                    {loading ? "Mendaftar…" : "HANTAR PERMOHONAN →"}
+                                    {loading ? "Submitting application…" : "SUBMIT APPLICATION →"}
                                 </button>
                             </form>
                         </>
@@ -222,22 +221,22 @@ export default function CommunityHome() {
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "8px 0" }}>
                             <div style={{ fontSize: 48 }}>✅</div>
                             <div style={{ textAlign: "center" }}>
-                                <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Pendaftaran Berjaya!</h2>
+                                <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Registration Successful!</h2>
                                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
-                                    Permohonan anda sedang menunggu kelulusan admin NUVRA.
+                                    Your application has been received and is awaiting admin approval.
                                 </p>
                             </div>
                             {/* Vellar ID card */}
                             <div style={styles.vellarCard}>
-                                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Vellar ID Anda</p>
+                                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Your Vellar ID</p>
                                 <p style={{ fontFamily: "monospace", fontSize: 36, fontWeight: 900, color: "#00D4EC", letterSpacing: 2 }}>{successData.vellar_id}</p>
                                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{successData.name}</p>
                             </div>
                             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.7 }}>
-                                💡 Simpan ID ini. Selepas admin luluskan, log masuk dengan nombor <strong style={{ color: "#00D4EC" }}>{successData.vellar_number}</strong> dan kata laluan anda.
+                                💡 Save your ID. Once approved by the admin, sign in using <strong style={{ color: "#00D4EC" }}>number {successData.vellar_number}</strong> as your ID and your password.
                             </p>
                             <button style={styles.submitBtn} onClick={() => { setTab("login"); setError(""); }}>
-                                Kembali ke Log Masuk
+                                Back to Sign In
                             </button>
                         </div>
                     )}

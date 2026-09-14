@@ -9,7 +9,7 @@ const AdminPendingPlayers = () => {
     const [actionId, setActionId] = useState(null); // Which player is being actioned
     const [toast, setToast]       = useState(null);  // { type: 'success'|'error', msg }
 
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('community_token');
 
     const showToast = (type, msg) => {
         setToast({ type, msg });
@@ -43,25 +43,25 @@ const AdminPendingPlayers = () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setPlayers(prev => prev.filter(p => p.id !== player.id));
-            showToast('success', `✅ ${player.name} (${player.vellar_id}) telah diluluskan.`);
+            showToast('success', `✅ ${player.name} (${player.vellar_id}) has been approved.`);
         } catch {
-            showToast('error', 'Gagal meluluskan pemain. Cuba lagi.');
+            showToast('error', 'Failed to approve player. Please try again.');
         } finally {
             setActionId(null);
         }
     };
 
     const handleReject = async (player) => {
-        if (!window.confirm(`Tolak dan padam permohonan ${player.name} (${player.vellar_id})?`)) return;
+        if (!window.confirm(`Reject and delete registration for ${player.name} (${player.vellar_id})?`)) return;
         setActionId(player.id);
         try {
             await axios.delete(`/api/community/admin/reject-player/${player.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setPlayers(prev => prev.filter(p => p.id !== player.id));
-            showToast('success', `🗑️ ${player.name} telah ditolak dan dipadam.`);
+            showToast('success', `🗑️ ${player.name} has been rejected and deleted.`);
         } catch {
-            showToast('error', 'Gagal menolak pemain. Cuba lagi.');
+            showToast('error', 'Failed to reject player. Please try again.');
         } finally {
             setActionId(null);
         }
@@ -93,20 +93,20 @@ const AdminPendingPlayers = () => {
             {/* Header */}
             <div style={S.header}>
                 <div>
-                    <h1 style={S.title}>Kelulusan Pemain Baharu</h1>
+                    <h1 style={S.title}>Pending Player Approvals</h1>
                     <p style={S.subtitle}>
-                        Semak dan luluskan permohonan ahli baharu yang mendaftar ke NUVRA.
+                        Review and approve new player registrations for the NUVRA ecosystem.
                     </p>
                 </div>
                 <div style={S.badge}>
-                    {players.length} Menunggu
+                    {players.length} Pending
                 </div>
             </div>
 
             {/* Loading */}
             {loading && (
                 <div style={S.emptyState}>
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>Memuatkan…</p>
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>Loading…</p>
                 </div>
             )}
 
@@ -114,8 +114,8 @@ const AdminPendingPlayers = () => {
             {!loading && players.length === 0 && (
                 <div style={S.emptyState}>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-                    <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Tiada Permohonan Tertunggak</h3>
-                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>Semua permohonan telah diproses.</p>
+                    <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Pending Applications</h3>
+                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>All player applications have been processed.</p>
                 </div>
             )}
 
@@ -141,7 +141,7 @@ const AdminPendingPlayers = () => {
                                     {player.position && <span style={S.metaTag}>⚽ {player.position}</span>}
                                     {player.phone    && <span style={S.metaTag}>📞 {player.phone}</span>}
                                     <span style={S.metaTag}>
-                                        🗓 {new Date(player.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        🗓 {new Date(player.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </span>
                                 </div>
                             </div>
@@ -154,7 +154,7 @@ const AdminPendingPlayers = () => {
                                     onClick={() => handleApprove(player)}
                                     disabled={actionId === player.id}
                                 >
-                                    {actionId === player.id ? '…' : '✅ Luluskan'}
+                                    {actionId === player.id ? '…' : '✅ Approve'}
                                 </button>
                                 <button
                                     className="btn-reject"
@@ -162,7 +162,7 @@ const AdminPendingPlayers = () => {
                                     onClick={() => handleReject(player)}
                                     disabled={actionId === player.id}
                                 >
-                                    ❌ Tolak
+                                    ❌ Reject
                                 </button>
                             </div>
                         </div>
