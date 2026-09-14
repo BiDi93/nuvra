@@ -13,20 +13,25 @@ const HERO_IMAGES = [
     "/images/vellar_league/R6SA4602.JPG",
 ];
 
+const POSITIONS = [
+    'Penjaga Gol (Goalkeeper)',
+    'Bek (Defender)',
+    'Gelandang (Midfielder)',
+    'Penyerang (Forward / Striker)',
+];
+
 const AuthPage = () => {
     const navigate = useNavigate();
-    const [imgIndex, setImgIndex] = useState(0);
-    const [fade, setFade] = useState(true);
-    const [view, setView] = useState('login');     // 'login' | 'signup' | 'forgot'
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [message, setMessage] = useState('');
+    const [imgIndex, setImgIndex]     = useState(0);
+    const [fade, setFade]             = useState(true);
+    const [view, setView]             = useState('login'); // 'login' | 'signup' | 'success'
+    const [loading, setLoading]       = useState(false);
+    const [error, setError]           = useState('');
+    const [successData, setSuccessData] = useState(null); // For post-register success screen
 
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        password_confirmation: '',
+    const [loginForm, setLoginForm] = useState({ vellar_id: '', password: '' });
+    const [signupForm, setSignupForm] = useState({
+        name: '', phone: '', position: '', password: '', password_confirmation: '',
     });
 
     // Hero image slideshow
@@ -41,45 +46,42 @@ const AuthPage = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const field = (key) => ({
-        value: formData[key],
-        onChange: v => { setError(''); setMessage(''); setFormData(f => ({ ...f, [key]: v })); },
-    });
-
-    const handleGoogleLogin = () => {
-        window.location.href = '/auth/google';
-    };
-
     // ── LOGIN ──────────────────────────────────────────────────
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         try {
-            const res = await axios.post('/api/login', {
-                email: formData.email,
-                password: formData.password,
+            const res = await axios.post('/api/community/login', {
+                vellar_id: loginForm.vellar_id,
+                password:  loginForm.password,
             });
-            const { token, role: userRole, status, coach_id, coach_name, coach_avatar } = res.data;
-            localStorage.setItem('auth_token', token);
-            localStorage.setItem('player_role', userRole);
 
-            if (userRole === 'coach') {
-                if (coach_id) localStorage.setItem('coach_id', coach_id);
-                if (coach_name) localStorage.setItem('coach_name', coach_name);
-                if (coach_avatar) localStorage.setItem('coach_avatar', coach_avatar);
-                navigate('/coach-dashboard');
-            } else if (status === 'pending') {
-                localStorage.setItem('player_status', 'pending');
-                navigate('/waiting-room');
-            } else if (status === 'active') {
-                localStorage.setItem('player_status', 'active');
-                navigate('/dashboard');
-            } else {
-                setError(`Account status: ${status}`);
+            const { token, user, status } = res.data;
+
+            if (status === 'pending') {
+                // Should not happen since backend blocks it, but handle gracefully
+                navigate('/waiting-room', { state: { vellar_id: loginForm.vellar_id } });
+                return;
             }
-        } catch {
-            setError('Invalid email or password.');
+
+            localStorage.setItem('community_token', token);
+            localStorage.setItem('auth_token', token); // legacy compat
+            localStorage.setItem('player_role', user.role);
+            localStorage.setItem('community_user', JSON.stringify(user)); // for CommunityLayout
+            localStorage.setItem('vellar_id', user.vellar_id ?? '');
+            localStorage.setItem('player_name', user.name ?? '');
+
+
+            // Admin/organizer goes to admin area
+            if (user.role === 'club_owner' || user.role === 'admin') {
+                navigate('/community/feed');
+            } else {
+                navigate('/community/feed');
+            }
+        } catch (err) {
+            const msg = err.response?.data?.message ?? 'Ralat semasa log masuk. Cuba lagi.';
+            setError(msg);
         } finally {
             setLoading(false);
         }
@@ -88,60 +90,52 @@ const AuthPage = () => {
     // ── REGISTER ───────────────────────────────────────────────
     const handleRegister = async (e) => {
         e.preventDefault();
-        if (formData.password !== formData.password_confirmation) {
-            setError('Passwords do not match.');
+        if (signupForm.password !== signupForm.password_confirmation) {
+            setError('Kata laluan tidak sepadan.');
             return;
         }
         setLoading(true);
         setError('');
         try {
-            const res = await axios.post('/api/register', { ...formData, role: 'player' });
-            const { token, user_id } = res.data;
-            localStorage.setItem('auth_token', token);
-            navigate(`/onboarding?token=${token}&user_id=${user_id}`);
+            const res = await axios.post('/api/community/register', {
+                name:                  signupForm.name,
+                phone:                 signupForm.phone,
+                position:              signupForm.position,
+                password:              signupForm.password,
+                password_confirmation: signupForm.password_confirmation,
+            });
+
+            // Show success screen with vellar_id
+            setSuccessData({
+                vellar_id:     res.data.vellar_id,
+                vellar_number: res.data.vellar_number,
+                name:          res.data.name,
+            });
+            setView('success');
         } catch (err) {
-            console.error('Register error:', err.response?.data ?? err.message);
             const msg = err.response?.data?.message
                 ?? err.response?.data?.errors
-                ?? err.message
-                ?? 'Registration failed.';
+                ?? 'Pendaftaran gagal. Cuba lagi.';
             setError(typeof msg === 'object' ? JSON.stringify(msg) : msg);
         } finally {
             setLoading(false);
         }
     };
 
-    // ── FORGOT PASSWORD ────────────────────────────────────────
-    const handleForgotPassword = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        setMessage('');
-        try {
-            const res = await axios.post('/api/forgot-password', { email: formData.email });
-            setMessage(res.data.message);
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to send reset link.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const switchToSignup = () => { setError(''); setMessage(''); setView('signup'); };
-    const switchToLogin  = () => { setError(''); setMessage(''); setView('login'); };
-    const switchToForgot = () => { setError(''); setMessage(''); setView('forgot'); };
+    const switchToSignup = () => { setError(''); setView('signup'); };
+    const switchToLogin  = () => { setError(''); setView('login'); };
 
     return (
         <div style={S.root}>
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap');
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-                input::placeholder { color: rgba(255,255,255,0.2); }
-                input:focus { border-color: rgba(255,255,255,0.3) !important; outline: none; }
+                input::placeholder, select::placeholder { color: rgba(255,255,255,0.2); }
+                input:focus, select:focus { border-color: rgba(255,255,255,0.3) !important; outline: none; }
                 .auth-input { transition: border-color 0.2s; }
-                .auth-btn-ghost:hover { background: rgba(255,255,255,0.08) !important; }
                 .auth-link:hover { color: #fff !important; }
                 .back-btn:hover { color: rgba(255,255,255,0.8) !important; }
+                select option { background: #0d0d17; color: #fff; }
             `}</style>
 
             {/* ── LEFT: Hero ── */}
@@ -154,8 +148,8 @@ const AuthPage = () => {
                         <img src="/images/logoImage/NUVRA_LOGO.webp" alt="NUVRA" style={S.heroLogoImg} />
                     </div>
                     <div style={S.heroTagline}>
-                        <h2 style={S.heroTaglineHeading}>Play Together.<br />Grow Together.</h2>
-                        <p style={S.heroTaglineSub}>The ultimate social ecosystem for amateur players and match organizers.</p>
+                        <h2 style={S.heroTaglineHeading}>Liga Awak.<br />Rekod Awak.</h2>
+                        <p style={S.heroTaglineSub}>Platform pengurusan liga dan kejohanan rasmi untuk Vellar League.</p>
                     </div>
                 </div>
             </div>
@@ -170,86 +164,59 @@ const AuthPage = () => {
                     {view === 'login' && (
                         <div style={S.viewWrap}>
                             <div style={S.viewHeader}>
-                                <h1 style={S.viewTitle}>Sign In</h1>
-                                <p style={S.viewSubtitle}>Welcome back. Sign in to continue.</p>
+                                <h1 style={S.viewTitle}>Log Masuk</h1>
+                                <p style={S.viewSubtitle}>Masukkan Vellar ID dan kata laluan anda.</p>
                             </div>
 
-                            {/* Google */}
-                            <button className="auth-btn-ghost" style={S.googleBtn} onClick={handleGoogleLogin}>
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
-                                Continue with Google
-                            </button>
-
-                            <Divider />
-
-                            {/* Email / Password */}
                             <form onSubmit={handleLogin} style={S.form}>
-                                <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
+                                {/* Vellar ID Field */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <label style={S.fieldLabel}>Password</label>
-                                        <button type="button" className="auth-link" style={{ ...S.inlineLink, fontSize: 11, color: '#D040EF' }} onClick={switchToForgot}>
-                                            Forgot password?
-                                        </button>
+                                    <label style={S.fieldLabel}>Vellar ID</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={S.vellarPrefix}>VELLAR</span>
+                                        <input
+                                            className="auth-input"
+                                            type="number"
+                                            placeholder="82"
+                                            min="1"
+                                            value={loginForm.vellar_id}
+                                            onChange={e => { setError(''); setLoginForm(f => ({ ...f, vellar_id: e.target.value })); }}
+                                            style={{ ...S.input, paddingLeft: 80 }}
+                                            required
+                                        />
                                     </div>
+                                    <span style={S.fieldHint}>Contoh: taip <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> untuk ID VELLAR 82</span>
+                                </div>
+
+                                {/* Password Field */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Kata Laluan</label>
                                     <input
                                         className="auth-input"
                                         type="password"
                                         placeholder="••••••••"
-                                        value={formData.password}
-                                        onChange={e => { setError(''); setFormData(f => ({ ...f, password: e.target.value })); }}
+                                        value={loginForm.password}
+                                        onChange={e => { setError(''); setLoginForm(f => ({ ...f, password: e.target.value })); }}
                                         style={S.input}
                                         required
                                     />
                                 </div>
+
                                 {error && <p style={S.errorMsg}>{error}</p>}
+
                                 <button
                                     type="submit"
                                     disabled={loading}
                                     style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
                                 >
-                                    {loading ? 'Signing in…' : 'Sign In'}
+                                    {loading ? 'Log masuk…' : 'Log Masuk'}
                                 </button>
                             </form>
 
                             <p style={{ ...S.switchText, marginTop: 24 }}>
-                                Don't have an account?{' '}
+                                Pemain baharu?{' '}
                                 <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToSignup}>
-                                    Sign up
-                                </button>
-                            </p>
-                        </div>
-                    )}
-
-                    {/* ══════════════════════════════════════
-                        FORGOT PASSWORD VIEW
-                    ══════════════════════════════════════ */}
-                    {view === 'forgot' && (
-                        <div style={S.viewWrap}>
-                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
-
-                            <div style={S.viewHeader}>
-                                <h1 style={S.viewTitle}>Reset Password</h1>
-                                <p style={S.viewSubtitle}>Enter your email to receive a reset link.</p>
-                            </div>
-
-                            <form onSubmit={handleForgotPassword} style={S.form}>
-                                <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
-                                {error && <p style={S.errorMsg}>{error}</p>}
-                                {message && <p style={S.successMsg}>{message}</p>}
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
-                                >
-                                    {loading ? 'Sending link…' : 'Send Reset Link'}
-                                </button>
-                            </form>
-
-                            <p style={{ ...S.switchText, marginTop: 24 }}>
-                                Remember your password?{' '}
-                                <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToLogin}>
-                                    Sign in
+                                    Daftar di sini
                                 </button>
                             </p>
                         </div>
@@ -260,84 +227,137 @@ const AuthPage = () => {
                     ══════════════════════════════════════ */}
                     {view === 'signup' && (
                         <div style={S.viewWrap}>
-                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
+                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Kembali ke Log Masuk</button>
 
                             <div style={S.viewHeader}>
-                                <h1 style={S.viewTitle}>Create Account</h1>
-                                <p style={S.viewSubtitle}>Join the Nuvra community today.</p>
+                                <h1 style={S.viewTitle}>Daftar Pemain Baharu</h1>
+                                <p style={S.viewSubtitle}>Isi maklumat anda. Vellar ID akan dijana secara automatik dan perlu kelulusan admin.</p>
                             </div>
 
-                            {/* Google sign up */}
-                            <button className="auth-btn-ghost" style={{ ...S.googleBtn, marginBottom: 0 }} onClick={handleGoogleLogin}>
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" style={{ width: 18, height: 18 }} alt="G" />
-                                Sign up with Google
-                            </button>
-
-                            <Divider />
-
-                            {/* Email sign up form */}
                             <form onSubmit={handleRegister} style={S.form}>
-                                <Field label="Full Name" type="text" placeholder="Your Name" {...field('name')} />
-                                <Field label="Email Address" type="email" placeholder="you@example.com" {...field('email')} />
-                                <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", marginTop: -8, marginBottom: 4, lineHeight: "1.4" }}>
-                                    💡 <em>Please enter a valid email. We will send match confirmations, booking approvals, and notifications to this address.</em>
-                                </span>
-                                <Field label="Password" type="password" placeholder="Min. 8 characters" {...field('password')} />
-                                <Field label="Confirm Password" type="password" placeholder="••••••••" {...field('password_confirmation')} />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Nama Penuh</label>
+                                    <input
+                                        className="auth-input"
+                                        type="text"
+                                        placeholder="Nama anda"
+                                        value={signupForm.name}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, name: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>No. Telefon</label>
+                                    <input
+                                        className="auth-input"
+                                        type="tel"
+                                        placeholder="01X-XXXXXXX"
+                                        value={signupForm.phone}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, phone: e.target.value })); }}
+                                        style={S.input}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Posisi Bermain</label>
+                                    <select
+                                        className="auth-input"
+                                        value={signupForm.position}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, position: e.target.value })); }}
+                                        style={{ ...S.input, appearance: 'none' }}
+                                    >
+                                        <option value="">-- Pilih posisi --</option>
+                                        {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Kata Laluan</label>
+                                    <input
+                                        className="auth-input"
+                                        type="password"
+                                        placeholder="Min. 6 aksara"
+                                        value={signupForm.password}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, password: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Sahkan Kata Laluan</label>
+                                    <input
+                                        className="auth-input"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={signupForm.password_confirmation}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, password_confirmation: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+
                                 {error && <p style={S.errorMsg}>{error}</p>}
+
                                 <button
                                     type="submit"
                                     disabled={loading}
                                     style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: loading ? 0.7 : 1 }}
                                 >
-                                    {loading ? 'Creating account…' : 'Create Account'}
+                                    {loading ? 'Mendaftar…' : 'Hantar Permohonan'}
                                 </button>
                             </form>
 
                             <p style={{ ...S.switchText, marginTop: 20 }}>
-                                Already have an account?{' '}
+                                Sudah ada akaun?{' '}
                                 <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToLogin}>
-                                    Sign in
+                                    Log masuk
                                 </button>
                             </p>
                         </div>
                     )}
 
-                    <p style={S.terms}>By using Nuvra, you agree to our Terms of Service.</p>
+                    {/* ══════════════════════════════════════
+                        SUCCESS VIEW (Post Sign Up)
+                    ══════════════════════════════════════ */}
+                    {view === 'success' && successData && (
+                        <div style={S.viewWrap}>
+                            <div style={S.successIcon}>✅</div>
+                            <div style={{ ...S.viewHeader, textAlign: 'center' }}>
+                                <h1 style={S.viewTitle}>Pendaftaran Berjaya!</h1>
+                                <p style={S.viewSubtitle}>Permohonan anda telah diterima dan sedang menunggu kelulusan admin.</p>
+                            </div>
+
+                            {/* Vellar ID Card */}
+                            <div style={S.vellarCard}>
+                                <p style={S.vellarCardLabel}>Vellar ID Anda</p>
+                                <p style={S.vellarCardId}>{successData.vellar_id}</p>
+                                <p style={S.vellarCardName}>{successData.name}</p>
+                            </div>
+
+                            <div style={S.infoBox}>
+                                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, textAlign: 'center' }}>
+                                    💡 Simpan Vellar ID anda. Setelah admin meluluskan permohonan, anda boleh log masuk menggunakan <strong style={{ color: '#00D4EC' }}>nombor {successData.vellar_number}</strong> sebagai ID dan kata laluan yang anda daftarkan.
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={switchToLogin}
+                                style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 8 }}
+                            >
+                                Kembali ke Log Masuk
+                            </button>
+                        </div>
+                    )}
+
+                    <p style={S.terms}>Dengan menggunakan NUVRA, anda bersetuju dengan Terma Perkhidmatan kami.</p>
                 </div>
             </div>
         </div>
     );
 };
-
-/* ── Sub-components ─────────────────────────────────────────── */
-
-function Divider() {
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: 1, textTransform: 'uppercase' }}>or</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-        </div>
-    );
-}
-
-function Field({ label, type, placeholder, value, onChange }) {
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={S.fieldLabel}>{label}</label>
-            <input
-                className="auth-input"
-                type={type}
-                placeholder={placeholder}
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                style={S.input}
-                required
-            />
-        </div>
-    );
-}
 
 /* ── Styles ─────────────────────────────────────────────────── */
 const S = {
@@ -392,16 +412,15 @@ const S = {
         fontFamily: "'Barlow Condensed', sans-serif",
         fontSize: 38, fontWeight: 900, letterSpacing: 1, color: '#fff', lineHeight: 1.1, marginBottom: 8,
     },
-    viewSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500 },
+    viewSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, lineHeight: 1.6 },
+
+    /* Vellar ID input prefix */
+    vellarPrefix: {
+        position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+        fontSize: 11, fontWeight: 800, color: '#00D4EC', letterSpacing: 1, pointerEvents: 'none', zIndex: 1,
+    },
 
     /* Buttons */
-    googleBtn: {
-        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 10, padding: '13px 20px', borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
-        color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-        marginBottom: 0,
-    },
     primaryBtn: {
         width: '100%', padding: '14px 20px', borderRadius: 12, border: 'none',
         color: '#080810', fontSize: 14, fontWeight: 800, cursor: 'pointer',
@@ -419,6 +438,7 @@ const S = {
         fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)',
         textTransform: 'uppercase', letterSpacing: 1,
     },
+    fieldHint: { fontSize: 11, color: 'rgba(255,255,255,0.25)', lineHeight: 1.4 },
     input: {
         width: '100%', padding: '12px 16px', borderRadius: 10,
         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
@@ -429,10 +449,23 @@ const S = {
         background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)',
         borderRadius: 8, padding: '8px 12px',
     },
-    successMsg: {
-        fontSize: 12, color: '#00D4EC', fontWeight: 500,
-        background: 'rgba(0,212,236,0.08)', border: '1px solid rgba(0,212,236,0.2)',
-        borderRadius: 8, padding: '8px 12px',
+
+    /* Success screen */
+    successIcon: { fontSize: 48, textAlign: 'center', marginBottom: 16 },
+    vellarCard: {
+        background: 'linear-gradient(135deg, rgba(0,212,236,0.12), rgba(208,64,239,0.12))',
+        border: '1px solid rgba(0,212,236,0.25)',
+        borderRadius: 16, padding: '24px', textAlign: 'center', marginBottom: 16,
+    },
+    vellarCardLabel: { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+    vellarCardId: {
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: 40, fontWeight: 900, color: '#00D4EC', letterSpacing: 2, marginBottom: 4,
+    },
+    vellarCardName: { fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 500 },
+    infoBox: {
+        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 12, padding: '16px', marginBottom: 8,
     },
 
     /* Footer */

@@ -38,6 +38,25 @@ export default function CommunityLayout() {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    const fetchPendingCount = async () => {
+        const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+        const storedUser = localStorage.getItem("community_user");
+        if (!token || !storedUser) return;
+        const u = JSON.parse(storedUser);
+        if (u?.role !== "club_owner" && u?.role !== "admin") return;
+        try {
+            const res = await fetch(`${API}/admin/pending-players`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPendingCount(data.count ?? 0);
+            }
+        } catch { /* silent */ }
+    };
+
 
     const fetchNotifications = async () => {
         const token = localStorage.getItem("community_token");
@@ -67,7 +86,12 @@ export default function CommunityLayout() {
         if (stored) setUser(JSON.parse(stored));
 
         fetchNotifications();
-        const interval = setInterval(fetchNotifications, 20000);
+        fetchPendingCount();
+        const interval = setInterval(() => {
+            fetchNotifications();
+            fetchPendingCount();
+        }, 20000);
+
 
         const handleClickOutside = (e) => {
             if (showNotifications && !e.target.closest(".notifications-dropdown") && !e.target.closest(".notif-nav-btn")) {
@@ -294,8 +318,29 @@ export default function CommunityLayout() {
                                 active={isActive("/community/admin/analytics")}
                                 onClick={() => navigate("/community/admin/analytics")}
                             />
+                            {/* Pending Players with badge */}
+                            <button
+                                style={{
+                                    ...S.navItem,
+                                    ...(isActive("/community/admin/pending-players") ? S.navItemActive : {}),
+                                }}
+                                onClick={() => navigate("/community/admin/pending-players")}
+                            >
+                                <span style={S.navLabel}>PENDING PLAYERS</span>
+                                {pendingCount > 0 && (
+                                    <span style={{
+                                        background: '#FBBF24', color: '#080810',
+                                        fontSize: 10, fontWeight: 800, borderRadius: 20,
+                                        padding: '1px 7px', marginLeft: 'auto',
+                                    }}>
+                                        {pendingCount}
+                                    </span>
+                                )}
+                                {isActive("/community/admin/pending-players") && <div style={S.activeIndicator} />}
+                            </button>
                         </>
                     )}
+
                 </nav>
 
                 <div style={{ flex: 1 }} />

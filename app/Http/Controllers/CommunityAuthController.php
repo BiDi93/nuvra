@@ -31,7 +31,8 @@ class CommunityAuthController extends Controller
                     'google_id' => $googleUser->getId(),
                     'avatar'    => $googleUser->getAvatar(),
                     'password'  => Hash::make(Str::random(24)),
-                    'role'      => 'player', // Default role for community login
+                    'role'      => 'player',
+                    'status'    => 'active',
                 ]
             );
 
@@ -46,72 +47,212 @@ class CommunityAuthController extends Controller
         }
     }
 
-    // ── Register ──────────────────────────────────────────────────────────────
+    // ── Register (Pemain Baharu) ───────────────────────────────────────────────
     public function register(Request $request)
     {
         $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
+            'name'                  => 'required|string|max:255',
+            'phone'                 => 'nullable|string|max:20',
+            'position'              => 'nullable|string|max:100',
+            'password'              => 'required|string|min:6|confirmed',
         ]);
+
+        // Auto-increment Vellar ID: ambil nombor tertinggi + 1
+        $maxNumber = User::whereNotNull('vellar_id')
+            ->get()
+            ->map(fn($u) => (int) preg_replace('/[^0-9]/', '', $u->vellar_id))
+            ->max() ?? 0;
+
+        $nextNumber = $maxNumber + 1;
+        $vellarId   = 'VELLAR ' . $nextNumber;
+        $email      = 'vellar' . $nextNumber . '@vellarleague.com';
+
+        // Pastikan email/vellar_id unik (edge case)
+        while (User::where('email', $email)->exists()) {
+            $nextNumber++;
+            $vellarId = 'VELLAR ' . $nextNumber;
+            $email    = 'vellar' . $nextNumber . '@vellarleague.com';
+        }
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => 'player',
-            'phone'    => $request->phone ?? null,
+            'name'      => $request->name,
+            'email'     => $email,
+            'password'  => Hash::make($request->password),
+            'role'      => 'player',
+            'status'    => 'pending',   // Tunggu kelulusan admin
+            'vellar_id' => $vellarId,
+            'phone'     => $request->phone ?? null,
+            'position'  => $request->position ?? null,
         ]);
 
-        $token = $user->createToken('community_token')->plainTextToken;
-
+        // Pemain pending tidak dapat token — kena tunggu approve dulu
         return response()->json([
-            'message' => 'Registration successful! Welcome to the Nuvra Community.',
-            'token'   => $token,
-            'user'    => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => $user->role,
-            ],
+            'message'       => 'Pendaftaran berjaya! Sila tunggu kelulusan admin.',
+            'vellar_id'     => $vellarId,
+            'vellar_number' => $nextNumber,
+            'name'          => $user->name,
+            'status'        => 'pending',
         ], 201);
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
+    // ── Login (Guna Vellar ID Number) ─────────────────────────────────────────
     public function login(Request $request)
     {
         $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
+            'vellar_id' => 'required',
+            'password'  => 'required',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Invalid credentials.'], 401);
+        // Bina email dari vellar_id number
+        $vellarNumber = preg_replace('/[^0-9]/', '', $request->vellar_id);
+
+        if (empty($vellarNumber)) {
+            return response()->json(['message' => 'Vellar ID tidak sah. Masukkan nombor sahaja (cth: 82).'], 422);
         }
 
-        $user = Auth::user();
+        $email = 'vellar' . $vellarNumber . '@vellarleague.com';
+
+        // Cari user
+        $user = User::where('email', $email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Vellar ID atau kata laluan tidak betul.'], 401);
+        }
+
+        // Semak status
+        if ($user->status === 'pending') {
+            return response()->json([
+                'message' => 'Akaun anda masih menunggu kelulusan admin. Sila cuba sebentar lagi.',
+                'status'  => 'pending',
+            ], 403);
+        }
+
+        if ($user->status === 'suspended') {
+            return response()->json([
+                'message' => 'Akaun anda telah digantung. Sila hubungi admin untuk maklumat lanjut.',
+                'status'  => 'suspended',
+            ], 403);
+        }
+
         $token = $user->createToken('community_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful.',
-            'token'   => $token,
-            'user'    => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => $user->role,
+            'message'    => 'Log masuk berjaya.',
+            'token'      => $token,
+            'status'     => $user->status,
+            'user' => [
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'email'     => $user->email,
+                'role'      => $user->role,
+                'vellar_id' => $user->vellar_id,
+                'position'  => $user->position,
+                'club_name' => $user->club_name,
+                'avatar'    => $user->avatar,
             ],
         ]);
     }
 
+    // ── Logout ────────────────────────────────────────────────────────────────
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out successfully.']);
+        return response()->json(['message' => 'Log keluar berjaya.']);
     }
 
+    // ── Me ────────────────────────────────────────────────────────────────────
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    // =========================================================================
+    // ADMIN — Player Approval Management
+    // =========================================================================
+
+    // Senarai pemain pending
+    public function pendingPlayers(Request $request)
+    {
+        // Only admin/club_owner can access
+        if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        $players = User::where('status', 'pending')
+            ->where('role', 'player')
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'name', 'vellar_id', 'position', 'phone', 'status', 'created_at']);
+
+        return response()->json([
+            'count'   => $players->count(),
+            'players' => $players,
+        ]);
+    }
+
+    // Approve pemain
+    public function approvePlayer(Request $request, $id)
+    {
+        if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        $player = User::findOrFail($id);
+
+        if ($player->role !== 'player') {
+            return response()->json(['message' => 'Pengguna ini bukan pemain.'], 422);
+        }
+
+        $player->update(['status' => 'active']);
+
+        return response()->json([
+            'message'   => "Pemain {$player->name} ({$player->vellar_id}) telah diluluskan.",
+            'player'    => $player->only(['id', 'name', 'vellar_id', 'position', 'status']),
+        ]);
+    }
+
+    // Reject / delete pemain
+    public function rejectPlayer(Request $request, $id)
+    {
+        if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        $player = User::findOrFail($id);
+
+        if ($player->role !== 'player') {
+            return response()->json(['message' => 'Pengguna ini bukan pemain.'], 422);
+        }
+
+        $name     = $player->name;
+        $vellarId = $player->vellar_id;
+        $player->delete();
+
+        return response()->json([
+            'message' => "Pemain {$name} ({$vellarId}) telah ditolak dan dipadam.",
+        ]);
+    }
+
+    // Semak status sendiri (untuk WaitingRoom polling)
+    public function checkStatus(Request $request)
+    {
+        $vellarNumber = preg_replace('/[^0-9]/', '', $request->input('vellar_id', ''));
+
+        if (empty($vellarNumber)) {
+            return response()->json(['message' => 'Vellar ID tidak sah.'], 422);
+        }
+
+        $email = 'vellar' . $vellarNumber . '@vellarleague.com';
+        $user  = User::where('email', $email)->first(['id', 'name', 'vellar_id', 'position', 'status']);
+
+        if (!$user) {
+            return response()->json(['message' => 'Pemain tidak dijumpai.'], 404);
+        }
+
+        return response()->json([
+            'status'    => $user->status,
+            'name'      => $user->name,
+            'vellar_id' => $user->vellar_id,
+            'position'  => $user->position,
+        ]);
     }
 }

@@ -1,54 +1,64 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const WaitingRoom = () => {
     const navigate  = useNavigate();
-    const [player, setPlayer]     = useState(null);
-    const [checking, setChecking] = useState(false);
+    const location  = useLocation();
+    const [player, setPlayer]         = useState(null);
+    const [checking, setChecking]     = useState(false);
+    const [lastChecked, setLastChecked] = useState(null);
+    const pollRef = useRef(null);
 
-    const fetchStatus = useCallback(async () => {
-        const token = localStorage.getItem('auth_token');
-        if (!token) { navigate('/login'); return; }
+    // Get vellar_id passed from signup or stored
+    const vellarId = location.state?.vellar_id
+        ?? location.state?.vellar_number
+        ?? localStorage.getItem('pending_vellar_id')
+        ?? '';
+
+    const checkStatus = useCallback(async () => {
+        if (!vellarId) return;
 
         try {
-            const res = await axios.get('/api/player/me', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const profile = res.data.profile || res.data;
-            setPlayer(profile);
+            const res = await axios.post('/api/community/check-status', { vellar_id: vellarId });
+            const data = res.data;
+            setPlayer(data);
+            setLastChecked(new Date());
 
-            if (profile?.status === 'active') {
-                localStorage.setItem('player_status', 'active');
-                navigate('/dashboard');
+            if (data.status === 'active') {
+                // Approved! Redirect to login
+                localStorage.removeItem('pending_vellar_id');
+                navigate('/login', {
+                    state: { message: `✅ Akaun anda telah diluluskan! Log masuk dengan Vellar ID ${vellarId}.` }
+                });
             }
-        } catch (err) {
-            // Only kick to login on 401 (expired/invalid token)
-            // For 404 or other errors, stay on the page
-            if (err.response?.status === 401) {
-                localStorage.removeItem('auth_token');
-                localStorage.removeItem('player_status');
-                navigate('/login');
-            }
+        } catch {
+            // If no vellar_id, just show generic pending screen
         }
-    }, [navigate]);
+    }, [vellarId, navigate]);
 
-    useEffect(() => { fetchStatus(); }, [fetchStatus]);
+    // Save vellar_id to localStorage
+    useEffect(() => {
+        if (vellarId) localStorage.setItem('pending_vellar_id', String(vellarId));
+    }, [vellarId]);
 
-    const handleCheckStatus = async () => {
+    // Initial check + auto poll every 30 seconds
+    useEffect(() => {
+        checkStatus();
+        pollRef.current = setInterval(checkStatus, 30000);
+        return () => clearInterval(pollRef.current);
+    }, [checkStatus]);
+
+    const handleCheckNow = async () => {
         setChecking(true);
-        await fetchStatus();
+        await checkStatus();
         setChecking(false);
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('player_status');
+        localStorage.removeItem('pending_vellar_id');
         navigate('/login');
     };
-
-    const teamName  = player?.coach?.team_name ?? '—';
-    const coachName = player?.coach?.name      ?? '—';
 
     return (
         <div style={S.root}>
@@ -60,9 +70,7 @@ const WaitingRoom = () => {
                     70%  { transform: scale(1.5); opacity: 0; }
                     100% { transform: scale(1.5); opacity: 0; }
                 }
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
+                @keyframes spin { to { transform: rotate(360deg); } }
                 .pulse-ring {
                     position: absolute; inset: -8px; border-radius: 50%;
                     border: 2px solid rgba(251,191,36,0.5);
@@ -80,7 +88,7 @@ const WaitingRoom = () => {
                     onClick={() => navigate('/')}
                 />
                 <button style={S.logoutBtn} onClick={handleLogout}>
-                    Sign Out
+                    Keluar
                 </button>
             </div>
 
@@ -100,48 +108,52 @@ const WaitingRoom = () => {
                 </div>
 
                 {/* Heading */}
-                <h1 style={S.title}>Application Pending</h1>
+                <h1 style={S.title}>Menunggu Kelulusan Admin</h1>
                 <p style={S.subtitle}>
                     {player?.name
-                        ? <>Hey <strong style={{ color: '#fff' }}>{player.name}</strong>, your application is under review.</>
-                        : 'Your application is under review.'}
+                        ? <>Hai <strong style={{ color: '#fff' }}>{player.name}</strong>, permohonan anda sedang disemak oleh admin NUVRA.</>
+                        : 'Permohonan anda sedang disemak oleh admin NUVRA.'}
                 </p>
 
                 {/* Info card */}
-                <div style={S.infoCard}>
-                    <InfoRow label="Team" value={teamName} />
-                    <InfoRow label="Coach" value={coachName} />
-                    <InfoRow label="Position" value={player?.position ?? '—'} />
-                    <InfoRow label="Status" value={
-                        <span style={S.statusBadge}>Pending Review</span>
-                    } />
-                </div>
+                {(vellarId || player) && (
+                    <div style={S.infoCard}>
+                        <InfoRow label="Vellar ID" value={player?.vellar_id ?? `VELLAR ${vellarId}`} highlight />
+                        {player?.position && <InfoRow label="Posisi" value={player.position} />}
+                        <InfoRow label="Status" value={
+                            <span style={S.statusBadge}>⏳ Menunggu Kelulusan</span>
+                        } />
+                        {lastChecked && (
+                            <InfoRow label="Semakan Terakhir" value={lastChecked.toLocaleTimeString('ms-MY')} />
+                        )}
+                    </div>
+                )}
 
                 {/* Progress steps */}
                 <div style={S.steps}>
-                    <Step label="Account Created" done />
+                    <Step label="Akaun Dicipta" done />
                     <StepConnector done />
-                    <Step label="Application Submitted" done />
+                    <Step label="Vellar ID Dijana" done />
                     <StepConnector />
-                    <Step label="Coach Approval" active />
+                    <Step label="Kelulusan Admin" active />
                     <StepConnector />
-                    <Step label="Access Granted" />
+                    <Step label="Akses Diberikan" />
                 </div>
 
                 {/* CTA */}
                 <button
                     style={{ ...S.checkBtn, opacity: checking ? 0.7 : 1 }}
-                    onClick={handleCheckStatus}
+                    onClick={handleCheckNow}
                     disabled={checking}
                 >
                     {checking
-                        ? <><span className="spin" style={S.spinner} />Checking…</>
-                        : 'Check Approval Status'}
+                        ? <><span className="spin" style={S.spinner} />Menyemak…</>
+                        : '🔄 Semak Status Sekarang'}
                 </button>
 
                 <p style={S.note}>
-                    Your coach will receive a notification to review your request.<br />
-                    Reach out to them directly if this is taking too long.
+                    Status disemak secara automatik setiap 30 saat.<br />
+                    Hubungi admin terus jika ini mengambil masa terlalu lama.
                 </p>
             </div>
         </div>
@@ -150,11 +162,11 @@ const WaitingRoom = () => {
 
 /* ── Sub-components ─────────────────────────────────────────── */
 
-function InfoRow({ label, value }) {
+function InfoRow({ label, value, highlight = false }) {
     return (
         <div style={S.infoRow}>
             <span style={S.infoLabel}>{label}</span>
-            <span style={S.infoValue}>{value}</span>
+            <span style={{ ...S.infoValue, color: highlight ? '#00D4EC' : '#fff' }}>{value}</span>
         </div>
     );
 }
@@ -194,8 +206,6 @@ const S = {
         display: 'flex',
         flexDirection: 'column',
     },
-
-    /* Top bar */
     topBar: {
         display: 'flex',
         alignItems: 'center',
@@ -210,8 +220,6 @@ const S = {
         padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
         fontFamily: 'inherit', transition: 'all 0.2s',
     },
-
-    /* Content */
     content: {
         flex: 1,
         display: 'flex',
@@ -221,8 +229,6 @@ const S = {
         padding: '48px 24px',
         gap: 24,
     },
-
-    /* Icon */
     iconWrap: {
         position: 'relative',
         width: 72, height: 72,
@@ -235,18 +241,14 @@ const S = {
         border: '1px solid rgba(251,191,36,0.3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
     },
-
-    /* Text */
     title: {
         fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: 40, fontWeight: 900, letterSpacing: 1,
+        fontSize: 40, fontWeight: 900, letterSpacing: 1, textAlign: 'center',
     },
     subtitle: {
         fontSize: 15, color: 'rgba(255,255,255,0.4)',
         textAlign: 'center', lineHeight: 1.6, maxWidth: 380,
     },
-
-    /* Info card */
     infoCard: {
         width: '100%', maxWidth: 400,
         background: 'rgba(255,255,255,0.03)',
@@ -267,14 +269,12 @@ const S = {
         border: '1px solid rgba(251,191,36,0.25)',
         color: '#FBBF24', fontSize: 12, fontWeight: 700,
     },
-
-    /* Steps */
     steps: {
         display: 'flex', alignItems: 'center', gap: 0,
         background: 'rgba(255,255,255,0.02)',
         border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: 14, padding: '20px 24px',
-        width: '100%', maxWidth: 480,
+        width: '100%', maxWidth: 520,
     },
     stepItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flex: '0 0 auto' },
     stepDot: {
@@ -294,10 +294,8 @@ const S = {
         border: '1px solid rgba(251,191,36,0.4)',
         color: '#FBBF24',
     },
-    stepLabel: { fontSize: 10, fontWeight: 500, textAlign: 'center', maxWidth: 70, lineHeight: 1.3 },
+    stepLabel: { fontSize: 10, fontWeight: 500, textAlign: 'center', maxWidth: 80, lineHeight: 1.3 },
     stepLine: { flex: 1, height: 1, minWidth: 20 },
-
-    /* Button */
     checkBtn: {
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '13px 28px', borderRadius: 12, border: 'none',
@@ -311,8 +309,6 @@ const S = {
         border: '2px solid rgba(8,8,16,0.3)',
         borderTopColor: '#080810', borderRadius: '50%',
     },
-
-    /* Note */
     note: {
         fontSize: 12, color: 'rgba(255,255,255,0.2)',
         textAlign: 'center', lineHeight: 1.7, maxWidth: 360,
