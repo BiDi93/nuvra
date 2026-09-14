@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
+import { IconMapPin, IconUser } from "../../Components/Icons";
 
 const API = "/api/community";
 const BRAND_CYAN = "#00D4EC";
 
 function TournamentCard({ tournament, onClick }) {
+    const isActive = tournament.status === "active";
     return (
         <div style={S.card} onClick={onClick} className="tournament-card">
             <div style={S.cardHeader}>
@@ -13,17 +15,18 @@ function TournamentCard({ tournament, onClick }) {
                     <span style={S.formatBadge}>{tournament.format?.toUpperCase() || "LEAGUE"}</span>
                     <span style={S.seasonBadge}>{tournament.season || "SEASON 2026"}</span>
                 </div>
-                <span style={S.statusBadge}>
-                    {tournament.status === "active" ? "🟢 SEDANG BERLANGSUNG" : tournament.status?.toUpperCase()}
+                <span style={{ ...S.statusBadge, ...(isActive ? S.statusBadgeActive : {}) }}>
+                    {isActive && <span style={S.statusDot} />}
+                    {isActive ? "SEDANG BERLANGSUNG" : tournament.status?.toUpperCase()}
                 </span>
             </div>
 
             <h3 style={S.tournamentTitle}>{tournament.name}</h3>
-            
+
             <div style={S.metaRow}>
-                <span>📍 {tournament.venue || "Lokasi Rasmi"}</span>
+                <span style={S.metaLine}><IconMapPin size={13} /> {tournament.venue || "Lokasi Rasmi"}</span>
                 {tournament.organizer && (
-                    <span>👑 {tournament.organizer.name}</span>
+                    <span style={S.metaLine}><IconUser size={13} /> {tournament.organizer.name}</span>
                 )}
             </div>
 
@@ -140,7 +143,7 @@ export default function CommunityFeed() {
             <div style={S.grid} className="feed-grid">
                 {filtered.length === 0 ? (
                     <div style={S.emptyState}>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: "#888" }}>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: "var(--text-dim)" }}>
                             Tiada kejohanan ditemui.
                         </p>
                         {isOrganizer && (
@@ -172,7 +175,7 @@ const S = {
         margin: "0 auto",
         padding: "16px 0 80px",
         fontFamily: "'Inter', sans-serif",
-        color: "#fff",
+        color: "var(--text-primary)",
     },
     headerRow: {
         display: "flex",
@@ -182,27 +185,26 @@ const S = {
     },
     pageTitle: {
         fontSize: 28,
-        fontWeight: 900,
+        fontWeight: 800,
         letterSpacing: -0.5,
-        color: "#0f172a",
+        color: "var(--text-primary)",
         marginBottom: 4,
     },
     pageSubtitle: {
         fontSize: 13,
-        color: "#64748b",
+        color: "var(--text-muted)",
     },
     createBtn: {
-        background: "#0284c7",
+        background: "var(--accent-gradient)",
         border: "none",
-        color: "#ffffff",
+        color: "#0a0e16",
         padding: "10px 18px",
         borderRadius: 10,
         fontSize: 12,
-        fontWeight: 900,
+        fontWeight: 800,
         letterSpacing: 0.5,
         cursor: "pointer",
         whiteSpace: "nowrap",
-        boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
     },
     filterBar: {
         display: "flex",
@@ -212,9 +214,9 @@ const S = {
         paddingBottom: 4,
     },
     filterPill: {
-        background: "#ffffff",
-        border: "1px solid #e2e8f0",
-        color: "#64748b",
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border-default)",
+        color: "var(--text-dim)",
         padding: "6px 14px",
         borderRadius: 20,
         fontSize: 11,
@@ -223,10 +225,9 @@ const S = {
         letterSpacing: 0.5,
     },
     activeFilterPill: {
-        background: "#0284c7",
-        color: "#ffffff",
-        border: "1px solid #0284c7",
-        boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
+        background: BRAND_CYAN,
+        color: "#0a0e16",
+        border: "1px solid " + BRAND_CYAN,
     },
     grid: {
         display: "grid",
@@ -234,14 +235,13 @@ const S = {
         gap: 20,
     },
     card: {
-        background: "#ffffff",
-        border: "1px solid #e2e8f0",
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border-subtle)",
         borderRadius: 16,
         padding: 22,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
     },
     cardHeader: {
         display: "flex",
@@ -254,48 +254,67 @@ const S = {
         gap: 6,
     },
     formatBadge: {
-        background: "rgba(2, 132, 199, 0.08)",
-        color: "#0284c7",
+        background: "rgba(0, 212, 236, 0.1)",
+        color: BRAND_CYAN,
         fontSize: 10,
-        fontWeight: 900,
+        fontWeight: 800,
         padding: "3px 8px",
         borderRadius: 4,
         letterSpacing: 0.5,
     },
     seasonBadge: {
-        background: "#f1f5f9",
-        color: "#475569",
+        background: "var(--bg-surface-raised)",
+        color: "var(--text-dim)",
         fontSize: 10,
         fontWeight: 700,
         padding: "3px 6px",
         borderRadius: 4,
     },
     statusBadge: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
         fontSize: 10,
         fontWeight: 800,
-        color: "#16a34a",
+        color: "var(--text-muted)",
+        letterSpacing: 0.3,
+    },
+    statusBadgeActive: {
+        color: "var(--color-success)",
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: "var(--color-success)",
+        flexShrink: 0,
     },
     tournamentTitle: {
         fontSize: 18,
-        fontWeight: 800,
+        fontWeight: 700,
         marginBottom: 8,
-        color: "#0f172a",
+        color: "var(--text-primary)",
         lineHeight: 1.3,
     },
     metaRow: {
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 5,
         fontSize: 12,
-        color: "#64748b",
+        color: "var(--text-muted)",
         marginBottom: 18,
+    },
+    metaLine: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
     },
     statsBox: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
+        background: "var(--bg-surface-raised)",
+        border: "1px solid var(--border-subtle)",
         borderRadius: 10,
         padding: "10px 16px",
         marginBottom: 16,
@@ -307,26 +326,27 @@ const S = {
     },
     statVal: {
         fontSize: 15,
-        fontWeight: 900,
-        color: "#0f172a",
+        fontWeight: 800,
+        color: "var(--text-primary)",
+        fontVariantNumeric: "tabular-nums",
     },
     statLbl: {
         fontSize: 9,
         fontWeight: 800,
-        color: "#64748b",
+        color: "var(--text-muted)",
         letterSpacing: 0.5,
         marginTop: 2,
     },
     statDivider: {
         width: 1,
         height: 24,
-        background: "#e2e8f0",
+        background: "var(--border-default)",
     },
     viewBtn: {
         marginTop: "auto",
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        color: "#0284c7",
+        background: "var(--bg-surface-raised)",
+        border: "1px solid var(--border-subtle)",
+        color: BRAND_CYAN,
         padding: "10px 14px",
         borderRadius: 8,
         fontSize: 12,
@@ -334,15 +354,15 @@ const S = {
         cursor: "pointer",
         textAlign: "center",
         letterSpacing: 0.5,
-        transition: "all 0.2s",
+        transition: "border-color 0.2s",
     },
     emptyState: {
         gridColumn: "1 / -1",
         textAlign: "center",
         padding: "60px 20px",
-        background: "#ffffff",
+        background: "var(--bg-surface)",
         borderRadius: 14,
-        border: "1px dashed #cbd5e1",
-        color: "#64748b",
+        border: "1px dashed var(--border-default)",
+        color: "var(--text-muted)",
     },
 };

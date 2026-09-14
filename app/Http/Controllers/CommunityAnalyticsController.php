@@ -44,16 +44,16 @@ class CommunityAnalyticsController extends Controller
                     : 'Kick-off: ' . $gameDate->format('d M, H:i');
 
                 if ($b->status === 'awaiting_approval') {
-                    $icon    = '💳';
+                    $icon    = 'payment';
                     $message = "Payment submitted by {$b->player_name} for '{$b->game_title}'";
                 } elseif ($b->status === 'confirmed') {
-                    $icon    = '✅';
+                    $icon    = 'confirmed';
                     $message = "Booking confirmed for '{$b->game_title}' — {$b->player_name}";
                 } elseif ($b->status === 'rejected') {
-                    $icon    = '❌';
+                    $icon    = 'rejected';
                     $message = "Booking rejected for '{$b->game_title}' — {$b->player_name}";
                 } else {
-                    $icon    = '❌';
+                    $icon    = 'rejected';
                     $message = "Booking status updated to {$b->status} for '{$b->game_title}'";
                 }
 
@@ -74,7 +74,7 @@ class CommunityAnalyticsController extends Controller
             ->get()
             ->map(fn ($u) => [
                 'id'         => 'reg_' . $u->id,
-                'icon'       => '👤',
+                'icon'       => 'registered',
                 'message'    => "New player registered: {$u->name}",
                 'time'       => Carbon::parse($u->created_at)->diffForHumans(),
                 'created_at' => $u->created_at,

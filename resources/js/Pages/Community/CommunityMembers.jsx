@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
+import { IconSearch } from "../../Components/Icons";
 
 const API = "/api/community";
 const BRAND_BLUE = "#00D4EC";
@@ -19,7 +20,7 @@ export default function CommunityMembers() {
         try {
             const token = localStorage.getItem("community_token");
             const res = await fetch(`${API}/members`, {
-                headers: { 
+                headers: {
                     Accept: "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {})
                 }
@@ -55,20 +56,23 @@ export default function CommunityMembers() {
             <PageLoader />
             <style>{`
                 .member-card:hover { transform: translateY(-4px); border-color: ${BRAND_BLUE}88 !important; cursor: pointer; }
+                .member-search::placeholder { color: var(--text-muted); }
             `}</style>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
+
+            <div style={S.headerRow}>
                 <div>
                     <h1 style={S.title}>PLAYERS & MEMBERS</h1>
                     <p style={S.subtitle}>Directory of official Vellar League players and tournament members ({members.length} registered)</p>
                 </div>
-                <div style={{ width: '100%', maxWidth: 320 }}>
+                <div style={S.searchWrap}>
+                    <span style={S.searchIcon}><IconSearch size={16} /></span>
                     <input
                         type="text"
-                        placeholder="🔍 Search name, Vellar ID, club..."
+                        placeholder="Search name, Vellar ID, club..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={S.searchInput}
+                        className="member-search"
                     />
                 </div>
             </div>
@@ -100,7 +104,7 @@ export default function CommunityMembers() {
                                 {m.vellar_id && (
                                     <div style={S.vellarIdTag}>{m.vellar_id}</div>
                                 )}
-                                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+                                <div style={S.tagRow}>
                                     {m.position && (
                                         <span style={S.positionTag}>{m.position}</span>
                                     )}
@@ -129,71 +133,76 @@ export default function CommunityMembers() {
 
 const S = {
     container: { maxWidth: 1200, margin: "0 auto" },
-    title: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 42, fontWeight: 900, color: "#0f172a", letterSpacing: 1, marginBottom: 8 },
-    subtitle: { fontSize: 14, color: "#64748b", marginBottom: 32 },
+    headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 32 },
+    title: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 38, fontWeight: 800, color: "var(--text-primary)", letterSpacing: 0.5, marginBottom: 6 },
+    subtitle: { fontSize: 14, color: "var(--text-muted)" },
+
+    searchWrap: { position: "relative", width: "100%", maxWidth: 320 },
+    searchIcon: { position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", display: "flex", pointerEvents: "none" },
+    searchInput: {
+        width: "100%",
+        padding: "12px 16px 12px 40px",
+        borderRadius: 12,
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border-default)",
+        color: "var(--text-primary)",
+        fontSize: 14,
+        outline: "none",
+    },
+
     grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 },
     card: {
-        background: "#ffffff",
+        background: "var(--bg-surface)",
         borderRadius: 16,
         padding: "24px",
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
+        border: "1px solid var(--border-subtle)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
-        transition: "all 0.2s ease"
+        transition: "transform 0.2s ease, border-color 0.2s ease",
     },
-    avatar: { width: 80, height: 80, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 900, color: "#0284c7", overflow: "hidden", border: "2px solid rgba(2, 132, 199, 0.25)" },
+    avatar: { width: 80, height: 80, borderRadius: "50%", background: "var(--bg-surface-raised)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 800, color: BRAND_BLUE, overflow: "hidden", border: "1px solid var(--border-default)" },
     avatarWrapper: { position: "relative", marginBottom: 16 },
-    logoBadgeWrapper: { position: "absolute", bottom: -4, right: -4, width: 32, height: 32, borderRadius: "50%", background: "#f8fafc", border: "2px solid #ffffff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", zIndex: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" },
+    logoBadgeWrapper: { position: "absolute", bottom: -4, right: -4, width: 32, height: 32, borderRadius: "50%", background: "var(--bg-surface-raised)", border: "2px solid var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", zIndex: 10 },
     logoBadgeImg: { width: "100%", height: "100%", objectFit: "cover" },
     avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
     info: { marginBottom: 20 },
-    name: { fontSize: 18, fontWeight: 800, color: "#0f172a", marginBottom: 4 },
-    role: { fontSize: 11, fontWeight: 700, color: "#0284c7", letterSpacing: 1 },
-    joined: { fontSize: 11, color: "#64748b", marginTop: 4 },
-    stats: { display: "flex", gap: 24, borderTop: "1px solid #f1f5f9", paddingTop: 16, width: "100%", justifyContent: "center" },
+    name: { fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 },
+    tagRow: { display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 },
+    stats: { display: "flex", gap: 24, borderTop: "1px solid var(--border-subtle)", paddingTop: 16, width: "100%", justifyContent: "center" },
     statItem: { display: "flex", flexDirection: "column", gap: 2 },
-    statVal: { fontSize: 16, fontWeight: 900, color: "#0f172a" },
-    statLabel: { fontSize: 9, fontWeight: 700, color: "#64748b" },
-    searchInput: {
-        width: "100%",
-        padding: "12px 16px",
-        borderRadius: 12,
-        background: "#ffffff",
-        border: "1px solid #cbd5e1",
-        color: "#0f172a",
-        fontSize: 14,
-        outline: "none",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
-    },
+    statVal: { fontSize: 16, fontWeight: 800, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" },
+    statLabel: { fontSize: 9, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 0.5 },
+
     vellarIdTag: {
         display: "inline-block",
-        padding: "2px 8px",
+        padding: "2px 9px",
         borderRadius: 6,
-        background: "rgba(2, 132, 199, 0.1)",
-        color: "#0284c7",
+        background: "var(--bg-surface-raised)",
+        border: "1px solid var(--border-subtle)",
+        color: BRAND_BLUE,
         fontSize: 11,
         fontWeight: 800,
         letterSpacing: 0.5,
-        marginTop: 4
+        marginTop: 4,
     },
     positionTag: {
         fontSize: 10,
         fontWeight: 700,
-        color: "#16a34a",
-        background: "rgba(22, 163, 74, 0.1)",
-        padding: "2px 6px",
-        borderRadius: 4
+        color: "var(--color-success)",
+        background: "rgba(34, 197, 94, 0.12)",
+        padding: "2px 7px",
+        borderRadius: 4,
     },
     clubTag: {
         fontSize: 10,
         fontWeight: 600,
-        color: "#475569",
-        background: "#f1f5f9",
-        padding: "2px 6px",
-        borderRadius: 4
+        color: "var(--text-dim)",
+        background: "var(--bg-surface-raised)",
+        border: "1px solid var(--border-subtle)",
+        padding: "2px 7px",
+        borderRadius: 4,
     },
-    emptyState: { padding: "100px 0", textAlign: "center", color: "#64748b", fontSize: 14, fontWeight: 700 }
+    emptyState: { padding: "100px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 14, fontWeight: 600 },
 };

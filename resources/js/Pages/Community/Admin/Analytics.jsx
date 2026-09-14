@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
-import DynamicBackground from "../../../Components/DynamicBackground";
+import { IconCheck, IconX, IconUser, IconCreditCard } from "../../../Components/Icons";
 
 const API = "/api/community";
+
+const NOTI_ICON = {
+    payment:    { Icon: IconCreditCard, tone: "warn" },
+    confirmed:  { Icon: IconCheck, tone: "ok" },
+    rejected:   { Icon: IconX, tone: "danger" },
+    registered: { Icon: IconUser, tone: "accent" },
+};
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 function StatCard({ label, value, prefix = "" }) {
@@ -15,9 +22,13 @@ function StatCard({ label, value, prefix = "" }) {
 
 // ── Notification Item ─────────────────────────────────────────────────────
 function NotificationItem({ icon, message, time }) {
+    const entry = NOTI_ICON[icon] || NOTI_ICON.registered;
+    const { Icon, tone } = entry;
     return (
         <div style={S.notiItem}>
-            <div style={S.notiIcon}>{icon}</div>
+            <div style={{ ...S.notiIcon, ...S.notiToneMap[tone] }}>
+                <Icon size={14} />
+            </div>
             <div style={S.notiContent}>
                 <div style={S.notiMessage}>{message}</div>
                 <div style={S.notiTime}>{time}</div>
@@ -93,12 +104,12 @@ const S = {
     title: {
         fontSize: 28,
         fontWeight: 800,
-        color: "#fff",
+        color: "var(--text-primary)",
         letterSpacing: -0.5,
     },
     subtitle: {
         fontSize: 14,
-        color: "rgba(255,255,255,0.4)",
+        color: "var(--text-muted)",
         marginTop: 8,
     },
     mainGrid: {
@@ -109,32 +120,37 @@ const S = {
     sectionTitle: {
         fontSize: 12,
         fontWeight: 800,
-        color: "rgba(255,255,255,0.3)",
+        color: "var(--text-muted)",
         letterSpacing: 1,
         marginBottom: 20,
     },
     card: {
-        background: "#2a2b2e",
+        background: "var(--bg-surface)",
         borderRadius: 20,
         padding: "10px 20px",
-        border: "1px solid rgba(255,255,255,0.05)",
+        border: "1px solid var(--border-subtle)",
     },
     notiItem: {
         display: "flex",
         alignItems: "flex-start",
-        gap: 16,
+        gap: 14,
         padding: "20px 0",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        borderBottom: "1px solid var(--border-subtle)",
     },
     notiIcon: {
-        width: 32,
-        height: 32,
+        width: 30,
+        height: 30,
         borderRadius: "50%",
-        background: "rgba(255,255,255,0.05)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 14,
+        flexShrink: 0,
+    },
+    notiToneMap: {
+        ok:     { background: "rgba(34, 197, 94, 0.14)", color: "var(--color-success)" },
+        danger: { background: "rgba(239, 68, 68, 0.14)", color: "var(--color-danger)" },
+        warn:   { background: "rgba(251, 191, 36, 0.14)", color: "var(--color-warning)" },
+        accent: { background: "rgba(0, 212, 236, 0.14)", color: "var(--accent)" },
     },
     notiContent: {
         flex: 1,
@@ -142,12 +158,12 @@ const S = {
     notiMessage: {
         fontSize: 14,
         fontWeight: 600,
-        color: "#fff",
+        color: "var(--text-primary)",
         lineHeight: 1.4,
     },
     notiTime: {
         fontSize: 12,
-        color: "rgba(255,255,255,0.3)",
+        color: "var(--text-muted)",
         marginTop: 4,
     },
     statsStack: {
@@ -156,10 +172,10 @@ const S = {
         gap: 16,
     },
     statCard: {
-        background: "#2a2b2e",
+        background: "var(--bg-surface)",
         borderRadius: 20,
         padding: "32px 24px",
-        border: "1px solid rgba(255,255,255,0.05)",
+        border: "1px solid var(--border-subtle)",
         display: "flex",
         flexDirection: "column",
         gap: 8,
@@ -167,17 +183,18 @@ const S = {
     statValue: {
         fontSize: 32,
         fontWeight: 800,
-        color: "#fff",
+        color: "var(--text-primary)",
         letterSpacing: -1,
+        fontVariantNumeric: "tabular-nums",
     },
     statLabel: {
         fontSize: 13,
         fontWeight: 600,
-        color: "rgba(255,255,255,0.4)",
+        color: "var(--text-muted)",
     },
     empty: {
         padding: "20px 0",
-        color: "rgba(255,255,255,0.3)",
+        color: "var(--text-muted)",
         fontSize: 13,
     },
 };

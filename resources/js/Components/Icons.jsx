@@ -205,3 +205,41 @@ export function IconChevronDown(props) {
         </Svg>
     );
 }
+
+export function IconSearch(props) {
+    return (
+        <Svg {...props}>
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="M20 20l-4.3-4.3" />
+        </Svg>
+    );
+}
+
+export function IconPhone(props) {
+    return (
+        <Svg {...props}>
+            <path d="M5 4h3.5l1.5 4.5L8 10a11 11 0 0 0 6 6l1.5-2 4.5 1.5V19a2 2 0 0 1-2 2C10.6 21 3 13.4 3 4a2 2 0 0 1 2-2z" />
+        </Svg>
+    );
+}
+
+export function IconCreditCard(props) {
+    return (
+        <Svg {...props}>
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 10h18" />
+            <path d="M7 15h4" />
+        </Svg>
+    );
+}
+
+export function IconTrash(props) {
+    return (
+        <Svg {...props}>
+            <path d="M4 7h16" />
+            <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+            <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" />
+            <path d="M10 11v6M14 11v6" />
+        </Svg>
+    );
+}
