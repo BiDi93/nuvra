@@ -92,6 +92,7 @@ class CommunityGameController extends Controller
                     'goals' => $goals,
                     'assists' => $assists,
                     'rating' => $rating,
+                    'clean_sheets' => (int)($user->stat_clean_sheets ?? 0),
                 ];
             });
 

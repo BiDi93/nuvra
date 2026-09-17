@@ -67,7 +67,7 @@ export default function CommunityMembers() {
             total_goals: member.goals ?? 0,
             total_assists: member.assists ?? 0,
             avg_rating: member.rating ?? 0.0,
-            clean_sheets: 0,
+            clean_sheets: member.clean_sheets ?? 0,
             position: member.position || "",
             vellar_id: member.vellar_id || "",
             club_name: member.club_name || ""
@@ -135,6 +135,7 @@ export default function CommunityMembers() {
                             goals: parseInt(editForm.total_goals, 10) || 0,
                             assists: parseInt(editForm.total_assists, 10) || 0,
                             rating: parseFloat(editForm.avg_rating) || 0.0,
+                            clean_sheets: parseInt(editForm.clean_sheets, 10) || 0,
                             position: editForm.position,
                             vellar_id: editForm.vellar_id,
                             club_name: editForm.club_name,

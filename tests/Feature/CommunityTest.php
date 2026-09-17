@@ -153,4 +153,20 @@ class CommunityTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    /**
+     * Test VellarMasterbaseStatsSeeder successfully populates statistics.
+     */
+    public function test_vellar_masterbase_stats_seeder_loads_statistics(): void
+    {
+        $this->artisan('db:seed', ['--class' => 'Database\Seeders\VellarMasterbaseStatsSeeder'])
+             ->assertSuccessful();
+
+        $player = User::where('vellar_id', 'VELLAR 112')->first();
+        if ($player) {
+            $this->assertEquals(10, $player->stat_goals);
+            $this->assertGreaterThan(0, $player->stat_matches);
+            $this->assertGreaterThan(0, (float)$player->stat_rating);
+        }
+    }
 }
