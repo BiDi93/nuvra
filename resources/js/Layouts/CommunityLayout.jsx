@@ -54,7 +54,7 @@ export default function CommunityLayout() {
         const storedUser = localStorage.getItem("community_user");
         if (!token || !storedUser) return;
         const u = JSON.parse(storedUser);
-        if (u?.role !== "club_owner" && u?.role !== "admin") return;
+        if (u?.role !== "admin") return;
         try {
             const res = await fetch(`${API}/admin/pending-players`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -293,8 +293,8 @@ export default function CommunityLayout() {
                         </div>
                     )}
 
-                    {/* ADMIN / ORGANIZER ONLY */}
-                    {(user?.role === "club_owner" || user?.role === "admin") && (
+                    {/* ADMIN ONLY */}
+                    {user?.role === "admin" && (
                         <>
                             <div style={S.navDivider}>ORGANIZER CONTROL</div>
                             <NavItem
@@ -366,7 +366,7 @@ export default function CommunityLayout() {
                 <BottomNavItem icon={<IconTrophy size={20} />} label="LEAGUES" active={isActive("/community/feed")} onClick={() => navigate("/community/feed")} />
                 <BottomNavItem icon={<IconUsers size={20} />} label="MEMBERS" active={isActive("/community/members")} onClick={() => navigate("/community/members")} />
                 <BottomNavItem icon={<IconUser size={20} />} label="PROFILE" active={isActive("/community/profile")} onClick={() => navigate("/community/profile")} />
-                {(user?.role === "club_owner" || user?.role === "admin") && (
+                {user?.role === "admin" && (
                     <BottomNavItem icon={<IconSettings size={20} />} label="ADMIN" active={location.pathname.startsWith("/community/admin")} onClick={() => navigate("/community/admin/create-tournament")} />
                 )}
             </nav>

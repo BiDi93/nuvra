@@ -19,10 +19,10 @@ export default function CreateTournament() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    if (!user || (user.role !== "admin" && user.role !== "club_owner")) {
+    if (!user || user.role !== "admin") {
         return (
             <div style={{ minHeight: "100vh", background: "#080810", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "'Inter', sans-serif" }}>
-                Akses dinafikan. Hanya penganjur liga boleh mengakses halaman ini.
+                Akses dinafikan. Hanya pentadbir liga boleh mengakses halaman ini.
             </div>
         );
     }

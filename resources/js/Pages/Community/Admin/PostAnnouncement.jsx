@@ -12,10 +12,10 @@ export default function PostAnnouncement() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    if (!user || (user.role !== "admin" && user.role !== "club_owner")) {
+    if (!user || user.role !== "admin") {
         return (
             <div style={{ minHeight: "100vh", background: "#080810", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "Inter, sans-serif" }}>
-                Access denied. Organizers only.
+                Access denied. Admin only.
             </div>
         );
     }

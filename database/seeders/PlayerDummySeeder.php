@@ -20,7 +20,7 @@ class PlayerDummySeeder extends Seeder
             [
                 'name' => 'Nuvra Organizer',
                 'password' => Hash::make('password'),
-                'role' => 'club_owner',
+                'role' => 'admin',
                 'club_name' => 'Nuvra Elite FC',
                 'established_at' => '2024-01-01',
                 'location' => 'Kuala Lumpur',
@@ -58,10 +58,10 @@ class PlayerDummySeeder extends Seeder
             ['name' => 'Fareez Haikal Yusof',     'phone' => '0155678901', 'address' => 'No. 60, Jalan Indah 9, Taman Bukit Indah, Ampang, Selangor'],
             ['name' => 'Azfar Shukri Mansor',     'phone' => '0166789012', 'address' => 'No. 9, Lorong Utama 2, Bandar Sri Permaisuri, Cheras, KL'],
             ['name' => 'Hazwan Naim Norizan',     'phone' => '0177890123', 'address' => 'Blok A-7-12, Pangsapuri Mewah, Pandan Jaya, KL'],
-            ['name' => 'Muaz Ikmal Zainal',       'phone' => '0188901234', 'address' => 'No. 33, Jalan Melor 11, Taman Melawati, Ulu Klang, Selangor'],
-            ['name' => 'Aizat Firdaus Hashim',    'phone' => '0199012345', 'address' => 'D-2-3, Pangsapuri Desa Pinggiran, Taman Desa, KL'],
-            ['name' => 'Suffian Ramadhan Ali',    'phone' => '0112233445', 'address' => 'No. 18, Jalan Anggerik 4, Taman Anggerik, Klang, Selangor'],
-            ['name' => 'Faris Asyraf Othman',     'phone' => '0123344556', 'address' => 'No. 76, Jalan Sri Hartamas 7, Sri Hartamas, KL'],
+            ['name' => 'Wan Danial Wan Azlan',    'phone' => '0188901234', 'address' => 'No. 22, Jalan Keramat Hujung, Kampung Keramat, KL'],
+            ['name' => 'Najib Asyraf Hamzah',     'phone' => '0199012345', 'address' => 'No. 5, Jalan Saujana Impian, Kajang, Selangor'],
+            ['name' => 'Adam Fikri Shamsul',      'phone' => '0112233445', 'address' => 'No. 17, Jalan SS2/45, Petaling Jaya, Selangor'],
+            ['name' => 'Danial Haziq Mazlan',     'phone' => '0123344556', 'address' => 'Blok D-4-1, Pangsapuri Vista Komanwel, Bukit Jalil, KL'],
         ];
 
         $players = [];
@@ -70,12 +70,13 @@ class PlayerDummySeeder extends Seeder
             $players[] = User::updateOrCreate(
                 ['email' => "player{$num}@nuvra.com"],
                 [
-                    'name'     => $data['name'],
-                    'password' => Hash::make('password'),
-                    'role'     => 'player',
-                    'phone'    => $data['phone'],
-                    'address'  => $data['address'],
-                    'avatar'   => "https://i.pravatar.cc/150?img={$num}",
+                    'name'           => $data['name'],
+                    'password'       => Hash::make('password'),
+                    'role'           => 'player',
+                    'phone'          => $data['phone'],
+                    'address'        => $data['address'],
+                    'avatar'         => "https://i.pravatar.cc/150?u=player{$num}",
+                    'status'         => 'active',
                 ]
             );
         }
@@ -84,7 +85,7 @@ class PlayerDummySeeder extends Seeder
         for ($j = 0; $j < 10; $j++) {
             $date = Carbon::now()->subWeeks($j + 1);
             $match = FootballMatch::create([
-                'club_owner_id' => $owner->id,
+                'organizer_id'  => $owner->id,
                 'title'         => $pastTitles[$j],
                 'venue'         => $venues[$j % count($venues)],
                 'match_date'    => $date->toDateString(),
@@ -120,7 +121,7 @@ class PlayerDummySeeder extends Seeder
         for ($k = 0; $k < 10; $k++) {
             $date = Carbon::now()->addDays(($k + 1) * 3);
             $match = FootballMatch::create([
-                'club_owner_id' => $owner->id,
+                'organizer_id'  => $owner->id,
                 'title'         => $upcomingTitles[$k],
                 'venue'         => $venues[$k % count($venues)],
                 'match_date'    => $date->toDateString(),

@@ -104,13 +104,13 @@ class TournamentController extends Controller
     }
 
     /**
-     * Create a new tournament (Organizer only)
+     * Create a new tournament (Admin only)
      */
     public function store(Request $request)
     {
         $user = $request->user();
-        if (!in_array($user->role, ['club_owner', 'community_admin', 'admin'])) {
-            return response()->json(['message' => 'Only organizers can create tournaments.'], 403);
+        if ($user->role !== 'admin') {
+            return response()->json(['message' => 'Only administrators can create tournaments.'], 403);
         }
 
         $validated = $request->validate([
@@ -226,7 +226,7 @@ class TournamentController extends Controller
 
         $match = FootballMatch::create([
             'tournament_id'   => $tournament->id,
-            'club_owner_id'   => $user->id,
+            'organizer_id'    => $user->id,
             'gameweek'        => $validated['gameweek'],
             'home_team_id'    => $validated['home_team_id'] ?? null,
             'away_team_id'    => $validated['away_team_id'] ?? null,

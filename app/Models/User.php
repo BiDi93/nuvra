@@ -23,15 +23,23 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'google_id', // Ensure this is here too!
-        'avatar',    // And this!
+        'avatar',
         'role',
         'qr_code_path',
         'club_logo',
         'address',
+        'phone',
         'club_name',
         'established_at',
         'location',
+        'vellar_id',
+        'position',
+        'status',
+        'stat_matches',
+        'stat_goals',
+        'stat_assists',
+        'stat_rating',
+        'stat_clean_sheets',
     ];
 
     /**
@@ -58,11 +66,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Matches created by this user (Club Owner)
+     * Matches created by this user (Organizer)
      */
     public function createdMatches()
     {
-        return $this->hasMany(FootballMatch::class, 'club_owner_id');
+        return $this->hasMany(FootballMatch::class, 'organizer_id');
     }
 
     /**

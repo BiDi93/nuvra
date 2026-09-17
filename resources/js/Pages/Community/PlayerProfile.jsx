@@ -115,7 +115,7 @@ export default function PlayerProfile() {
     if (!profile) return <div style={S.empty}>No profile data found.</div>;
 
     const { user, stats, club, history } = profile;
-    const isOwner = user.role === 'club_owner' || user.role === 'admin';
+    const isOwner = user.role === 'admin';
 
     return (
         <div style={S.container}>

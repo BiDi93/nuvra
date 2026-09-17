@@ -10,43 +10,6 @@ use Illuminate\Support\Str;
 
 class CommunityAuthController extends Controller
 {
-    // ── Google OAuth ──────────────────────────────────────────────────────────
-    public function redirectToGoogle()
-    {
-        return \Laravel\Socialite\Facades\Socialite::driver('google')
-            ->stateless()
-            ->with(['state' => 'portal=community'])
-            ->redirect();
-    }
-
-    public function handleGoogleCallback(Request $request)
-    {
-        try {
-            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->user();
-
-            $user = User::updateOrCreate(
-                ['email' => $googleUser->getEmail()],
-                [
-                    'name'      => $googleUser->getName(),
-                    'google_id' => $googleUser->getId(),
-                    'avatar'    => $googleUser->getAvatar(),
-                    'password'  => Hash::make(Str::random(24)),
-                    'role'      => 'player',
-                    'status'    => 'active',
-                ]
-            );
-
-            $token = $user->createToken('community_token')->plainTextToken;
-
-            $frontendUrl = config('app.url');
-            return redirect("{$frontendUrl}/community/auth/callback?token={$token}&id={$user->id}&name=" . urlencode($user->name) . "&role={$user->role}");
-
-        } catch (\Exception $e) {
-            \Log::error("Community Google Auth error: " . $e->getMessage());
-            return redirect(config('app.url') . "/community?error=google_failed");
-        }
-    }
-
     // ── Register (New Player) ──────────────────────────────────────────────────
     public function register(Request $request)
     {
@@ -179,8 +142,8 @@ class CommunityAuthController extends Controller
     // List pending players
     public function pendingPlayers(Request $request)
     {
-        // Only admin/club_owner can access
-        if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
+        // Only admin can access
+        if ($request->user()->role !== 'admin') {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
@@ -198,7 +161,7 @@ class CommunityAuthController extends Controller
     // Approve player
     public function approvePlayer(Request $request, $id)
     {
-        if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
+        if ($request->user()->role !== 'admin') {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
@@ -219,7 +182,7 @@ class CommunityAuthController extends Controller
     // Reject / delete player
     public function rejectPlayer(Request $request, $id)
     {
-        if (!in_array($request->user()->role, ['club_owner', 'admin'])) {
+        if ($request->user()->role !== 'admin') {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 

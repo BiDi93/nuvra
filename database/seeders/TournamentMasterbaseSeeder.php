@@ -19,7 +19,7 @@ class TournamentMasterbaseSeeder extends Seeder
             [
                 'name' => 'Vellar League Admin',
                 'password' => Hash::make('password'),
-                'role' => 'club_owner',
+                'role' => 'admin',
                 'club_name' => 'Vellar League Official',
                 'location' => 'Bangi, Selangor',
             ]
@@ -118,7 +118,7 @@ class TournamentMasterbaseSeeder extends Seeder
                     'away_team_name'  => $f[2],
                 ],
                 [
-                    'club_owner_id'   => $organizer->id,
+                    'organizer_id'    => $organizer->id,
                     'home_team_id'    => $semTeamMap[$f[1]]->id ?? null,
                     'away_team_id'    => $semTeamMap[$f[2]]->id ?? null,
                     'team_a_name'     => $f[1],
@@ -156,7 +156,7 @@ class TournamentMasterbaseSeeder extends Seeder
                     'away_team_name'  => $f[2],
                 ],
                 [
-                    'club_owner_id'   => $organizer->id,
+                    'organizer_id'    => $organizer->id,
                     'home_team_id'    => $serTeamMap[$f[1]]->id ?? null,
                     'away_team_id'    => $serTeamMap[$f[2]]->id ?? null,
                     'team_a_name'     => $f[1],
@@ -193,7 +193,7 @@ class TournamentMasterbaseSeeder extends Seeder
                     'away_team_name'  => $f[2],
                 ],
                 [
-                    'club_owner_id'   => $organizer->id,
+                    'organizer_id'    => $organizer->id,
                     'home_team_id'    => $banTeamMap[$f[1]]->id ?? null,
                     'away_team_id'    => $banTeamMap[$f[2]]->id ?? null,
                     'team_a_name'     => $f[1],

@@ -5,7 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Auth Page
 import AuthPage from "./Pages/Authentication/AuthPage.jsx";
-import GoogleCallback from "./Pages/Authentication/GoogleCallback.jsx";
 import ResetPassword from "./Pages/Authentication/ResetPassword.jsx";
 import WaitingRoom from "./Pages/WaitingRoom.jsx";
 
@@ -13,7 +12,6 @@ import WaitingRoom from "./Pages/WaitingRoom.jsx";
 import NuvraPortal from "./Pages/NuvraPortal.jsx";
 import CommunityLayout from "./Layouts/CommunityLayout.jsx";
 import CommunityHome from "./Pages/Community/CommunityHome.jsx";
-import CommunityGoogleCallback from "./Pages/Community/CommunityGoogleCallback.jsx";
 import CommunityFeed from "./Pages/Community/CommunityFeed.jsx";
 import PublicGames from "./Pages/Community/PublicGames.jsx";
 import CommunityMembers from "./Pages/Community/CommunityMembers.jsx";
@@ -38,7 +36,6 @@ function App() {
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/waiting-room" element={<WaitingRoom />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/auth/callback" element={<GoogleCallback />} />
 
                 {/* =========================================
                     2. TOURNAMENTS & COMMUNITY ROUTES
@@ -47,7 +44,6 @@ function App() {
                 <Route path="/games" element={<PublicGames />} />
                 <Route path="/tournaments" element={<PublicGames />} />
                 <Route path="/tournaments/:id" element={<TournamentDetail />} />
-                <Route path="/community/auth/callback" element={<CommunityGoogleCallback />} />
                 
                 <Route path="/community" element={<CommunityLayout />}>
                     <Route path="feed" element={<CommunityFeed />} />
@@ -68,7 +64,6 @@ function App() {
                 </Route>
 
                 {/* Default redirect for legacy routes */}
-                <Route path="/coach-dashboard/*" element={<Navigate to="/community/feed" replace />} />
                 <Route path="/dashboard/*" element={<Navigate to="/community/feed" replace />} />
             </Routes>
         </BrowserRouter>

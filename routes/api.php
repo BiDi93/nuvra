@@ -48,10 +48,6 @@ Route::prefix('community')->group(function () {
     Route::get('/tournaments',      [TournamentController::class, 'index']);
     Route::get('/tournaments/{id}', [TournamentController::class, 'show']);
 
-    // ── Legacy Games / Matches (Public Reads) ──────────────────────────────────
-    Route::get('/games',            [CommunityGameController::class, 'index']);
-    Route::get('/games/{id}',       [CommunityGameController::class, 'show']);
-
     // ── Members & Profiles (Public) ───────────────────────────────────────────
     Route::get('/members',          [CommunityGameController::class, 'members']);
     Route::get('/members/{id}',     [CommunityGameController::class, 'memberProfile']);
@@ -77,7 +73,8 @@ Route::prefix('community')->group(function () {
         Route::patch('/matches/{matchId}/score',             [TournamentController::class, 'updateScore']);
         Route::delete('/matches/{matchId}',                  [TournamentController::class, 'deleteFixture']);
 
-        // ── Match Performances (Organizer / Admin) ───────────────────────────
+        // ── Match Performances (Admin) ────────────────────────────────────────
+        Route::post('/matches/{id}/performances',            [CommunityGameController::class, 'recordPerformances']);
         Route::post('/games/{id}/performances',              [CommunityGameController::class, 'recordPerformances']);
 
         // ── Announcements ─────────────────────────────────────────────────────
@@ -92,5 +89,8 @@ Route::prefix('community')->group(function () {
         Route::get('/admin/pending-players',           [CommunityAuthController::class, 'pendingPlayers']);
         Route::post('/admin/approve-player/{id}',      [CommunityAuthController::class, 'approvePlayer']);
         Route::delete('/admin/reject-player/{id}',     [CommunityAuthController::class, 'rejectPlayer']);
+
+        // ── Admin: Player Statistics Management ──────────────────────────────
+        Route::put('/admin/players/{id}/stats',        [CommunityGameController::class, 'updatePlayerStats']);
     });
 });

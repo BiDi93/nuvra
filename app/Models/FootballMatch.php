@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * FootballMatch model
+ * Purpose: Represents tournament fixtures and league matches.
+ */
 class FootballMatch extends Model
 {
     use HasFactory;
@@ -20,18 +24,15 @@ class FootballMatch extends Model
         'away_team_name',
         'home_score',
         'away_score',
-        'club_owner_id',
+        'organizer_id',
         'title',
         'description',
         'team_a_name',
         'team_b_name',
         'status',
-        'opponent_name',
         'match_date',
         'match_time',
         'venue',
-        'price',
-        'total_slots',
         'league_type',
         'category',
         'league_name',
@@ -53,9 +54,15 @@ class FootballMatch extends Model
         return $this->belongsTo(TournamentTeam::class, 'away_team_id');
     }
 
+    public function organizer()
+    {
+        return $this->belongsTo(User::class, 'organizer_id');
+    }
+
+    // Alias for backward compatibility if needed
     public function owner()
     {
-        return $this->belongsTo(User::class, 'club_owner_id');
+        return $this->belongsTo(User::class, 'organizer_id');
     }
 
     public function performances()

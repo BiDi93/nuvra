@@ -20,12 +20,12 @@ class CommunitySeeder extends Seeder
         DB::statement('DELETE FROM matches');
         DB::statement('DELETE FROM users');
 
-        // 2. Create a Club Owner (Organizer)
+        // 2. Create an Admin (Organizer)
         $owner = User::create([
-            'name' => 'Organizer Nuvra (Club Owner)',
+            'name' => 'Organizer Nuvra (Admin)',
             'email' => 'owner@nuvra.com',
             'password' => Hash::make('password'),
-            'role' => 'club_owner',
+            'role' => 'admin',
             'qr_code_path' => 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=NuvraPayment'
         ]);
 
@@ -43,7 +43,7 @@ class CommunitySeeder extends Seeder
 
         // 4. Create a Community Match
         $match = FootballMatch::create([
-            'club_owner_id' => $owner->id,
+            'organizer_id' => $owner->id,
             'title' => 'Perlawanan Persahabatan Terbuka',
             'description' => 'Jom main bola malam Jumaat. Sesuai untuk semua level.',
             'venue' => 'Rhino Arena, Shah Alam',

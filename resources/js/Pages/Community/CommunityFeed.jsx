@@ -61,7 +61,7 @@ export default function CommunityFeed() {
     const [filter, setFilter] = useState("ALL"); // ALL, LEAGUE, KNOCKOUT
 
     const user = JSON.parse(localStorage.getItem("community_user") || "null");
-    const isOrganizer = user && (user.role === "club_owner" || user.role === "admin");
+    const isOrganizer = user && user.role === "admin";
 
     useEffect(() => {
         fetchTournaments();
