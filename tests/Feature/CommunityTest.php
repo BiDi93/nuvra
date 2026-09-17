@@ -176,4 +176,80 @@ class CommunityTest extends TestCase
             $this->assertArrayHasKey('rating', $profileRes->json('history')[0]);
         }
     }
+
+    /**
+     * Test player can update their own basic information.
+     */
+    public function test_player_can_update_own_basic_information(): void
+    {
+        $response = $this->actingAs($this->user, 'sanctum')
+                         ->putJson('/api/community/profile', [
+                             'name'      => 'Ahmad Updated Player',
+                             'phone'     => '0198887777',
+                             'position'  => 'Midfielder',
+                             'club_name' => 'Cyberjaya United',
+                             'address'   => 'Cyberjaya, Selangor',
+                         ]);
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'message' => 'Profile updated successfully.',
+                     'user' => [
+                         'id'        => $this->user->id,
+                         'name'      => 'Ahmad Updated Player',
+                         'phone'     => '0198887777',
+                         'position'  => 'Midfielder',
+                         'club_name' => 'Cyberjaya United',
+                         'address'   => 'Cyberjaya, Selangor',
+                     ]
+                 ]);
+
+        $this->user->refresh();
+        $this->assertEquals('Ahmad Updated Player', $this->user->name);
+        $this->assertEquals('0198887777', $this->user->phone);
+        $this->assertEquals('Midfielder', $this->user->position);
+        $this->assertEquals('Cyberjaya United', $this->user->club_name);
+        $this->assertEquals('Cyberjaya, Selangor', $this->user->address);
+    }
+
+    /**
+     * Test player cannot modify game statistics or vellar_id via profile update.
+     */
+    public function test_player_cannot_modify_game_statistics_via_profile_update(): void
+    {
+        // Set baseline stats on user first
+        $this->user->update([
+            'stat_matches'      => 5,
+            'stat_goals'        => 3,
+            'stat_assists'      => 2,
+            'stat_rating'       => 7.0,
+            'stat_clean_sheets' => 1,
+            'vellar_id'         => 'VELLAR 100',
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+                         ->putJson('/api/community/profile', [
+                             'name'              => 'Sneaky Player',
+                             'stat_matches'      => 999,
+                             'stat_goals'        => 500,
+                             'stat_assists'      => 200,
+                             'stat_rating'       => 9.9,
+                             'stat_clean_sheets' => 50,
+                             'vellar_id'         => 'VELLAR 001',
+                             'role'              => 'admin',
+                         ]);
+
+        $response->assertStatus(200);
+
+        $this->user->refresh();
+        $this->assertEquals('Sneaky Player', $this->user->name);
+        // Assert stats and restricted fields remained completely untouched
+        $this->assertEquals(5, $this->user->stat_matches);
+        $this->assertEquals(3, $this->user->stat_goals);
+        $this->assertEquals(2, $this->user->stat_assists);
+        $this->assertEquals(7.0, (float)$this->user->stat_rating);
+        $this->assertEquals(1, $this->user->stat_clean_sheets);
+        $this->assertEquals('VELLAR 100', $this->user->vellar_id);
+        $this->assertEquals('player', $this->user->role);
+    }
 }

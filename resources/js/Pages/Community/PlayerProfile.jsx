@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLoader from "../../Components/PageLoader";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { IconCamera, IconShield, IconPencil, IconTarget, IconStar, IconMapPin, IconCalendar, IconArrowUpRight, IconBarChart, IconUsers } from "../../Components/Icons";
+import { IconCamera, IconShield, IconPencil, IconTarget, IconStar, IconMapPin, IconCalendar, IconArrowUpRight, IconBarChart, IconUsers, IconCheck, IconX } from "../../Components/Icons";
 
 const API = "/api/community";
 const BRAND_BLUE = "#00D4EC";
@@ -11,6 +11,18 @@ export default function PlayerProfile() {
     const navigate = useNavigate();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // Edit basic info modal state
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [basicForm, setBasicForm] = useState({
+        name: "",
+        phone: "",
+        position: "",
+        club_name: "",
+        address: ""
+    });
+    const [saving, setSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState({ error: null, success: null });
 
     const handleLogout = () => {
         const token = localStorage.getItem("community_token");
@@ -50,6 +62,81 @@ export default function PlayerProfile() {
             setProfile(null);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const openEditModal = () => {
+        if (!profile?.user) return;
+        setBasicForm({
+            name: profile.user.name || "",
+            phone: profile.user.phone || "",
+            position: profile.user.position || "",
+            club_name: profile.user.club_name || "",
+            address: profile.user.address || "",
+        });
+        setSaveStatus({ error: null, success: null });
+        setShowEditModal(true);
+    };
+
+    const handleSaveBasicProfile = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setSaveStatus({ error: null, success: null });
+        try {
+            const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+            const res = await fetch(`${API}/profile`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                    name: basicForm.name,
+                    phone: basicForm.phone,
+                    position: basicForm.position,
+                    club_name: basicForm.club_name,
+                    address: basicForm.address,
+                })
+            });
+            const resData = await res.json();
+            if (res.ok) {
+                setProfile(prev => ({
+                    ...prev,
+                    user: {
+                        ...prev.user,
+                        ...(resData.user || {}),
+                        name: basicForm.name,
+                        phone: basicForm.phone,
+                        position: basicForm.position,
+                        club_name: basicForm.club_name,
+                        address: basicForm.address,
+                    }
+                }));
+                // Update cached user in localStorage
+                const stored = localStorage.getItem("community_user");
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    localStorage.setItem("community_user", JSON.stringify({
+                        ...u,
+                        name: basicForm.name,
+                        phone: basicForm.phone,
+                        position: basicForm.position,
+                        club_name: basicForm.club_name,
+                        address: basicForm.address,
+                    }));
+                }
+                setSaveStatus({ error: null, success: "Profile information updated successfully!" });
+                setTimeout(() => {
+                    setShowEditModal(false);
+                }, 700);
+            } else {
+                setSaveStatus({ error: resData.message || "Failed to update profile.", success: null });
+            }
+        } catch (err) {
+            setSaveStatus({ error: "Network error updating profile.", success: null });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -232,15 +319,24 @@ export default function PlayerProfile() {
             <div style={S.content}>
                 {/* SECTION 1: Basic Info */}
                 <section style={S.section}>
-                    <h2 style={S.sectionTitle}>Basic information</h2>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+                        <h2 style={{ ...S.sectionTitle, marginBottom: 0 }}>Basic information</h2>
+                        <button
+                            onClick={openEditModal}
+                            style={S.sectionEditBtn}
+                        >
+                            <IconPencil size={12} /> Edit Info
+                        </button>
+                    </div>
                     <div style={S.infoGrid}>
-                        <InfoItem label="Address" value={user.address || "Not set"} />
+                        <InfoItem label="Position" value={user.position || "Not set"} />
+                        <InfoItem label="Club / Team" value={user.club_name || (isOwner ? club?.name : "Free Agent")} />
                         <InfoItem label="Phone" value={user.phone || "Not set"} />
+                        <InfoItem label="Address" value={user.address || "Not set"} />
                         {isOwner && (
                             <>
-                                <InfoItem label="Club Name" value={club?.name} />
                                 <InfoItem label="Established" value={club?.established_at || "Not set"} />
-                                <InfoItem label="Location" value={club?.location} />
+                                <InfoItem label="Location" value={club?.location || "Not set"} />
                             </>
                         )}
                     </div>
@@ -329,6 +425,119 @@ export default function PlayerProfile() {
                     SIGN OUT
                 </button>
             </div>
+
+            {/* MODAL: EDIT BASIC INFORMATION */}
+            {showEditModal && (
+                <div style={S.modalOverlay} onClick={() => !saving && setShowEditModal(false)}>
+                    <div style={S.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div style={S.modalHeader}>
+                            <div>
+                                <div style={S.modalBadge}>PLAYER PROFILE</div>
+                                <h3 style={S.modalTitle}>Edit Basic Information</h3>
+                                <p style={S.modalSub}>Update your personal details. Game statistics are managed by league administrators.</p>
+                            </div>
+                            <button
+                                type="button"
+                                style={S.modalCloseBtn}
+                                onClick={() => !saving && setShowEditModal(false)}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveBasicProfile}>
+                            <div style={S.modalSection}>
+                                <div style={S.formGrid}>
+                                    <div style={{ gridColumn: "span 2" }}>
+                                        <label style={S.formLabel}>Full Name</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={basicForm.name}
+                                            onChange={(e) => setBasicForm({ ...basicForm, name: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Playing Position</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Striker, Midfielder, CB"
+                                            value={basicForm.position}
+                                            onChange={(e) => setBasicForm({ ...basicForm, position: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Club / Team Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Amigos FC"
+                                            value={basicForm.club_name}
+                                            onChange={(e) => setBasicForm({ ...basicForm, club_name: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Phone Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. 0123456789"
+                                            value={basicForm.phone}
+                                            onChange={(e) => setBasicForm({ ...basicForm, phone: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Address / Area</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Bangi, Selangor"
+                                            value={basicForm.address}
+                                            onChange={(e) => setBasicForm({ ...basicForm, address: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {saveStatus.error && (
+                                <div style={S.alertError}>
+                                    <IconX size={14} /> {saveStatus.error}
+                                </div>
+                            )}
+                            {saveStatus.success && (
+                                <div style={S.alertSuccess}>
+                                    <IconCheck size={14} /> {saveStatus.success}
+                                </div>
+                            )}
+
+                            <div style={S.modalActions}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEditModal(false)}
+                                    disabled={saving}
+                                    style={S.modalCancelBtn}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    style={S.modalSubmitBtn}
+                                >
+                                    {saving ? "Saving Changes..." : "Save Information"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -415,4 +624,158 @@ const S = {
     empty: { padding: 100, textAlign: "center", color: "var(--text-muted)", fontSize: 14 },
 
     signOutBtn: { width: "100%", padding: 16, borderRadius: 16, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: 14, fontWeight: 800, letterSpacing: 1, cursor: "pointer", marginTop: 8 },
+
+    sectionEditBtn: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 14px",
+        borderRadius: 8,
+        background: "rgba(0, 212, 236, 0.1)",
+        border: "1px solid rgba(0, 212, 236, 0.3)",
+        color: "#00D4EC",
+        fontSize: 11.5,
+        fontWeight: 700,
+        cursor: "pointer",
+        transition: "all 0.2s",
+    },
+
+    /* MODAL STYLES */
+    modalOverlay: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0, 0, 0, 0.75)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: 16,
+    },
+    modalContent: {
+        background: "#161b26",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+        borderRadius: 20,
+        width: "100%",
+        maxWidth: 500,
+        maxHeight: "90vh",
+        overflowY: "auto",
+        padding: "28px 28px 24px",
+        boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
+    },
+    modalHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 20,
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        paddingBottom: 16,
+    },
+    modalBadge: {
+        fontSize: 10,
+        fontWeight: 800,
+        letterSpacing: 1,
+        color: BRAND_BLUE,
+        marginBottom: 4,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 800,
+        color: "#fff",
+        margin: 0,
+    },
+    modalSub: {
+        fontSize: 12.5,
+        color: "rgba(255, 255, 255, 0.5)",
+        marginTop: 4,
+    },
+    modalCloseBtn: {
+        background: "none",
+        border: "none",
+        color: "rgba(255, 255, 255, 0.4)",
+        fontSize: 16,
+        cursor: "pointer",
+        padding: 4,
+    },
+    modalSection: {
+        marginBottom: 20,
+    },
+    formGrid: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 12,
+    },
+    formLabel: {
+        display: "block",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "rgba(255, 255, 255, 0.6)",
+        marginBottom: 6,
+    },
+    formInput: {
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: "rgba(255, 255, 255, 0.04)",
+        border: "1px solid rgba(255, 255, 255, 0.12)",
+        color: "#fff",
+        fontSize: 13,
+        fontWeight: 600,
+        boxSizing: "border-box",
+        transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    alertError: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 14px",
+        borderRadius: 10,
+        background: "rgba(239, 68, 68, 0.15)",
+        border: "1px solid rgba(239, 68, 68, 0.3)",
+        color: "#ef4444",
+        fontSize: 12,
+        fontWeight: 600,
+        marginBottom: 16,
+    },
+    alertSuccess: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 14px",
+        borderRadius: 10,
+        background: "rgba(34, 197, 94, 0.15)",
+        border: "1px solid rgba(34, 197, 94, 0.3)",
+        color: "#22c55e",
+        fontSize: 12,
+        fontWeight: 600,
+        marginBottom: 16,
+    },
+    modalActions: {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: 10,
+        marginTop: 24,
+        paddingTop: 16,
+        borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+    },
+    modalCancelBtn: {
+        padding: "10px 18px",
+        borderRadius: 10,
+        background: "rgba(255, 255, 255, 0.06)",
+        border: "none",
+        color: "rgba(255, 255, 255, 0.7)",
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: "pointer",
+    },
+    modalSubmitBtn: {
+        padding: "10px 22px",
+        borderRadius: 10,
+        background: "var(--accent-gradient)",
+        border: "none",
+        color: "#0b0f19",
+        fontSize: 13,
+        fontWeight: 800,
+        cursor: "pointer",
+    },
 };

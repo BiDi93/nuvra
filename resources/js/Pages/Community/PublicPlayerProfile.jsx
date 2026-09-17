@@ -29,6 +29,17 @@ export default function PublicPlayerProfile() {
         vellar_id: "",
         club_name: ""
     });
+
+    // Player basic info self-edit modal state
+    const [showBasicModal, setShowBasicModal] = useState(false);
+    const [basicForm, setBasicForm] = useState({
+        name: "",
+        phone: "",
+        position: "",
+        club_name: "",
+        address: ""
+    });
+
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState({ error: null, success: null });
 
@@ -137,6 +148,83 @@ export default function PublicPlayerProfile() {
         }
     };
 
+    const openBasicModal = () => {
+        if (!profile?.user) return;
+        setBasicForm({
+            name: profile.user.name || "",
+            phone: profile.user.phone || "",
+            position: profile.user.position || "",
+            club_name: profile.user.club_name || "",
+            address: profile.user.address || "",
+        });
+        setSaveStatus({ error: null, success: null });
+        setShowBasicModal(true);
+    };
+
+    const handleSaveBasicProfile = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setSaveStatus({ error: null, success: null });
+        try {
+            const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+            const res = await fetch(`${API}/profile`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                    name: basicForm.name,
+                    phone: basicForm.phone,
+                    position: basicForm.position,
+                    club_name: basicForm.club_name,
+                    address: basicForm.address,
+                })
+            });
+            const resData = await res.json();
+            if (res.ok) {
+                setProfile(prev => ({
+                    ...prev,
+                    user: {
+                        ...prev.user,
+                        ...(resData.user || {}),
+                        name: basicForm.name,
+                        phone: basicForm.phone,
+                        position: basicForm.position,
+                        club_name: basicForm.club_name,
+                        address: basicForm.address,
+                    }
+                }));
+                // Update local storage if current user
+                const stored = localStorage.getItem("community_user");
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    if (u.id === profile.user.id) {
+                        localStorage.setItem("community_user", JSON.stringify({
+                            ...u,
+                            name: basicForm.name,
+                            phone: basicForm.phone,
+                            position: basicForm.position,
+                            club_name: basicForm.club_name,
+                            address: basicForm.address,
+                        }));
+                    }
+                }
+                setSaveStatus({ error: null, success: "Profile information updated successfully!" });
+                setTimeout(() => {
+                    setShowBasicModal(false);
+                }, 700);
+            } else {
+                setSaveStatus({ error: resData.message || "Failed to update profile.", success: null });
+            }
+        } catch (err) {
+            setSaveStatus({ error: "Network error updating profile.", success: null });
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (loading) return <PageLoader />;
     if (error || !profile || !profile.user) {
         return (
@@ -170,11 +258,27 @@ export default function PublicPlayerProfile() {
                 <button style={S.backBtn} onClick={() => navigate("/community/members")}>
                     <IconChevronLeft size={14} /> Back to Members
                 </button>
-                {isAdmin && (
-                    <button style={S.adminEditBtn} className="edit-stats-btn" onClick={openEditModal}>
-                        <IconPencil size={14} /> MODIFY PLAYER STATS
-                    </button>
-                )}
+                <div style={{ display: "flex", gap: 10 }}>
+                    {currentUser && (currentUser.id === user.id || isAdmin) && (
+                        <button
+                            style={{
+                                ...S.adminEditBtn,
+                                background: isAdmin ? "rgba(0, 212, 236, 0.15)" : "rgba(255, 255, 255, 0.08)",
+                                borderColor: isAdmin ? "rgba(0, 212, 236, 0.4)" : "rgba(255, 255, 255, 0.2)",
+                                color: isAdmin ? "#00D4EC" : "#fff"
+                            }}
+                            className="edit-stats-btn"
+                            onClick={openBasicModal}
+                        >
+                            <IconPencil size={14} /> EDIT PROFILE
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <button style={S.adminEditBtn} className="edit-stats-btn" onClick={openEditModal}>
+                            <IconPencil size={14} /> MODIFY PLAYER STATS
+                        </button>
+                    )}
+                </div>
             </div>
 
             <header style={S.header}>
@@ -455,6 +559,119 @@ export default function PublicPlayerProfile() {
                                     style={S.modalSubmitBtn}
                                 >
                                     {saving ? "Saving Changes..." : "Save Statistics"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: PLAYER EDIT BASIC INFORMATION (SELF) */}
+            {showBasicModal && (
+                <div style={S.modalOverlay} onClick={() => !saving && setShowBasicModal(false)}>
+                    <div style={S.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div style={S.modalHeader}>
+                            <div>
+                                <div style={S.modalBadge}>PLAYER PROFILE</div>
+                                <h3 style={S.modalTitle}>Edit Basic Information</h3>
+                                <p style={S.modalSub}>Update your personal details. Game statistics are managed by league administrators.</p>
+                            </div>
+                            <button
+                                type="button"
+                                style={S.modalCloseBtn}
+                                onClick={() => !saving && setShowBasicModal(false)}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveBasicProfile}>
+                            <div style={S.modalSection}>
+                                <div style={S.formGrid}>
+                                    <div style={{ gridColumn: "span 2" }}>
+                                        <label style={S.formLabel}>Full Name</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={basicForm.name}
+                                            onChange={(e) => setBasicForm({ ...basicForm, name: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Playing Position</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Striker, Midfielder, CB"
+                                            value={basicForm.position}
+                                            onChange={(e) => setBasicForm({ ...basicForm, position: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Club / Team Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Amigos FC"
+                                            value={basicForm.club_name}
+                                            onChange={(e) => setBasicForm({ ...basicForm, club_name: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Phone Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. 0123456789"
+                                            value={basicForm.phone}
+                                            onChange={(e) => setBasicForm({ ...basicForm, phone: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={S.formLabel}>Address / Area</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Bangi, Selangor"
+                                            value={basicForm.address}
+                                            onChange={(e) => setBasicForm({ ...basicForm, address: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {saveStatus.error && (
+                                <div style={S.alertError}>
+                                    <IconX size={14} /> {saveStatus.error}
+                                </div>
+                            )}
+                            {saveStatus.success && (
+                                <div style={S.alertSuccess}>
+                                    <IconCheck size={14} /> {saveStatus.success}
+                                </div>
+                            )}
+
+                            <div style={S.modalActions}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBasicModal(false)}
+                                    disabled={saving}
+                                    style={S.modalCancelBtn}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    style={S.modalSubmitBtn}
+                                >
+                                    {saving ? "Saving Changes..." : "Save Information"}
                                 </button>
                             </div>
                         </form>

@@ -282,6 +282,55 @@ class CommunityGameController extends Controller
         return response()->json($data);
     }
 
+    // Update Player Basic Information (Self only - strictly excludes game statistics)
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'name'      => 'required|string|max:255',
+            'phone'     => 'nullable|string|max:50',
+            'position'  => 'nullable|string|max:50',
+            'club_name' => 'nullable|string|max:100',
+            'address'   => 'nullable|string|max:255',
+            'location'  => 'nullable|string|max:255',
+        ]);
+
+        // Strictly update only basic demographic/profile attributes
+        $user->fill([
+            'name'      => $validated['name'],
+            'phone'     => $validated['phone'] ?? null,
+            'position'  => $validated['position'] ?? null,
+            'club_name' => $validated['club_name'] ?? null,
+            'address'   => $validated['address'] ?? null,
+            'location'  => $validated['location'] ?? null,
+        ]);
+        $user->save();
+
+        $fresh = $user->fresh();
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => [
+                'id'        => $fresh->id,
+                'name'      => $fresh->name,
+                'email'     => $fresh->email,
+                'phone'     => $fresh->phone,
+                'address'   => $fresh->address,
+                'location'  => $fresh->location,
+                'role'      => $fresh->role,
+                'avatar'    => $fresh->avatar,
+                'club_logo' => $fresh->club_logo,
+                'vellar_id' => $fresh->vellar_id,
+                'position'  => $fresh->position,
+                'club_name' => $fresh->club_name,
+            ]
+        ]);
+    }
+
     // Update User Avatar
     public function updateAvatar(Request $request)
     {
