@@ -281,7 +281,7 @@ export default function PublicPlayerProfile() {
                     <h2 style={S.sectionTitle}>Recent games</h2>
                     {history && history.length > 0 ? (
                         <div style={S.historyList}>
-                            {history.map(m => (
+                            {[...history].reverse().map(m => (
                                 <div key={m.id} style={S.historyItem}>
                                     <div style={S.historyDate}>{new Date(m.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div>
                                     <div style={S.historyMain}>

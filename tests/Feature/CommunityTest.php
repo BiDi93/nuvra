@@ -167,6 +167,13 @@ class CommunityTest extends TestCase
             $this->assertEquals(10, $player->stat_goals);
             $this->assertGreaterThan(0, $player->stat_matches);
             $this->assertGreaterThan(0, (float)$player->stat_rating);
+
+            // Verify Recent Games history is populated
+            $profileRes = $this->getJson("/api/community/members/{$player->id}");
+            $profileRes->assertStatus(200);
+            $this->assertNotEmpty($profileRes->json('history'));
+            $this->assertArrayHasKey('title', $profileRes->json('history')[0]);
+            $this->assertArrayHasKey('rating', $profileRes->json('history')[0]);
         }
     }
 }

@@ -123,17 +123,40 @@ class CommunityGameController extends Controller
             $q->where('user_id', $user->id);
         }])
         ->where('match_date', '<=', now()->toDateString())
-        ->orderBy('match_date', 'desc')
+        ->orderBy('match_date', 'asc')
         ->limit(10)
         ->get()
         ->map(fn($m) => [
             'id' => $m->id,
-            'title' => $m->title ?? ($m->team_a_name . ' vs ' . $m->team_b_name),
+            'title' => $m->title ?? (($m->team_a_name ?: $m->home_team_name) . ' (' . ($m->home_score ?? 0) . ') vs ' . ($m->team_b_name ?: $m->away_team_name) . ' (' . ($m->away_score ?? 0) . ')'),
             'venue' => $m->venue,
             'date' => $m->match_date,
             'goals' => $m->performances->first()->goals ?? 0,
-            'rating' => $m->performances->first()->rating ?? 0,
+            'rating' => $m->performances->first()->rating ? round((float)$m->performances->first()->rating, 1) : 0,
         ]);
+
+        if ($history->isEmpty() && !empty($user->club_name)) {
+            $club = trim($user->club_name);
+            $history = FootballMatch::where(function($q) use ($club) {
+                $q->where('team_a_name', 'like', "%{$club}%")
+                  ->orWhere('team_b_name', 'like', "%{$club}%")
+                  ->orWhere('home_team_name', 'like', "%{$club}%")
+                  ->orWhere('away_team_name', 'like', "%{$club}%");
+            })
+            ->where('status', 'completed')
+            ->where('match_date', '<=', now()->toDateString())
+            ->orderBy('match_date', 'asc')
+            ->limit(10)
+            ->get()
+            ->map(fn($m) => [
+                'id' => $m->id,
+                'title' => $m->title ?? (($m->team_a_name ?: $m->home_team_name) . ' (' . ($m->home_score ?? 0) . ') vs ' . ($m->team_b_name ?: $m->away_team_name) . ' (' . ($m->away_score ?? 0) . ')'),
+                'venue' => $m->venue ?: 'Padang A',
+                'date' => $m->match_date,
+                'goals' => 0,
+                'rating' => $user->stat_rating ? (float)$user->stat_rating : 6.5,
+            ]);
+        }
 
         return response()->json([
             'user' => [
@@ -218,17 +241,41 @@ class CommunityGameController extends Controller
                 $q->where('user_id', $user->id);
             }])
             ->where('match_date', '<=', now()->toDateString())
-            ->orderBy('match_date', 'desc')
+            ->orderBy('match_date', 'asc')
             ->limit(10)
             ->get()
             ->map(fn($m) => [
                 'id'     => $m->id,
-                'title'  => $m->title ?? ($m->team_a_name . ' vs ' . $m->team_b_name),
+                'title'  => $m->title ?? (($m->team_a_name ?: $m->home_team_name) . ' (' . ($m->home_score ?? 0) . ') vs ' . ($m->team_b_name ?: $m->away_team_name) . ' (' . ($m->away_score ?? 0) . ')'),
                 'venue'  => $m->venue,
                 'date'   => $m->match_date,
                 'goals'  => $m->performances->first()->goals ?? 0,
-                'rating' => $m->performances->first()->rating ?? 0,
+                'rating' => $m->performances->first()->rating ? round((float)$m->performances->first()->rating, 1) : 0,
             ]);
+
+            if ($history->isEmpty() && !empty($user->club_name)) {
+                $club = trim($user->club_name);
+                $history = FootballMatch::where(function($q) use ($club) {
+                    $q->where('team_a_name', 'like', "%{$club}%")
+                      ->orWhere('team_b_name', 'like', "%{$club}%")
+                      ->orWhere('home_team_name', 'like', "%{$club}%")
+                      ->orWhere('away_team_name', 'like', "%{$club}%");
+                })
+                ->where('status', 'completed')
+                ->where('match_date', '<=', now()->toDateString())
+                ->orderBy('match_date', 'asc')
+                ->limit(10)
+                ->get()
+                ->map(fn($m) => [
+                    'id'     => $m->id,
+                    'title'  => $m->title ?? (($m->team_a_name ?: $m->home_team_name) . ' (' . ($m->home_score ?? 0) . ') vs ' . ($m->team_b_name ?: $m->away_team_name) . ' (' . ($m->away_score ?? 0) . ')'),
+                    'venue'  => $m->venue ?: 'Padang A',
+                    'date'   => $m->match_date,
+                    'goals'  => 0,
+                    'rating' => $user->stat_rating ? (float)$user->stat_rating : 6.5,
+                ]);
+            }
+
             $data['history'] = $history ?? [];
         }
 
