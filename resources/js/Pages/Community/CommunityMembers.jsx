@@ -366,7 +366,7 @@ export default function CommunityMembers() {
                                         <label style={S.formLabel}>Vellar ID</label>
                                         <input
                                             type="text"
-                                            placeholder="e.g. VELLAR 82"
+                                            placeholder="e.g. VELLAR 123"
                                             value={editForm.vellar_id}
                                             onChange={(e) => setEditForm({ ...editForm, vellar_id: e.target.value })}
                                             style={S.formInput}

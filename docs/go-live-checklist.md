@@ -41,7 +41,7 @@ On the server `.env` for that environment, set:
 | `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
 | `NUVRA_MASTERBASE_PATH` | Absolute path of the player workbook, outside this repository. Leave it unset on the servers. Seeders fail if it is empty, missing, or inside the repo. Deploy does not read it. |
 | `NUVRA_ACTIVATION_CONTACT` | Optional. A WhatsApp number or an admin's name, shown when a player needs an activation code. Leave unset for the neutral sentence. Do not commit it. See `docs/admin-activation-runbook.md`. |
-| `NUVRA_TRUSTED_PROXIES` | Leave unset. The default is Cloudflare's published ranges. `*` is ignored. |
+| `NUVRA_TRUSTED_PROXIES` | Leave unset. The default is Cloudflare's published ranges. `*` is ignored. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case set `NUVRA_TRUSTED_PROXIES=127.0.0.1`. That is only safe when the origin is closed to everything else. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
 
@@ -91,10 +91,10 @@ Prints counts only (recovery email, missing phone, invalid phone, shared-passwor
 For each player who needs access before they have a recovery email or SMS, an admin who has verified them offline issues one code. The admin sees the code, never the password. The API records which admin issued it, for which player, and when.
 
 ```bash
-php artisan players:activation-code 82 --admin-id=1
+php artisan players:activation-code 123 --admin-id=1
 ```
 
-Replace `82` with that player's Vellar number and `--admin-id` with the admin's user id. The same action is `POST /api/community/admin/players/{id}/activation-code` for an admin session. The `{id}` is the user id, not the Vellar number. The command and the API send nothing. The code expires in 15 minutes.
+Replace `123` with that player's Vellar number. `--admin-id` is required. Confirm the person against the phone number on file, or have their team manager vouch for them, before you issue a code. Never issue one to someone who only knows the Vellar ID. See `docs/admin-activation-runbook.md`. The same action is `POST /api/community/admin/players/{id}/activation-code` for an admin session. The `{id}` is the user id, not the Vellar number. The command and the API send nothing. The code expires in 15 minutes.
 
 Dry run, which changes nothing and works while the flag is off:
 
@@ -226,8 +226,8 @@ Do these in order. This pull request does not rewrite git history and does not e
 5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing. `QA_TOOLS_ENABLED` must be false before promotion. Production forces the QA screen off even if the variable is left true.
 6. **An admin second factor is on, or the owner has recorded a decision to defer it.** TOTP is not in this change. Production launch still needs it unless that decision is written down.
 7. **`storage` and `bootstrap/cache` are not mode `777`.** Replace the deploy's `chmod -R 777` on those directories with a mode the web user can write and other users cannot.
-8. **A failed deploy does not leave the site down.** Confirm `php artisan down` is paired with `php artisan up` when a later step fails. This pull request does not edit the workflows. That pairing is on PR #22.
-9. **Trusted proxies are Cloudflare's ranges only, and the origin accepts Cloudflare only.** `NUVRA_TRUSTED_PROXIES` stays empty unless you are replacing the published list. `*` is ignored. Lock the origin firewall so only Cloudflare can reach it. Optional nginx `real_ip`, using `CF-Connecting-IP` and `set_real_ip_from` for those same ranges, is for logs. The app still refuses a spoofed forwarding header from any other address.
+8. If a deploy fails after `artisan down`, the site stays in maintenance mode. A person checks the database and the release, then runs `php artisan up` by hand. The deploy only runs `artisan up` after every step has succeeded. A pre-flight failure happens before `artisan down`, so the site stays up. Workflow follow-up. This pull request does not edit the workflows.
+9. **Trusted proxies are Cloudflare's ranges only, and the origin accepts Cloudflare only.** `NUVRA_TRUSTED_PROXIES` stays empty unless you are replacing the published list. `*` is ignored. Lock the origin firewall so only Cloudflare can reach it. Optional nginx `real_ip`, using `CF-Connecting-IP` and `set_real_ip_from` for those same ranges, is for logs. The app still refuses a spoofed forwarding header from any other address. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case `NUVRA_TRUSTED_PROXIES=127.0.0.1` is needed, and it is only safe when the origin is closed to everything else.
 10. **`APP_ENV` on production is exactly `production`.** That forces the QA tools off even if `QA_TOOLS_ENABLED` is left true.
 
 Also set production mail variables before offering email reset. Leave `SMS_DRIVER` unset or `none` until one test send has succeeded on production. Run `php artisan migrate --force` if the deploy does not migrate for you. Repeat the Part 1 verification on production. Invite players only after that.

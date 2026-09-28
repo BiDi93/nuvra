@@ -381,6 +381,33 @@ class AcceptanceCriteriaTest extends TestCase
         $this->assertTrue(Hash::check('Correct-Horse-9', $admin->password));
     }
 
+    public function test_activation_command_requires_an_admin_id(): void
+    {
+        $player = $this->player('82');
+        $admin = $this->admin();
+
+        $this->artisan('players:activation-code', ['vellar_id' => '82'])
+            ->assertFailed();
+
+        $this->artisan('players:activation-code', [
+            'vellar_id' => '82',
+            '--admin-id' => (string) $player->id,
+        ])->assertFailed();
+
+        $this->assertSame(0, PlayerCodeAudit::query()->count());
+
+        $this->artisan('players:activation-code', [
+            'vellar_id' => '82',
+            '--admin-id' => (string) $admin->id,
+        ])->assertSuccessful();
+
+        $audit = PlayerCodeAudit::query()->first();
+        $this->assertNotNull($audit);
+        $this->assertSame($admin->id, $audit->admin_id);
+        $this->assertSame($player->id, $audit->player_id);
+        $this->assertSame('console', $audit->source);
+    }
+
     private function player(string $number, array $overrides = []): User
     {
         return User::factory()->create(array_merge([

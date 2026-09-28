@@ -29,6 +29,7 @@ export default function CommunityHome() {
     const [regData, setRegData]     = useState({ name: "", phone: "", position: "", password: "", password_confirmation: "" });
     const [resetData, setResetData] = useState({ vellar_id: "", code: "", password: "", password_confirmation: "" });
     const [resetNotice, setResetNotice] = useState("");
+    const [showOldPasswordPrompt, setShowOldPasswordPrompt] = useState(false);
     const [adminChange, setAdminChange] = useState(null);
 
     // ── LOGIN ──────────────────────────────────────────────────
@@ -45,7 +46,8 @@ export default function CommunityHome() {
 
             if (data.password_reset_required) {
                 setResetData(d => ({ ...d, vellar_id: loginData.vellar_id }));
-                setResetNotice(data.message || "Set a new password");
+                setResetNotice("");
+                setShowOldPasswordPrompt(true);
                 setTab("reset");
                 return;
             }
@@ -222,14 +224,14 @@ export default function CommunityHome() {
                                         <span style={styles.vellarPrefix}>VELLAR</span>
                                         <input
                                             type="text"
-                                            placeholder="82"
+                                            placeholder="123"
                                             value={loginData.vellar_id}
                                             onChange={e => { setError(""); setLoginData({ ...loginData, vellar_id: e.target.value }); }}
                                             style={{ ...styles.input, paddingLeft: 76 }}
                                             required
                                         />
                                     </div>
-                                    <span style={styles.hint}>Player: enter ID number (e.g. <strong style={{ color: "rgba(255,255,255,0.5)" }}>82</strong>). Admin: enter full email.</span>
+                                    <span style={styles.hint}>Player: enter ID number (e.g. <strong style={{ color: "rgba(255,255,255,0.5)" }}>123</strong>). Admin: enter full email.</span>
                                 </div>
 
                                 {/* Password */}
@@ -277,9 +279,10 @@ export default function CommunityHome() {
                     {tab === "reset" && (
                         <>
                             <div style={styles.tabBar}>
-                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("login"); setError(""); setResetNotice(""); }}>Sign In</button>
+                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("login"); setError(""); setResetNotice(""); setShowOldPasswordPrompt(false); }}>Sign In</button>
                                 <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>Set Password</button>
                             </div>
+                            {showOldPasswordPrompt && <p style={styles.hint}>Your old password no longer works. Tap Send verification to get a code, then choose a new password.</p>}
                             {error && <div style={styles.errorBox}>⚠ {error}</div>}
                             {resetNotice && <div style={{ ...styles.errorBox, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>{resetNotice}</div>}
                             <p style={styles.hint}>We only accept a code sent to the email or phone on your account, or a one-time code from a league admin. A new password needs at least 8 characters and cannot be the shared default.</p>

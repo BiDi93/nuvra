@@ -38,6 +38,7 @@ const AuthPage = () => {
         vellar_id: '', code: '', password: '', password_confirmation: '',
     });
     const [resetNotice, setResetNotice] = useState('');
+    const [showOldPasswordPrompt, setShowOldPasswordPrompt] = useState(false);
     const [adminChange, setAdminChange] = useState(null);
 
     // Hero image slideshow
@@ -93,7 +94,8 @@ const AuthPage = () => {
         } catch (err) {
             if (err.response?.data?.password_reset_required) {
                 setResetForm(f => ({ ...f, vellar_id: loginForm.vellar_id }));
-                setResetNotice(err.response.data.message || 'Set a new password');
+                setResetNotice('');
+                setShowOldPasswordPrompt(true);
                 setError('');
                 setView('reset');
                 return;
@@ -169,8 +171,8 @@ const AuthPage = () => {
     };
 
     const switchToSignup = () => { setError(''); setView('signup'); };
-    const switchToLogin  = () => { setError(''); setResetNotice(''); setView('login'); };
-    const switchToReset  = () => { setError(''); setResetNotice(''); setView('reset'); };
+    const switchToLogin  = () => { setError(''); setResetNotice(''); setShowOldPasswordPrompt(false); setView('login'); };
+    const switchToReset  = () => { setError(''); setResetNotice(''); setShowOldPasswordPrompt(false); setView('reset'); };
 
     const handleRequestReset = async (e) => {
         e.preventDefault();
@@ -284,14 +286,14 @@ const AuthPage = () => {
                                         <input
                                             className="auth-input"
                                             type="text"
-                                            placeholder="82"
+                                            placeholder="123"
                                             value={loginForm.vellar_id}
                                             onChange={e => { setError(''); setLoginForm(f => ({ ...f, vellar_id: e.target.value })); }}
                                             style={{ ...S.input, paddingLeft: 80 }}
                                             required
                                         />
                                     </div>
-                                    <span style={S.fieldHint}>Example: enter <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> for VELLAR 82. Admins can enter their email.</span>
+                                    <span style={S.fieldHint}>Example: enter <strong style={{ color: 'rgba(255,255,255,0.5)' }}>123</strong> for VELLAR 123. Admins can enter their email.</span>
                                 </div>
 
                                 {/* Password Field */}
@@ -440,6 +442,7 @@ const AuthPage = () => {
                             <div style={S.viewHeader}>
                                 <h1 style={S.viewTitle}>Set a password</h1>
                                 <p style={S.viewSubtitle}>We verify the email or phone already on your account, or the one-time code a league admin gave you. Knowing the ID alone is not enough. A new password needs at least 8 characters and cannot be the shared default.</p>
+                                {showOldPasswordPrompt && <p style={{ ...S.viewSubtitle, marginTop: 10 }}>Your old password no longer works. Tap Send verification to get a code, then choose a new password.</p>}
                             </div>
 
                             <form onSubmit={handleRequestReset} style={S.form}>

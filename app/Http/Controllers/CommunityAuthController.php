@@ -91,7 +91,7 @@ class CommunityAuthController extends Controller
             if (empty($vellarNumber)) {
                 $attempts->hit('login', $identifier, $request->ip());
 
-                return response()->json(['message' => 'Invalid Vellar ID. Please enter numbers only (e.g. 82).'], 422);
+                return response()->json(['message' => 'Invalid Vellar ID. Please enter numbers only (e.g. 123).'], 422);
             }
         }
 

@@ -4,9 +4,13 @@ Use this when a player has no recovery email and no SMS, or a message did not ar
 
 The code sets a password. It is not the password. The admin sees the code once. The app does not email or text it.
 
+## Confirm who is asking
+
+Before any code is issued, confirm the person against something already known. Use the phone number on file, or have their team manager vouch for them. Never issue a code to someone who only knows the Vellar ID.
+
 ## Issue a code
 
-From the server, with the player's Vellar number and the admin's user id:
+From the server, with the player's Vellar number and the admin's user id. `--admin-id` is required. The command refuses to run without it, and it refuses an id that is not an admin, so every audit row names an admin.
 
 ```bash
 php artisan players:activation-code 123 --admin-id=1
@@ -18,7 +22,7 @@ The same action for an admin who is already signed in:
 
 `POST /api/community/admin/players/{id}/activation-code`
 
-`{id}` is the user id, not the Vellar number.
+`{id}` is the user id, not the Vellar number. That route uses the signed-in admin, so it does not take `--admin-id`.
 
 The player enters the code on Set Password with the Vellar ID and a new password of at least 8 characters. The code works once.
 
