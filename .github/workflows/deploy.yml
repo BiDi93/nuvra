@@ -27,15 +27,16 @@ jobs:
 
           APP_DIR=/var/www/html
           BACKUP_DIR="${HOME}/nuvra-backups"
-          KEEP_BACKUPS=10
+          KEEP_BACKUPS=30
           PRESERVE_DIR=""
+          WENT_DOWN=0
 
           cleanup() {
             local status=$?
             if [[ -n "${PRESERVE_DIR}" && -d "${PRESERVE_DIR}" ]]; then
               rm -rf "${PRESERVE_DIR}"
             fi
-            if [[ -d "${APP_DIR}" ]]; then
+            if [[ "${WENT_DOWN}" -eq 1 && -d "${APP_DIR}" ]]; then
               if ! (cd "${APP_DIR}" && php artisan up); then
                 echo "ERROR: php artisan up failed" >&2
                 if [[ "${status}" -eq 0 ]]; then
@@ -126,7 +127,7 @@ jobs:
               printf '%s' "${NUVRA_DB_GROUP}"
               return
             fi
-            group=$(ps -eo user:32,group:32,args | awk '/php-fpm: pool/ && $1 != "root" { print $2; exit }' || true)
+            group=$(ps -eo user:32,group:32,args | awk '/[p]hp-fpm: pool/ && $1 != "root" { print $2; exit }' || true)
             if [[ -n "${group}" ]]; then
               echo "Detected php-fpm pool group: ${group}" >&2
               printf '%s' "${group}"
@@ -142,28 +143,69 @@ jobs:
             printf '%s' "${group}"
           }
 
+          require_sqlite3() {
+            if ! command -v sqlite3 >/dev/null 2>&1; then
+              echo "ERROR: sqlite3 is not installed. Refusing to copy the database without a consistent backup." >&2
+              return 1
+            fi
+          }
+
+          assert_can_chown() {
+            local path="$1" owner="$2" group="$3" current_owner runner
+            current_owner=$(stat -c '%U' "${path}")
+            runner=$(id -un)
+            if [[ "$(id -u)" -eq 0 ]]; then
+              return 0
+            fi
+            if [[ "${current_owner}" != "${runner}" ]]; then
+              echo "ERROR: ${path} is owned by ${current_owner}; ${runner} cannot chown it without sudo." >&2
+              return 1
+            fi
+            if [[ "${owner}" != "${runner}" ]]; then
+              echo "ERROR: cannot chown ${path} to user ${owner} without sudo." >&2
+              return 1
+            fi
+            if ! id -nG | tr ' ' '\n' | grep -Fxq "${group}"; then
+              echo "ERROR: ${runner} is not a member of group ${group}; cannot chown ${path} without sudo." >&2
+              return 1
+            fi
+          }
+
+          preflight() {
+            local path
+            require_sqlite3
+            DB_PATH=$(resolve_db_path "${APP_DIR}/.env")
+            echo "Using SQLite database ${DB_PATH}"
+            DB_OWNER=$(resolve_db_owner "${DB_PATH}")
+            DB_GROUP=$(resolve_db_group "${DB_PATH}")
+            if [[ -z "${DB_OWNER}" || -z "${DB_GROUP}" ]]; then
+              echo "ERROR: could not resolve database owner and group." >&2
+              return 1
+            fi
+            echo "Pre-flight: owner=${DB_OWNER} group=${DB_GROUP}"
+            for path in "${DB_PATH}" "${DB_PATH}-wal" "${DB_PATH}-shm"; do
+              [[ -e "${path}" ]] || continue
+              assert_can_chown "${path}" "${DB_OWNER}" "${DB_GROUP}"
+            done
+            for path in "${DB_PATH}" "${DB_PATH}-wal" "${DB_PATH}-shm"; do
+              [[ -e "${path}" ]] || continue
+              if ! chown "${DB_OWNER}:${DB_GROUP}" "${path}"; then
+                echo "ERROR: chown ${path} to ${DB_OWNER}:${DB_GROUP} failed without sudo." >&2
+                return 1
+              fi
+            done
+          }
+
           apply_db_permissions() {
-            local db="$1" owner group path
-            owner=$(resolve_db_owner "${db}")
-            group=$(resolve_db_group "${db}")
-            echo "Setting SQLite mode 660 and ownership ${owner}:${group}"
+            local db="$1" path
+            echo "Setting SQLite ownership ${DB_OWNER}:${DB_GROUP}, then mode 660"
             for path in "${db}" "${db}-wal" "${db}-shm"; do
               [[ -e "${path}" ]] || continue
-              # Mode first, while this user still owns the file. chown may hand
-              # it to the web group afterwards.
-              if ! chmod 660 "${path}"; then
-                if ! sudo -n chmod 660 "${path}"; then
-                  echo "ERROR: unable to chmod 660 ${path}." >&2
-                  return 1
-                fi
+              if ! chown "${DB_OWNER}:${DB_GROUP}" "${path}"; then
+                echo "ERROR: cannot chown ${path} to ${DB_OWNER}:${DB_GROUP} without sudo." >&2
+                return 1
               fi
-              if ! chown "${owner}:${group}" "${path}"; then
-                if ! sudo -n chown "${owner}:${group}" "${path}"; then
-                  echo "ERROR: unable to chown ${path} to ${owner}:${group}." >&2
-                  echo "Set NUVRA_DB_OWNER and NUVRA_DB_GROUP to a pair this user can assign, or allow passwordless sudo for chown." >&2
-                  return 1
-                fi
-              fi
+              chmod 660 "${path}"
             done
           }
 
@@ -190,7 +232,7 @@ jobs:
           }
 
           backup_sqlite() {
-            local src="$1" reason="$2" stamp dest method
+            local src="$1" reason="$2" stamp dest
             mkdir -p "${BACKUP_DIR}"
             chmod 700 "${BACKUP_DIR}"
             stamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -198,24 +240,9 @@ jobs:
             if [[ -e "${dest}" ]]; then
               dest="${dest}.$$"
             fi
-            if command -v sqlite3 >/dev/null 2>&1; then
-              method="sqlite3 .backup"
-              echo "SQLite backup (${reason}): method=${method} destination=${dest}"
-              sqlite3 "${src}" ".backup '${dest}'"
-            else
-              method="file-copy (sqlite3 missing)"
-              echo "SQLite backup (${reason}): method=${method} destination=${dest}"
-              cp -a "${src}" "${dest}"
-              if [[ -f "${src}-wal" ]]; then
-                cp -a "${src}-wal" "${dest}-wal"
-              fi
-              if [[ -f "${src}-shm" ]]; then
-                cp -a "${src}-shm" "${dest}-shm"
-              fi
-            fi
+            echo "SQLite backup (${reason}): method=sqlite3 .backup destination=${dest}"
+            sqlite3 "${src}" ".backup '${dest}'"
             chmod 600 "${dest}"
-            [[ -f "${dest}-wal" ]] && chmod 600 "${dest}-wal"
-            [[ -f "${dest}-shm" ]] && chmod 600 "${dest}-shm"
             prune_backups "${BACKUP_DIR}" "${KEEP_BACKUPS}"
           }
 
@@ -257,13 +284,12 @@ jobs:
           }
 
           cd "${APP_DIR}"
-          git config --global --add safe.directory "${APP_DIR}"
-
-          DB_PATH=$(resolve_db_path "${APP_DIR}/.env")
-          echo "Using SQLite database ${DB_PATH}"
+          preflight
 
           php artisan down
+          WENT_DOWN=1
 
+          git config --global --add safe.directory "${APP_DIR}"
           git fetch origin main
           backup_sqlite "${DB_PATH}" "before reset"
           preserve_live_db "${DB_PATH}"
