@@ -15,16 +15,14 @@ return new class extends Migration
         Schema::create('player_email_audits', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('player_id');
-            $table->unsignedBigInteger('admin_id')->nullable();
-            $table->string('source', 32);
+            $table->unsignedBigInteger('admin_id');
             $table->string('collected_by', 120)->nullable();
             $table->string('old_email_masked');
             $table->string('new_email_masked');
-            $table->char('source_sha256', 64)->nullable();
+            $table->char('source_sha256', 64);
             $table->timestamp('created_at')->useCurrent();
 
             $table->index('player_id');
-            $table->index('source');
         });
     }
 

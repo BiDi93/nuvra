@@ -12,7 +12,6 @@ class PlayerEmailAudit extends Model
     protected $fillable = [
         'player_id',
         'admin_id',
-        'source',
         'collected_by',
         'old_email_masked',
         'new_email_masked',

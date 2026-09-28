@@ -4,37 +4,7 @@ Players sign in with a Vellar ID. `CommunityAuthController::login` takes `vellar
 
 The import writes the recovery address on `contact_email`. The reset link and `players:contact-audit` already use that field, and they treat `@vellarleague.com` as no route. Do not add another email column.
 
-A signed-in player who still has the shared password, or who still has `password_reset_required` set, cannot change `contact_email`. Only this import can set it then. After the player has their own password, a change on the profile form requires the current password, writes an audit row, and sends a notice to the previous inbox when that inbox is a real one.
-
 There is no web upload.
-
-## Before the first import
-
-Any `contact_email` already on a player was not set by this import. List them, then clear them. The command prints counts only. It does not print addresses. `--admin-id` is required for `--apply` and must be an admin.
-
-```bash
-php artisan players:clear-unimported-emails
-php artisan players:clear-unimported-emails --apply --admin-id=1
-```
-
-The same count, without clearing, is the players whose latest `player_email_audits` row is missing or is not `source = import`:
-
-```sql
-SELECT COUNT(*) AS unimported_recovery_emails
-FROM users u
-WHERE u.role = 'player'
-  AND u.contact_email IS NOT NULL
-  AND TRIM(u.contact_email) != ''
-  AND NOT EXISTS (
-    SELECT 1
-    FROM player_email_audits a
-    WHERE a.player_id = u.id
-      AND a.source = 'import'
-      AND a.id = (
-        SELECT MAX(id) FROM player_email_audits WHERE player_id = u.id
-      )
-  );
-```
 
 ## Collect the CSV
 

@@ -161,13 +161,6 @@ php artisan players:contact-audit
 
 Prints counts only (recovery email, missing phone, invalid phone, shared-password use). It can take a few minutes.
 
-Before the first real import, clear recovery emails that were not set by the import. The command prints a count only. It does not print addresses. `--admin-id` is required for `--apply` and must be an admin.
-
-```bash
-php artisan players:clear-unimported-emails
-php artisan players:clear-unimported-emails --apply --admin-id=1
-```
-
 Import verified recovery emails before you retire passwords. Players sign in with a Vellar ID. The import writes `contact_email` and does not change `email`. A `@vellarleague.com` address is not a delivery route. The file is CSV, sent through a private channel, and kept outside the web root. Dry run first. `--admin-id` is required for `--apply` and must be an admin. The command prints counts, row numbers, and masked addresses. See `docs/player-email-import-runbook.md`.
 
 ```bash

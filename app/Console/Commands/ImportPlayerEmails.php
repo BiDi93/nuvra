@@ -398,7 +398,6 @@ class ImportPlayerEmails extends Command
                 PlayerEmailAudit::create([
                     'player_id' => $player->id,
                     'admin_id' => $adminId,
-                    'source' => 'import',
                     'collected_by' => $row['collected_by'],
                     'old_email_masked' => EmailMask::mask($old),
                     'new_email_masked' => EmailMask::mask($email),

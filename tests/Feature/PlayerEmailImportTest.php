@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Mail\RecoveryEmailChanged;
 use App\Models\PlayerEmailAudit;
 use App\Models\User;
 use App\Support\EmailMask;
@@ -100,7 +99,6 @@ class PlayerEmailImportTest extends TestCase
         $audit = PlayerEmailAudit::query()->sole();
         $this->assertSame($player->id, $audit->player_id);
         $this->assertSame($admin->id, $audit->admin_id);
-        $this->assertSame('import', $audit->source);
         $this->assertSame('Manager A', $audit->collected_by);
         $this->assertSame('(none)', $audit->old_email_masked);
         $this->assertSame($mask, $audit->new_email_masked);
@@ -268,127 +266,6 @@ class PlayerEmailImportTest extends TestCase
 
         $this->assertTrue(Hash::check($this->sharedPassword(), $player->fresh()->password));
         $this->assertFalse($player->fresh()->password_reset_required);
-    }
-
-    public function test_profile_refuses_contact_email_while_the_shared_password_or_reset_flag_is_set(): void
-    {
-        Mail::fake();
-        $shared = $this->player('82');
-        $reset = $this->player('83', [
-            'password' => 'unique-pass-1',
-            'password_reset_required' => true,
-            'contact_email' => 'kept83@example.com',
-        ]);
-
-        $this->actingAs($shared, 'sanctum')->putJson('/api/community/profile', [
-            'name' => 'Taken Over',
-            'contact_email' => 'attacker82@example.com',
-            'current_password' => $this->sharedPassword(),
-        ])->assertStatus(422);
-
-        $this->actingAs($reset, 'sanctum')->putJson('/api/community/profile', [
-            'name' => 'Taken Over',
-            'contact_email' => 'attacker83@example.com',
-            'current_password' => 'unique-pass-1',
-        ])->assertStatus(401);
-
-        $this->assertNull($shared->fresh()->contact_email);
-        $this->assertSame('Player 82', $shared->fresh()->name);
-        $this->assertSame('kept83@example.com', $reset->fresh()->contact_email);
-        $this->assertSame('vellar82@vellarleague.com', $shared->fresh()->email);
-        $this->assertSame(0, PlayerEmailAudit::query()->count());
-        Mail::assertNothingSent();
-    }
-
-    public function test_profile_change_requires_the_current_password_and_notifies_the_old_inbox(): void
-    {
-        Mail::fake();
-        $player = $this->player('82', [
-            'password' => 'unique-pass-1',
-            'contact_email' => 'kept82@example.com',
-        ]);
-        $empty = $this->player('83', ['password' => 'unique-pass-1']);
-
-        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
-            'name' => 'Still Named',
-            'contact_email' => 'next82@example.com',
-        ])->assertStatus(422);
-
-        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
-            'name' => 'Still Named',
-            'contact_email' => 'next82@example.com',
-            'current_password' => 'wrong-pass',
-        ])->assertStatus(422);
-
-        $this->assertSame('kept82@example.com', $player->fresh()->contact_email);
-        $this->assertSame(0, PlayerEmailAudit::query()->count());
-        Mail::assertNothingSent();
-
-        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
-            'name' => 'Renamed',
-            'contact_email' => '  Next82@Example.com ',
-            'current_password' => 'unique-pass-1',
-        ])->assertOk();
-
-        $player->refresh();
-        $this->assertSame('Renamed', $player->name);
-        $this->assertSame('next82@example.com', $player->contact_email);
-        $this->assertSame('vellar82@vellarleague.com', $player->email);
-
-        $audit = PlayerEmailAudit::query()->sole();
-        $this->assertSame('profile', $audit->source);
-        $this->assertNull($audit->admin_id);
-        $this->assertSame(EmailMask::mask('kept82@example.com'), $audit->old_email_masked);
-        $this->assertSame(EmailMask::mask('next82@example.com'), $audit->new_email_masked);
-        $this->assertStringNotContainsString('next82', $audit->new_email_masked);
-
-        Mail::assertSent(RecoveryEmailChanged::class, function (RecoveryEmailChanged $mail) {
-            return $mail->hasTo('kept82@example.com');
-        });
-
-        $this->actingAs($empty, 'sanctum')->putJson('/api/community/profile', [
-            'name' => 'Player 83',
-            'contact_email' => 'first83@example.com',
-            'current_password' => 'unique-pass-1',
-        ])->assertOk();
-
-        $this->assertSame('first83@example.com', $empty->fresh()->contact_email);
-        Mail::assertSent(RecoveryEmailChanged::class, 1);
-    }
-
-    public function test_clear_unimported_emails_counts_only_and_apply_clears_them(): void
-    {
-        $admin = $this->admin();
-        $imported = $this->player('82');
-        $stray = $this->player('83', ['contact_email' => 'stray83@example.com']);
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
-
-        $this->artisan('players:import-emails', [
-            'file' => $path,
-            '--admin-id' => $admin->id,
-            '--apply' => true,
-        ])->assertSuccessful();
-
-        $this->artisan('players:clear-unimported-emails')
-            ->expectsOutputToContain('Recovery emails not set by the import: 1')
-            ->expectsOutputToContain('Dry run only. No accounts were changed.')
-            ->doesntExpectOutputToContain('stray83@example.com')
-            ->assertSuccessful();
-
-        $this->assertSame('stray83@example.com', $stray->fresh()->contact_email);
-        $this->assertSame('alpha82@example.com', $imported->fresh()->contact_email);
-
-        $this->artisan('players:clear-unimported-emails', [
-            '--apply' => true,
-            '--admin-id' => $admin->id,
-        ])->expectsOutputToContain('Cleared: 1')
-            ->doesntExpectOutputToContain('stray83@example.com')
-            ->assertSuccessful();
-
-        $this->assertNull($stray->fresh()->contact_email);
-        $this->assertSame('alpha82@example.com', $imported->fresh()->contact_email);
-        $this->assertSame('clear', PlayerEmailAudit::query()->where('player_id', $stray->id)->first()->source);
-        $this->assertSame(EmailMask::mask('stray83@example.com'), PlayerEmailAudit::query()->where('player_id', $stray->id)->first()->old_email_masked);
     }
 
     private function outsideFile(string $suffix, string $contents): string
