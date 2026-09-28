@@ -40,6 +40,8 @@ On the server `.env` for that environment, set:
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
 | `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
 | `NUVRA_MASTERBASE_PATH` | Absolute path of the player workbook, outside this repository. Leave it unset on the servers. Seeders fail if it is empty, missing, or inside the repo. Deploy does not read it. |
+| `NUVRA_ACTIVATION_CONTACT` | Optional. A WhatsApp number or an admin's name, shown when a player needs an activation code. Leave unset for the neutral sentence. Do not commit it. See `docs/admin-activation-runbook.md`. |
+| `NUVRA_TRUSTED_PROXIES` | Leave unset. The default is Cloudflare's published ranges. `*` is ignored. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
 
@@ -73,7 +75,7 @@ php artisan nuvra:create-test-players you@example.com
 
 Replace `you@example.com` with an inbox the team controls. QA runs the end-to-end reset only on this flagged player, not on an existing UAT player.
 
-While `NUVRA_RETIRE_SHARED_PASSWORDS` is still false, sign in as Vellar `900001` with the shared default and complete one real reset end to end (the recovery email or an admin code, a new password, and the old session rejected). Only after that reset succeeds:
+While `NUVRA_RETIRE_SHARED_PASSWORDS` is still false, enter Vellar `900001` and the shared default on the sign-in form. That opens Set Password and does not create a session. Complete one real reset from there (the recovery email or an admin code, a new password, then a sign-in with that new password). Only after that reset succeeds:
 
 1. Set `NUVRA_RETIRE_SHARED_PASSWORDS=true` in the server `.env`.
 2. Run `php artisan config:clear` or `php artisan config:cache`.
@@ -151,7 +153,11 @@ Then run `php artisan nuvra:delete-test-players`. That deletes only flagged test
 
 ## 6. UAT basic-auth gate
 
-The middleware is `App\Http\Middleware\UatBasicAuth`. It covers the whole site only when both `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` are non-empty. Otherwise it does nothing, which is the production default. Credentials are compared in constant time and are not logged.
+The middleware is `App\Http\Middleware\UatBasicAuth`. It covers requests that reach Laravel only when both `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` are non-empty. Otherwise it does nothing, which is the production default. Credentials are compared in constant time and are not logged.
+
+The signed-in app sends the Sanctum token in `Authorization: Bearer`. The gate does not read that header. The first successful basic-auth check sets a signed, HttpOnly, Secure, SameSite=Lax cookie named `nuvra_uat_gate`. It lasts 8 hours (`UAT_BASIC_AUTH_MINUTES`, default 480). Later API calls are accepted with that cookie or with basic-auth credentials.
+
+Files nginx serves directly, including `/build` and `/storage`, never reach Laravel, so they bypass the gate. Do not put private files there.
 
 **Exemption:** `GET /up` only. That is Laravel's health route. Probes cannot present a browser password, and gating it would fail the health check.
 
@@ -184,8 +190,6 @@ For production promotion this flag must be true, and every admin must have chang
 **On `uat` (this branch).** `DatabaseSeeder` calls `TournamentMasterbaseSeeder`, which `firstOrCreate`s `admin@vellarleague.com` with role `admin` and `Hash::make('password')` only when the external workbook is present. `firstOrCreate` does not reset the password if that email already exists. `CommunitySeeder` and `PlayerDummySeeder` are demo seeders. They refuse to run when `APP_ENV=production`, they do not create an admin, and the accounts they create do not use `password`, `password123`, or `Nuvra2026!`. `DatabaseSeeder` does not call them. No migration inserts an admin. Public registration creates players only, with status `pending`.
 
 **On `main` (inspected, not changed).** `DatabaseSeeder` calls only `PlayerDummySeeder`, which `updateOrCreate`s `owner@nuvra.com` with role `club_owner` and `Hash::make('password')`. `CommunitySeeder` does the same for `owner@nuvra.com` as `club_owner` if someone runs it by hand. `ResetSeeder` is not called by `DatabaseSeeder`; if someone runs it, it creates `admin@nuvra.com` as `community_admin` and as `admin` and stores the shared password `Nuvra2026!`, and it prints that password. `TournamentMasterbaseSeeder` is not on `main`. No migration on `main` inserts an admin or rewrites `users.password`.
-
-The UAT snapshot read earlier has one admin, `admin@vellarleague.com`, and that hash matches `password`.
 
 ## 9. Admin second factor
 
@@ -220,6 +224,11 @@ Do these in order. This pull request does not rewrite git history and does not e
 3. **Admin forced password change is on, and admin passwords have been changed.** Set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, and have each admin sign in and set a new password. This does not send email or SMS. The audit then reports `Admin accounts on a known weak password: 0`. On UAT this step is optional. On production it is required.
 4. **Production secrets have been rotated** so none of them are values that appear in git history. See the scan below. Do this before the promotion deploy if the current production values are the leaked ones, and again if a deploy would copy an old secret back.
 5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing. `QA_TOOLS_ENABLED` must be false before promotion. Production forces the QA screen off even if the variable is left true.
+6. **An admin second factor is on, or the owner has recorded a decision to defer it.** TOTP is not in this change. Production launch still needs it unless that decision is written down.
+7. **`storage` and `bootstrap/cache` are not mode `777`.** Replace the deploy's `chmod -R 777` on those directories with a mode the web user can write and other users cannot.
+8. **A failed deploy does not leave the site down.** Confirm `php artisan down` is paired with `php artisan up` when a later step fails. This pull request does not edit the workflows. That pairing is on PR #22.
+9. **Trusted proxies are Cloudflare's ranges only, and the origin accepts Cloudflare only.** `NUVRA_TRUSTED_PROXIES` stays empty unless you are replacing the published list. `*` is ignored. Lock the origin firewall so only Cloudflare can reach it. Optional nginx `real_ip`, using `CF-Connecting-IP` and `set_real_ip_from` for those same ranges, is for logs. The app still refuses a spoofed forwarding header from any other address.
+10. **`APP_ENV` on production is exactly `production`.** That forces the QA tools off even if `QA_TOOLS_ENABLED` is left true.
 
 Also set production mail variables before offering email reset. Leave `SMS_DRIVER` unset or `none` until one test send has succeeded on production. Run `php artisan migrate --force` if the deploy does not migrate for you. Repeat the Part 1 verification on production. Invite players only after that.
 

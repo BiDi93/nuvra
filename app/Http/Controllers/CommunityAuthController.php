@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Rules\NotSharedDefaultPassword;
+use App\Rules\PlayerPassword;
 use App\Rules\StrongPassword;
 use App\Support\AttemptLimiter;
 use App\Support\AttemptResponse;
@@ -24,7 +24,7 @@ class CommunityAuthController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'position' => 'nullable|string|max:100',
-            'password' => ['required', 'string', 'min:6', 'confirmed', new NotSharedDefaultPassword],
+            'password' => ['required', 'string', 'confirmed', new PlayerPassword],
         ]);
 
         // Auto-increment Vellar ID: get highest number + 1
@@ -114,9 +114,15 @@ class CommunityAuthController extends Controller
 
         if ($forcedReset) {
             SharedPassword::requireReset($user);
+            $attempts->hit('login', $identifier, $request->ip());
+
+            return response()->json([
+                'message' => AuthMessages::SET_PASSWORD,
+                'password_reset_required' => true,
+            ], 403);
         }
 
-        if (! $user || ! $passwordMatches || $forcedReset) {
+        if (! $user || ! $passwordMatches) {
             $attempts->hit('login', $identifier, $request->ip());
 
             return response()->json(['message' => AuthMessages::LOGIN_FAILED], 401);

@@ -52,7 +52,7 @@ class TestPlayers
                     'contact_email' => $row['email'],
                     'is_test_account' => true,
                     'password_is_shared' => true,
-                    'password_reset_required' => false,
+                    'password_reset_required' => true,
                 ])->save();
 
                 PlayerCodeAudit::create([

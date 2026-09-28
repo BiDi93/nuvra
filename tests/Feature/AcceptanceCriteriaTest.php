@@ -150,7 +150,12 @@ class AcceptanceCriteriaTest extends TestCase
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
             'password' => 'password',
-        ])->assertStatus(401)->assertJson(['message' => AuthMessages::LOGIN_FAILED]);
+        ])->assertStatus(403)
+            ->assertJson([
+                'message' => AuthMessages::SET_PASSWORD,
+                'password_reset_required' => true,
+            ])
+            ->assertJsonMissing(['token']);
     }
 
     public function test_admin_activation_is_audited_and_does_not_reveal_the_password(): void
@@ -189,18 +194,47 @@ class AcceptanceCriteriaTest extends TestCase
         $this->assertNull($tests[0]->phone);
         $this->assertSame('NUVRA TEST PLAYER 900001', $tests[0]->name);
         $this->assertTrue(Hash::check('password', $tests[0]->password));
+        $this->assertTrue($tests[0]->password_reset_required);
         Mail::assertNothingSent();
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '900001',
             'password' => 'password',
+        ])->assertStatus(403)
+            ->assertJson([
+                'message' => AuthMessages::SET_PASSWORD,
+                'password_reset_required' => true,
+            ])
+            ->assertJsonMissing(['token']);
+
+        $this->postJson('/api/community/password/request', ['vellar_id' => '900001'])->assertOk();
+
+        $token = null;
+        Mail::assertSent(\App\Mail\PlayerPasswordResetLink::class, function ($mail) use (&$token) {
+            parse_str((string) parse_url($mail->resetUrl, PHP_URL_QUERY), $query);
+            $token = $query['token'] ?? null;
+
+            return filled($token);
+        });
+
+        $this->postJson('/api/community/password/reset', [
+            'token' => $token,
+            'password' => 'brand-new-pass',
+            'password_confirmation' => 'brand-new-pass',
+        ])->assertOk();
+
+        $this->travel(2)->seconds();
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '900001',
+            'password' => 'brand-new-pass',
         ])->assertOk();
 
         $this->artisan('nuvra:delete-test-players')->assertSuccessful();
 
         $this->assertSame(0, User::query()->where('is_test_account', true)->count());
         $this->assertNotNull($real->fresh());
-        Mail::assertNothingSent();
+        Mail::assertSent(\App\Mail\PlayerPasswordResetLink::class, 1);
     }
 
     public function test_admin_qa_tools_create_and_delete_only_flagged_players_and_are_off_by_default(): void

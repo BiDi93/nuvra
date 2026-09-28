@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Rules\NotSharedDefaultPassword;
+use App\Rules\PlayerPassword;
 use App\Services\PlayerVerificationService;
 use App\Support\AttemptLimiter;
 use App\Support\AttemptResponse;
@@ -34,7 +34,7 @@ class CommunityPasswordResetController extends Controller
         $this->attempts->hit('password_request', $identifier, $request->ip());
         $this->verification->requestForLogin($request->vellar_id);
 
-        return response()->json(['message' => AuthMessages::RESET_SENT]);
+        return response()->json(['message' => AuthMessages::resetSent()]);
     }
 
     public function reset(Request $request)
@@ -43,25 +43,26 @@ class CommunityPasswordResetController extends Controller
             'token' => 'nullable|string|max:200',
             'vellar_id' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:50',
-            'password' => ['required', 'string', 'min:8', 'confirmed', new NotSharedDefaultPassword],
+            'password' => ['required', 'string', 'confirmed', new PlayerPassword],
         ]);
 
-        $identifier = filled($request->token)
-            ? 'token:'.hash('sha256', (string) $request->token)
-            : PlayerLocator::identifier((string) $request->input('vellar_id', ''));
+        if (filled($request->token)) {
+            return $this->resetWithEmailToken($request);
+        }
+
+        $identifier = PlayerLocator::identifier((string) $request->input('vellar_id', ''));
 
         if ($denied = AttemptResponse::ifBlocked($this->attempts, 'password_reset', $identifier, $request->ip())) {
             return $denied;
         }
 
-        if (! filled($request->token) && (! filled($request->vellar_id) || ! filled($request->code))) {
+        if (! filled($request->vellar_id) || ! filled($request->code)) {
             $this->attempts->hit('password_reset', $identifier, $request->ip());
 
             return response()->json(['message' => AuthMessages::RESET_FAILED], 422);
         }
 
         $saved = $this->verification->resetWithSecret(
-            $request->input('token'),
             $request->input('vellar_id'),
             $request->input('code'),
             $request->password,
@@ -74,6 +75,29 @@ class CommunityPasswordResetController extends Controller
         }
 
         $this->attempts->clearIdentifier('password_reset', $identifier);
+
+        return response()->json(['message' => AuthMessages::RESET_SAVED]);
+    }
+
+    /**
+     * Email links only. A 6-digit SMS code or an admin code is rejected here.
+     * Backoff is the caller IP, not the token.
+     */
+    private function resetWithEmailToken(Request $request)
+    {
+        $ip = (string) $request->ip();
+
+        if ($denied = AttemptResponse::ifIpBlocked($this->attempts, 'password_reset', $ip)) {
+            return $denied;
+        }
+
+        $saved = $this->verification->resetWithEmailToken((string) $request->token, (string) $request->password);
+
+        if (! $saved) {
+            $this->attempts->hitIp('password_reset', $ip);
+
+            return response()->json(['message' => AuthMessages::RESET_FAILED], 422);
+        }
 
         return response()->json(['message' => AuthMessages::RESET_SAVED]);
     }

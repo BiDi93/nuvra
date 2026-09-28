@@ -10,6 +10,19 @@ class AuthMessages
 
     public const RESET_SENT = 'If this ID can be verified, a message has been sent. If nothing arrives, ask a league administrator for an activation code.';
 
+    public const SET_PASSWORD = 'Set a new password';
+
+    public static function resetSent(): string
+    {
+        $contact = trim((string) config('nuvra.activation_contact', ''));
+
+        if ($contact === '') {
+            return self::RESET_SENT;
+        }
+
+        return self::RESET_SENT.' Contact: '.$contact;
+    }
+
     public const RESET_FAILED = 'The reset code is invalid or has expired.';
 
     public const RESET_SAVED = 'Your password has been updated. You can sign in with it now.';

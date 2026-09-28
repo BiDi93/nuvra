@@ -21,4 +21,20 @@ class AttemptResponse
             'Retry-After' => (string) $wait,
         ]);
     }
+
+    public static function ifIpBlocked(AttemptLimiter $limiter, string $action, string $ip): ?JsonResponse
+    {
+        $wait = $limiter->retryAfterIp($action, $ip);
+
+        if ($wait < 1) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => AuthMessages::TOO_MANY,
+            'retry_after' => $wait,
+        ], 429, [
+            'Retry-After' => (string) $wait,
+        ]);
+    }
 }

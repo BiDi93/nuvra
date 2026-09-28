@@ -106,8 +106,8 @@ const ResetPassword = () => {
                             <h1 style={S.viewTitle}>Reset Password</h1>
                             <p style={S.viewSubtitle}>
                                 {tokenOnly
-                                    ? 'This link verifies your account. Choose a new password. It expires and works once.'
-                                    : 'Create a new secure password for your account.'}
+                                    ? 'This link verifies your account. Choose a new password of at least 8 characters. It cannot be the shared default. The link expires and works once.'
+                                    : 'Choose a new password of at least 8 characters. It cannot be the shared default.'}
                             </p>
                         </div>
 

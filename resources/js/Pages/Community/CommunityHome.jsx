@@ -43,6 +43,13 @@ export default function CommunityHome() {
             });
             const data = await res.json();
 
+            if (data.password_reset_required) {
+                setResetData(d => ({ ...d, vellar_id: loginData.vellar_id }));
+                setResetNotice(data.message || "Set a new password");
+                setTab("reset");
+                return;
+            }
+
             if (data.status === "pending") {
                 localStorage.setItem("pending_vellar_id", loginData.vellar_id);
                 navigate("/waiting-room");
@@ -275,7 +282,7 @@ export default function CommunityHome() {
                             </div>
                             {error && <div style={styles.errorBox}>⚠ {error}</div>}
                             {resetNotice && <div style={{ ...styles.errorBox, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>{resetNotice}</div>}
-                            <p style={styles.hint}>We only accept a code sent to the email or phone on your account, or a one-time code from a league admin.</p>
+                            <p style={styles.hint}>We only accept a code sent to the email or phone on your account, or a one-time code from a league admin. A new password needs at least 8 characters and cannot be the shared default.</p>
                             <form onSubmit={handleRequestReset} style={styles.form}>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     <label style={styles.label}>Vellar ID</label>
@@ -283,7 +290,7 @@ export default function CommunityHome() {
                                         <span style={styles.vellarPrefix}>VELLAR</span>
                                         <input
                                             type="text"
-                                            placeholder="82"
+                                            placeholder="123"
                                             value={resetData.vellar_id}
                                             onChange={e => { setError(""); setResetData({ ...resetData, vellar_id: e.target.value }); }}
                                             style={{ ...styles.input, paddingLeft: 76 }}
@@ -347,7 +354,7 @@ export default function CommunityHome() {
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     <label style={styles.label}>Password</label>
-                                    <input type="password" placeholder="Min. 6 characters" value={regData.password}
+                                    <input type="password" placeholder="Min. 8 characters" value={regData.password}
                                         onChange={e => { setError(""); setRegData({ ...regData, password: e.target.value }); }}
                                         style={styles.input} required />
                                 </div>

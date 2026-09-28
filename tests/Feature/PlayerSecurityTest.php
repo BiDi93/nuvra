@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Contracts\SmsSender;
 use App\Mail\PlayerPasswordResetLink;
 use App\Models\FootballMatch;
+use App\Models\PlayerVerificationCode;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Support\AuthMessages;
@@ -56,10 +57,26 @@ class PlayerSecurityTest extends TestCase
         $player = $this->player('82');
         $player->forceFill(['password_reset_required' => true])->save();
 
+        config([
+            'nuvra.backoff.login.base' => 30,
+            'nuvra.backoff.login.cap' => 30,
+            'nuvra.backoff.login.free' => 0,
+        ]);
+
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
             'password' => 'password',
-        ])->assertStatus(401)->assertJson(['message' => AuthMessages::LOGIN_FAILED]);
+        ])->assertStatus(403)
+            ->assertJson([
+                'message' => AuthMessages::SET_PASSWORD,
+                'password_reset_required' => true,
+            ])
+            ->assertJsonMissing(['token']);
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'password',
+        ])->assertStatus(429);
     }
 
     public function test_login_backoff_grows_and_then_expires(): void
@@ -586,6 +603,82 @@ class PlayerSecurityTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('status', 'pending')
             ->assertJsonPath('name', 'Hidden Name');
+    }
+
+    public function test_email_reset_path_rejects_a_six_digit_code_and_limits_by_ip(): void
+    {
+        config([
+            'nuvra.backoff.password_reset.base' => 60,
+            'nuvra.backoff.password_reset.cap' => 60,
+            'nuvra.backoff.password_reset.free' => 0,
+        ]);
+
+        $player = $this->player('82');
+        PlayerVerificationCode::create([
+            'user_id' => $player->id,
+            'channel' => 'sms',
+            'code_hash' => hash('sha256', '123456'),
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $this->postJson('/api/community/password/reset', [
+            'token' => '123456',
+            'password' => 'brand-new-pass',
+            'password_confirmation' => 'brand-new-pass',
+        ])->assertStatus(422)->assertJson(['message' => AuthMessages::RESET_FAILED]);
+
+        $this->postJson('/api/community/password/reset', [
+            'token' => '654321',
+            'password' => 'brand-new-pass',
+            'password_confirmation' => 'brand-new-pass',
+        ])->assertStatus(429);
+
+        $this->assertNull(PlayerVerificationCode::query()->value('consumed_at'));
+
+        $this->travel(61)->seconds();
+
+        $this->postJson('/api/community/password/reset', [
+            'vellar_id' => '82',
+            'code' => '123456',
+            'password' => 'brand-new-pass',
+            'password_confirmation' => 'brand-new-pass',
+        ])->assertOk();
+    }
+
+    public function test_reset_request_names_the_configured_activation_contact_only(): void
+    {
+        $this->player('82', ['contact_email' => 'player@example.com']);
+        Mail::fake();
+
+        $plain = $this->postJson('/api/community/password/request', ['vellar_id' => '82']);
+        $plain->assertOk()->assertJson(['message' => AuthMessages::RESET_SENT]);
+        $this->assertStringNotContainsString('Contact:', $plain->getContent());
+
+        config(['nuvra.activation_contact' => 'League desk']);
+        $this->travel(2)->seconds();
+
+        $this->postJson('/api/community/password/request', ['vellar_id' => '82'])
+            ->assertOk()
+            ->assertJson(['message' => AuthMessages::RESET_SENT.' Contact: League desk']);
+    }
+
+    public function test_spoofed_forwarded_for_from_an_untrusted_address_is_ignored(): void
+    {
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.8'])
+            ->withHeader('X-Forwarded-For', '198.51.100.9')
+            ->withHeader('CF-Connecting-IP', '198.51.100.9')
+            ->get('/up')
+            ->assertOk();
+
+        $this->assertSame('203.0.113.8', request()->ip());
+
+        $this->withServerVariables(['REMOTE_ADDR' => '104.16.1.1'])
+            ->withHeader('X-Forwarded-For', '198.51.100.9')
+            ->withHeader('CF-Connecting-IP', '198.51.100.20')
+            ->get('/up')
+            ->assertOk();
+
+        $this->assertSame('198.51.100.20', request()->ip());
     }
 
     private function player(string $number, array $overrides = []): User

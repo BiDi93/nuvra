@@ -91,6 +91,13 @@ const AuthPage = () => {
             // Navigate to community feed
             navigate('/community/feed');
         } catch (err) {
+            if (err.response?.data?.password_reset_required) {
+                setResetForm(f => ({ ...f, vellar_id: loginForm.vellar_id }));
+                setResetNotice(err.response.data.message || 'Set a new password');
+                setError('');
+                setView('reset');
+                return;
+            }
             const msg = err.response?.data?.message ?? 'An error occurred during sign in. Please try again.';
             setError(msg);
         } finally {
@@ -383,7 +390,7 @@ const AuthPage = () => {
                                     <input
                                         className="auth-input"
                                         type="password"
-                                        placeholder="Min. 6 characters"
+                                        placeholder="Min. 8 characters"
                                         value={signupForm.password}
                                         onChange={e => { setError(''); setSignupForm(f => ({ ...f, password: e.target.value })); }}
                                         style={S.input}
@@ -432,7 +439,7 @@ const AuthPage = () => {
                             <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
                             <div style={S.viewHeader}>
                                 <h1 style={S.viewTitle}>Set a password</h1>
-                                <p style={S.viewSubtitle}>We verify the email or phone already on your account, or the one-time code a league admin gave you. Knowing the ID alone is not enough.</p>
+                                <p style={S.viewSubtitle}>We verify the email or phone already on your account, or the one-time code a league admin gave you. Knowing the ID alone is not enough. A new password needs at least 8 characters and cannot be the shared default.</p>
                             </div>
 
                             <form onSubmit={handleRequestReset} style={S.form}>
@@ -443,7 +450,7 @@ const AuthPage = () => {
                                         <input
                                             className="auth-input"
                                             type="text"
-                                            placeholder="82"
+                                            placeholder="123"
                                             value={resetForm.vellar_id}
                                             onChange={e => { setError(''); setResetForm(f => ({ ...f, vellar_id: e.target.value })); }}
                                             style={{ ...S.input, paddingLeft: 80 }}

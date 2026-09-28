@@ -29,11 +29,8 @@ return new class extends Migration
 
         DB::statement('
             INSERT INTO community_announcements_users (id, title, body, created_by, created_at, updated_at)
-            SELECT a.id, a.title, a.body,
-                CASE WHEN u.id IS NULL THEN NULL ELSE a.created_by END,
-                a.created_at, a.updated_at
+            SELECT a.id, a.title, a.body, NULL, a.created_at, a.updated_at
             FROM community_announcements a
-            LEFT JOIN users u ON u.id = a.created_by
         ');
 
         Schema::drop('community_announcements');

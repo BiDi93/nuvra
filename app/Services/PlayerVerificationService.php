@@ -81,39 +81,69 @@ class PlayerVerificationService
         ];
     }
 
-    public function resetWithSecret(?string $token, ?string $login, ?string $code, string $password): bool
+    public function resetWithEmailToken(string $token, string $password): bool
     {
-        return DB::transaction(function () use ($token, $login, $code, $password) {
-            $record = $this->lockMatchingCode($token, $login, $code);
+        $token = strtolower(trim($token));
+
+        if (! preg_match('/\A[0-9a-f]{64}\z/', $token)) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($token, $password) {
+            $record = PlayerVerificationCode::query()
+                ->where('channel', 'email')
+                ->where('code_hash', $this->hash($token))
+                ->whereNull('consumed_at')
+                ->where('expires_at', '>', now())
+                ->lockForUpdate()
+                ->first();
 
             if (! $record) {
                 return false;
             }
 
-            $user = $record->user;
+            return $this->consume($record, $password);
+        });
+    }
 
-            if (! $user || $user->role !== 'player') {
+    public function resetWithSecret(?string $login, ?string $code, string $password): bool
+    {
+        return DB::transaction(function () use ($login, $code, $password) {
+            $record = $this->lockMatchingCode($login, $code);
+
+            if (! $record) {
                 return false;
             }
 
-            $user->forceFill([
-                'password' => $password,
-                'password_reset_required' => false,
-                'password_is_shared' => false,
-                'remember_token' => Str::random(60),
-            ])->save();
-
-            $user->tokens()->delete();
-
-            $record->forceFill(['consumed_at' => now()])->save();
-
-            PlayerVerificationCode::query()
-                ->where('user_id', $user->id)
-                ->whereNull('consumed_at')
-                ->delete();
-
-            return true;
+            return $this->consume($record, $password);
         });
+    }
+
+    private function consume(PlayerVerificationCode $record, string $password): bool
+    {
+        $user = $record->user;
+
+        if (! $user || $user->role !== 'player') {
+            return false;
+        }
+
+        $user->forceFill([
+            'password' => $password,
+            'password_reset_required' => false,
+            'password_is_shared' => false,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $user->tokens()->delete();
+
+        $record->forceFill(['consumed_at' => now()])->save();
+
+        PlayerVerificationCode::query()
+            ->where('user_id', $user->id)
+            ->whereNull('consumed_at')
+            ->delete();
+
+        return true;
     }
 
     public function playerFromLogin(string $input): ?User
@@ -194,12 +224,8 @@ class PlayerVerificationService
         });
     }
 
-    private function lockMatchingCode(?string $token, ?string $login, ?string $code): ?PlayerVerificationCode
+    private function lockMatchingCode(?string $login, ?string $code): ?PlayerVerificationCode
     {
-        if (filled($token)) {
-            return $this->lockHash(strtolower(trim($token)), null);
-        }
-
         if (! filled($login) || ! filled($code)) {
             return null;
         }

@@ -42,6 +42,19 @@ class AttemptLimiter
         RateLimiter::clear($this->cooldownKey($action, 'id', $identifier));
     }
 
+    /**
+     * Token resets are limited by IP only. The token is not part of the key.
+     */
+    public function retryAfterIp(string $action, string $ip): int
+    {
+        return $this->cooldownRemaining($this->cooldownKey($action, 'ip', $ip));
+    }
+
+    public function hitIp(string $action, string $ip): void
+    {
+        $this->record($action, 'ip', $ip);
+    }
+
     private function record(string $action, string $scope, string $value): void
     {
         $window = max(1, (int) config("nuvra.backoff.$action.window", 900));

@@ -101,7 +101,40 @@ return [
     'uat_basic_auth' => [
         'user' => env('UAT_BASIC_AUTH_USER'),
         'password' => env('UAT_BASIC_AUTH_PASS'),
+        'minutes' => (int) env('UAT_BASIC_AUTH_MINUTES', 480),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Who to name when a player needs an activation code
+    |--------------------------------------------------------------------------
+    |
+    | Shown only on the reset-request message. Leave empty for the neutral
+    | sentence. Do not commit a phone number or a person's name.
+    |
+    */
+
+    'activation_contact' => env('NUVRA_ACTIVATION_CONTACT'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted proxies
+    |--------------------------------------------------------------------------
+    |
+    | UAT is behind Cloudflare. Only these ranges may supply
+    | CF-Connecting-IP or X-Forwarded-For. "*" is never trusted. An empty
+    | NUVRA_TRUSTED_PROXIES uses Cloudflare's published ranges.
+    |
+    */
+
+    'trusted_proxies' => (static function () {
+        $configured = array_values(array_filter(
+            array_map('trim', explode(',', (string) env('NUVRA_TRUSTED_PROXIES', ''))),
+            fn (string $value) => $value !== '' && $value !== '*'
+        ));
+
+        return $configured !== [] ? $configured : \App\Support\CloudflareProxies::ranges();
+    })(),
 
     /*
     |--------------------------------------------------------------------------

@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class UatBasicAuthTest extends TestCase
 {
+    use RefreshDatabase;
     public function test_gate_is_off_when_neither_variable_is_set(): void
     {
         config([
@@ -113,5 +116,54 @@ class UatBasicAuthTest extends TestCase
         $this->get('/up')->assertOk();
         $this->get('/')->assertStatus(401);
         $this->postJson('/api/community/login', [])->assertStatus(401);
+    }
+
+    public function test_signed_in_api_call_uses_the_gate_cookie_instead_of_basic_auth(): void
+    {
+        config([
+            'nuvra.uat_basic_auth.user' => 'uat-user',
+            'nuvra.uat_basic_auth.password' => 'uat-secret',
+        ]);
+
+        $player = User::factory()->create([
+            'email' => 'vellar900001@vellarleague.com',
+            'role' => 'player',
+            'status' => 'active',
+            'vellar_id' => 'VELLAR 900001',
+            'password' => 'unique-pass-1',
+        ]);
+
+        $bearer = $player->createToken('community_token')->plainTextToken;
+
+        $this->getJson('/api/community/me', [
+            'Authorization' => 'Bearer '.$bearer,
+        ])->assertStatus(401);
+
+        $login = $this->withServerVariables([
+            'PHP_AUTH_USER' => 'uat-user',
+            'PHP_AUTH_PW' => 'uat-secret',
+        ])->postJson('/api/community/login', [
+            'vellar_id' => '900001',
+            'password' => 'unique-pass-1',
+        ])->assertOk();
+
+        $token = $login->json('token');
+        $gate = $login->getCookie('nuvra_uat_gate', decrypt: false);
+        $this->assertNotNull($gate);
+        $this->assertTrue($gate->isHttpOnly());
+        $this->assertTrue($gate->isSecure());
+        $this->assertSame('lax', strtolower((string) $gate->getSameSite()));
+
+        $this->withServerVariables([])->getJson('/api/community/me', [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertStatus(401);
+
+        $this->withCredentials()
+            ->withUnencryptedCookie('nuvra_uat_gate', $gate->getValue())
+            ->getJson('/api/community/me', [
+                'Authorization' => 'Bearer '.$token,
+            ])
+            ->assertOk()
+            ->assertJsonPath('id', $player->id);
     }
 }
