@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Carbon\Carbon;
 
 class CommunityNotificationController extends Controller
@@ -40,13 +41,19 @@ class CommunityNotificationController extends Controller
         $user = $request->user();
         if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $notification = $user->notifications()->where('id', $id)->first();
-        if ($notification) {
-            $notification->markAsRead();
-            return response()->json(['message' => 'Notification marked as read']);
+        $notification = DatabaseNotification::query()->find($id);
+
+        if (! $notification) {
+            return response()->json(['message' => 'Notification not found'], 404);
         }
 
-        return response()->json(['message' => 'Notification not found'], 404);
+        if (! $user->can('update', $notification)) {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
+        $notification->markAsRead();
+
+        return response()->json(['message' => 'Notification marked as read']);
     }
 
     // Mark all notifications as read

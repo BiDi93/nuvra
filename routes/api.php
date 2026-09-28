@@ -25,7 +25,7 @@ Route::post('/register', [CommunityAuthController::class, 'register']);
 Route::post('/forgot-password', [NewPasswordController::class, 'forgotPassword'])->middleware('guest');
 Route::post('/reset-password', [NewPasswordController::class, 'resetPassword'])->middleware('guest');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', \App\Http\Middleware\ForceVerifiedReset::class])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
@@ -56,7 +56,7 @@ Route::prefix('community')->group(function () {
     Route::get('/members/{id}',     [CommunityGameController::class, 'memberProfile']);
 
     // ── Authenticated Routes ──────────────────────────────────────────────────
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', \App\Http\Middleware\ForceVerifiedReset::class])->group(function () {
         Route::post('/logout',             [CommunityAuthController::class, 'logout']);
         Route::get('/me',                  [CommunityAuthController::class, 'me']);
         Route::get('/profile',             [CommunityGameController::class, 'getProfile']);

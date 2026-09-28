@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Contracts\SmsSender;
 use App\Mail\PlayerPasswordResetLink;
+use App\Models\PlayerCodeAudit;
 use App\Models\PlayerVerificationCode;
 use App\Models\User;
+use App\Support\AttemptLimiter;
 use App\Support\PlayerContact;
 use App\Support\PlayerLocator;
 use Illuminate\Support\Facades\DB;
@@ -14,16 +16,21 @@ use Illuminate\Support\Str;
 
 class PlayerVerificationService
 {
-    public function __construct(private SmsSender $sms) {}
+    public function __construct(
+        private SmsSender $sms,
+        private AttemptLimiter $attempts,
+    ) {}
 
     /**
      * Send a reset secret when a real channel exists. Unknown IDs, admins,
-     * and players with no deliverable channel are silent: the caller always
-     * shows the same message.
+     * and players with no deliverable channel do the same hash work and
+     * leave no signal in the response. Mail and SMS run after the response
+     * so delivery time does not reveal whether the account exists.
      */
     public function requestForLogin(string $input): void
     {
         $user = $this->playerFromLogin($input);
+        $this->hash(bin2hex(random_bytes(16)));
 
         if (! $user) {
             return;
@@ -32,17 +39,7 @@ class PlayerVerificationService
         $email = PlayerContact::usableEmail($user->contact_email);
 
         if ($email) {
-            $token = bin2hex(random_bytes(32));
-            $minutes = (int) config('nuvra.verification_ttl.email');
-            $this->store($user, 'email', strtolower($token), $minutes);
-
-            $url = rtrim((string) config('app.url'), '/').'/reset-password?token='.$token;
-
-            try {
-                Mail::to($email)->send(new PlayerPasswordResetLink($url, $minutes));
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            $this->sendEmailCode($user, $email);
 
             return;
         }
@@ -50,26 +47,33 @@ class PlayerVerificationService
         $phone = PlayerContact::usablePhone($user->phone);
 
         if ($phone && $this->sms->enabled()) {
-            $code = (string) random_int(100000, 999999);
-            $minutes = (int) config('nuvra.verification_ttl.sms');
-            $this->store($user, 'sms', $code, $minutes);
-
-            try {
-                $this->sms->send($phone, "NUVRA password reset code: {$code}. It expires in {$minutes} minutes.");
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            $this->sendSmsCode($user, $phone);
         }
     }
 
     /**
-     * @return array{code: string, expires_at: \Illuminate\Support\Carbon}
+     * @return array{code: string, expires_at: \Illuminate\Support\Carbon}|null
      */
-    public function issueAdminCode(User $player): array
+    public function issueAdminCode(User $player, ?int $adminId, string $source): ?array
     {
+        $key = 'player:'.$player->id;
+
+        if ($this->attempts->blocked('activation_code', $key, null)) {
+            return null;
+        }
+
         $canonical = $this->makeActivationCode();
-        $minutes = (int) config('nuvra.verification_ttl.admin');
+        $minutes = $this->ttl('admin');
         $expiresAt = $this->store($player, 'admin', $canonical, $minutes);
+
+        PlayerCodeAudit::create([
+            'player_id' => $player->id,
+            'admin_id' => $adminId,
+            'source' => $source,
+            'issued_at' => now(),
+        ]);
+
+        $this->attempts->hit('activation_code', $key, null);
 
         return [
             'code' => substr($canonical, 0, 4).'-'.substr($canonical, 4, 4),
@@ -95,12 +99,18 @@ class PlayerVerificationService
             $user->forceFill([
                 'password' => $password,
                 'password_reset_required' => false,
+                'password_is_shared' => false,
                 'remember_token' => Str::random(60),
             ])->save();
 
             $user->tokens()->delete();
 
             $record->forceFill(['consumed_at' => now()])->save();
+
+            PlayerVerificationCode::query()
+                ->where('user_id', $user->id)
+                ->whereNull('consumed_at')
+                ->delete();
 
             return true;
         });
@@ -126,15 +136,68 @@ class PlayerVerificationService
         return PlayerContact::canReceiveSms($user) && $this->sms->enabled();
     }
 
+    private function sendEmailCode(User $user, string $email): void
+    {
+        $destination = 'email:'.$email;
+
+        if ($this->attempts->blocked('reset_destination', $destination, null)) {
+            return;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        $minutes = $this->ttl('email');
+        $this->store($user, 'email', strtolower($token), $minutes);
+        $this->attempts->hit('reset_destination', $destination, null);
+
+        $url = rtrim((string) config('app.url'), '/').'/reset-password?token='.$token;
+
+        $sent = false;
+        app()->terminating(function () use (&$sent, $email, $url, $minutes) {
+            if ($sent) {
+                return;
+            }
+            $sent = true;
+
+            try {
+                Mail::to($email)->send(new PlayerPasswordResetLink($url, $minutes));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+    }
+
+    private function sendSmsCode(User $user, string $phone): void
+    {
+        $destination = 'phone:'.$phone;
+
+        if ($this->attempts->blocked('reset_destination', $destination, null)) {
+            return;
+        }
+
+        $code = (string) random_int(100000, 999999);
+        $minutes = $this->ttl('sms');
+        $this->store($user, 'sms', $code, $minutes);
+        $this->attempts->hit('reset_destination', $destination, null);
+
+        $sent = false;
+        app()->terminating(function () use (&$sent, $phone, $code, $minutes) {
+            if ($sent) {
+                return;
+            }
+            $sent = true;
+
+            try {
+                $this->sms->send($phone, "NUVRA password reset code: {$code}. It expires in {$minutes} minutes.");
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+    }
+
     private function lockMatchingCode(?string $token, ?string $login, ?string $code): ?PlayerVerificationCode
     {
         if (filled($token)) {
-            return PlayerVerificationCode::query()
-                ->where('code_hash', $this->hash(strtolower(trim($token))))
-                ->whereNull('consumed_at')
-                ->where('expires_at', '>', now())
-                ->lockForUpdate()
-                ->first();
+            return $this->lockHash(strtolower(trim($token)), null);
         }
 
         if (! filled($login) || ! filled($code)) {
@@ -142,31 +205,39 @@ class PlayerVerificationService
         }
 
         $user = $this->playerFromLogin($login);
+        $canonical = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code) ?? '');
 
         if (! $user) {
+            $this->lockHash($canonical !== '' ? $canonical : 'missing', null);
+
             return null;
         }
-
-        $canonical = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code) ?? '');
 
         if ($canonical === '') {
             return null;
         }
 
-        return PlayerVerificationCode::query()
-            ->where('user_id', $user->id)
+        return $this->lockHash($canonical, $user->id);
+    }
+
+    private function lockHash(string $canonical, ?int $userId): ?PlayerVerificationCode
+    {
+        $query = PlayerVerificationCode::query()
             ->where('code_hash', $this->hash($canonical))
             ->whereNull('consumed_at')
-            ->where('expires_at', '>', now())
-            ->lockForUpdate()
-            ->first();
+            ->where('expires_at', '>', now());
+
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+
+        return $query->lockForUpdate()->first();
     }
 
     private function store(User $user, string $channel, string $canonical, int $minutes): \Illuminate\Support\Carbon
     {
         PlayerVerificationCode::query()
             ->where('user_id', $user->id)
-            ->where('channel', $channel)
             ->whereNull('consumed_at')
             ->delete();
 
@@ -180,6 +251,11 @@ class PlayerVerificationService
         ]);
 
         return $expiresAt;
+    }
+
+    private function ttl(string $channel): int
+    {
+        return max(1, (int) config("nuvra.verification_ttl.$channel", 15));
     }
 
     private function hash(string $canonical): string

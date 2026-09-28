@@ -10,7 +10,9 @@ use Illuminate\Console\Command;
 
 class IssuePlayerActivationCode extends Command
 {
-    protected $signature = 'players:activation-code {vellar_id : Numeric Vellar ID, for example 82}';
+    protected $signature = 'players:activation-code
+        {vellar_id : Numeric Vellar ID, for example 82}
+        {--admin-id= : User id of the admin who verified the player offline}';
 
     protected $description = 'Print a one-time activation code for one player. Does not send email or SMS.';
 
@@ -24,7 +26,17 @@ class IssuePlayerActivationCode extends Command
             return self::FAILURE;
         }
 
-        $issued = $verification->issueAdminCode($player);
+        $adminId = $this->option('admin-id');
+        $adminId = $adminId === null || $adminId === '' ? null : (int) $adminId;
+
+        $issued = $verification->issueAdminCode($player, $adminId, 'console');
+
+        if (! $issued) {
+            $this->error('A code was just issued for this player. Wait and try again.');
+            $this->line('No new code was created, and nothing was sent.');
+
+            return self::FAILURE;
+        }
 
         $this->line('Activation code: '.$issued['code']);
         $this->line('Expires: '.$issued['expires_at']->toDateTimeString());

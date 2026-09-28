@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Contracts\SmsSender;
 use App\Models\User;
 use App\Support\PlayerContact;
+use App\Support\SharedPassword;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -77,9 +78,17 @@ class RetireDefaultPlayerPasswords extends Command
 
         if (! $apply) {
             $this->info('Dry run only. No passwords were changed and no messages were sent.');
-            $this->line('To apply after a delivery plan is ready: php artisan players:retire-default-passwords --force --allow-undeliverable');
+            $this->line('Turn on NUVRA_RETIRE_SHARED_PASSWORDS only after one test account has reset, then re-run with --force.');
 
             return self::SUCCESS;
+        }
+
+        if (! SharedPassword::retirementEnabled()) {
+            $this->error('Refused. NUVRA_RETIRE_SHARED_PASSWORDS is off.');
+            $this->line('Finish a reset on one test account, set NUVRA_RETIRE_SHARED_PASSWORDS=true, reload config, then re-run.');
+            $this->line('No passwords were changed and no messages were sent.');
+
+            return self::FAILURE;
         }
 
         if ($withNeither > 0 && ! $this->option('allow-undeliverable')) {
@@ -103,6 +112,7 @@ class RetireDefaultPlayerPasswords extends Command
                 $player->forceFill([
                     'password' => Str::random(64),
                     'password_reset_required' => true,
+                    'password_is_shared' => false,
                     'remember_token' => Str::random(60),
                 ])->save();
 

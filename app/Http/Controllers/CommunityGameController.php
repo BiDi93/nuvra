@@ -17,8 +17,7 @@ class CommunityGameController extends Controller
         $match = FootballMatch::find($id);
         if (!$match) return response()->json(['message' => 'Match not found'], 404);
 
-        $me = $request->user();
-        if ((int) $match->organizer_id !== (int) $me->id && $me->role !== 'admin') {
+        if (! $request->user()->can('manage', $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -159,9 +158,7 @@ class CommunityGameController extends Controller
         }
 
         $viewer = $request->user('sanctum');
-        $canSeePrivate = $viewer && (
-            (int) $viewer->id === (int) $user->id || $viewer->role === 'admin'
-        );
+        $canSeePrivate = $viewer && $viewer->can('viewPrivate', $user);
 
         $profile = [
             'id' => $user->id,
@@ -303,6 +300,10 @@ class CommunityGameController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        if (! $user->can('update', $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
             'phone'     => 'nullable|string|max:50',
@@ -418,14 +419,13 @@ class CommunityGameController extends Controller
     // Update Player Statistics & Info (Admin only)
     public function updatePlayerStats(Request $request, $id)
     {
-        $me = $request->user();
-        if (!$me || $me->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
-        }
-
         $player = User::find($id);
         if (!$player) {
             return response()->json(['message' => 'Player not found.'], 404);
+        }
+
+        if (! $request->user()?->can('updateStats', $player)) {
+            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
         }
 
         $validated = $request->validate([

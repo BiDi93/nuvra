@@ -14,5 +14,7 @@ class AuthMessages
 
     public const RESET_SAVED = 'Your password has been updated. You can sign in with it now.';
 
+    public const RESET_REQUIRED = 'Set a new password before continuing.';
+
     public const FORGOT_GENERIC = 'If an account with that email can receive mail, a reset link has been sent.';
 }

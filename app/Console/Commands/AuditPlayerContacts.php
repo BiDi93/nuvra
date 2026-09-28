@@ -23,6 +23,9 @@ class AuditPlayerContacts extends Command
         $usableContactEmails = 0;
         $usablePhones = 0;
         $noPhone = 0;
+        $invalidPhones = 0;
+        $phonesWithLetters = 0;
+        $malformedEmails = 0;
         $noChannel = 0;
         $onDefault = 0;
 
@@ -36,6 +39,9 @@ class AuditPlayerContacts extends Command
                 &$usableContactEmails,
                 &$usablePhones,
                 &$noPhone,
+                &$invalidPhones,
+                &$phonesWithLetters,
+                &$malformedEmails,
                 &$noChannel,
                 &$onDefault,
             ) {
@@ -46,17 +52,29 @@ class AuditPlayerContacts extends Command
                         $placeholderEmails++;
                     }
 
+                    $loginEmail = strtolower(trim((string) $player->email));
+                    if ($loginEmail !== '' && ! filter_var($loginEmail, FILTER_VALIDATE_EMAIL)) {
+                        $malformedEmails++;
+                    }
+
                     $email = PlayerContact::canReceiveEmail($player);
                     $phone = PlayerContact::canReceiveSms($player);
+                    $rawPhone = trim((string) $player->phone);
 
                     if ($email) {
                         $usableContactEmails++;
                     }
 
-                    if ($phone) {
-                        $usablePhones++;
-                    } else {
+                    if ($rawPhone === '') {
                         $noPhone++;
+                    } elseif (! $phone) {
+                        $invalidPhones++;
+                    } else {
+                        $usablePhones++;
+                    }
+
+                    if ($rawPhone !== '' && preg_match('/[A-Za-z]/', $rawPhone)) {
+                        $phonesWithLetters++;
                     }
 
                     if (! $email && ! $phone) {
@@ -83,8 +101,11 @@ class AuditPlayerContacts extends Command
         $this->line('Login emails that are @vellarleague.com placeholders: '.$placeholderEmails);
         $this->line('Players with a usable recovery email: '.$usableContactEmails);
         $this->line('Players with a usable phone: '.$usablePhones);
-        $this->line('Players with no usable phone: '.$noPhone);
-        $this->line('Players with neither a recovery email nor a phone: '.$noChannel);
+        $this->line('Players with no phone: '.$noPhone);
+        $this->line('Players with a phone that is the wrong length: '.$invalidPhones);
+        $this->line('Players whose phone contains letters: '.$phonesWithLetters);
+        $this->line('Players with a malformed login email: '.$malformedEmails);
+        $this->line('Players with neither a recovery email nor a usable phone: '.$noChannel);
         $this->line('Players still on the shared default password: '.$onDefault);
         $this->line('Admin accounts: '.$admins);
         $this->line('Admin accounts still on the shared default password: '.$adminsOnDefault);

@@ -9,28 +9,36 @@ return [
     |
     | Historical imports stored this same password for every player. It is
     | used only to recognise those hashes. Deploying this config does not
-    | change any account. Retirement is a manual artisan command.
+    | change any account. Retirement stays off until the owner sets
+    | NUVRA_RETIRE_SHARED_PASSWORDS=true after a test reset.
     |
     */
 
     'shared_player_password' => 'password',
 
+    'retire_shared_passwords' => filter_var(env('NUVRA_RETIRE_SHARED_PASSWORDS', false), FILTER_VALIDATE_BOOLEAN),
+
     /*
     |--------------------------------------------------------------------------
-    | Attempt limits
+    | Escalating backoff
     |--------------------------------------------------------------------------
     |
-    | Counts are failures (or, for check-status, every call) inside the decay
-    | window, tracked separately per identifier and per IP address.
+    | Each failure starts a short wait that doubles, then expires. The first
+    | `free` hits do not start a wait; the next hit does, and the request
+    | after that waits. check-status allows 40 polls so the waiting room
+    | can keep asking. Keys are a hash of the ID and a hash of the IP.
+    | There is no hard lockout.
     |
     */
 
-    'limits' => [
-        'login' => ['id' => 5, 'ip' => 30, 'decay' => 900],
-        'password_request' => ['id' => 5, 'ip' => 15, 'decay' => 900],
-        'password_reset' => ['id' => 5, 'ip' => 20, 'decay' => 900],
-        'check_status' => ['id' => 40, 'ip' => 600, 'decay' => 900],
-        'forgot_password' => ['id' => 5, 'ip' => 15, 'decay' => 900],
+    'backoff' => [
+        'login' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
+        'password_request' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
+        'password_reset' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
+        'forgot_password' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
+        'reset_destination' => ['base' => 60, 'cap' => 900, 'window' => 900, 'free' => 0],
+        'activation_code' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
+        'check_status' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 40],
     ],
 
     /*
@@ -40,9 +48,9 @@ return [
     */
 
     'verification_ttl' => [
-        'email' => 60,
-        'sms' => 10,
-        'admin' => 72 * 60,
+        'email' => 15,
+        'sms' => 15,
+        'admin' => 15,
     ],
 
     /*

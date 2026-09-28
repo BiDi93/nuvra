@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Rules\NotSharedDefaultPassword;
 use App\Services\PlayerVerificationService;
 use App\Support\AttemptLimiter;
+use App\Support\AttemptResponse;
 use App\Support\AuthMessages;
 use App\Support\PlayerContact;
 use App\Support\PlayerLocator;
@@ -26,8 +27,8 @@ class CommunityPasswordResetController extends Controller
 
         $identifier = PlayerLocator::identifier($request->vellar_id);
 
-        if ($this->attempts->blocked('password_request', $identifier, $request->ip())) {
-            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        if ($denied = AttemptResponse::ifBlocked($this->attempts, 'password_request', $identifier, $request->ip())) {
+            return $denied;
         }
 
         $this->attempts->hit('password_request', $identifier, $request->ip());
@@ -49,8 +50,8 @@ class CommunityPasswordResetController extends Controller
             ? 'token:'.hash('sha256', (string) $request->token)
             : PlayerLocator::identifier((string) $request->input('vellar_id', ''));
 
-        if ($this->attempts->blocked('password_reset', $identifier, $request->ip())) {
-            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        if ($denied = AttemptResponse::ifBlocked($this->attempts, 'password_reset', $identifier, $request->ip())) {
+            return $denied;
         }
 
         if (! filled($request->token) && (! filled($request->vellar_id) || ! filled($request->code))) {
@@ -79,20 +80,29 @@ class CommunityPasswordResetController extends Controller
 
     public function issueActivationCode(Request $request, $id)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Access denied.'], 403);
-        }
-
         $player = User::find($id);
 
         if (! $player || $player->role !== 'player') {
             return response()->json(['message' => 'Player not found.'], 404);
         }
 
-        $issued = $this->verification->issueAdminCode($player);
+        if (! $request->user()->can('issueActivationCode', $player)) {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
+        $issued = $this->verification->issueAdminCode($player, $request->user()->id, 'admin_api');
+
+        if (! $issued) {
+            $wait = $this->attempts->retryAfter('activation_code', 'player:'.$player->id, null);
+
+            return response()->json([
+                'message' => AuthMessages::TOO_MANY,
+                'retry_after' => max(1, $wait),
+            ], 429, ['Retry-After' => (string) max(1, $wait)]);
+        }
 
         return response()->json([
-            'message' => 'Give this code to the player in person. It is shown only once.',
+            'message' => 'Give this code to the player in person. It is shown only once. The password is not included.',
             'activation_code' => $issued['code'],
             'expires_at' => $issued['expires_at']->toIso8601String(),
             'can_receive_email' => PlayerContact::canReceiveEmail($player),

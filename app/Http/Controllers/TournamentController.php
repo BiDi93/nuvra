@@ -254,7 +254,7 @@ class TournamentController extends Controller
         $match = FootballMatch::findOrFail($matchId);
         $user = $request->user();
 
-        if (! $this->canManageMatch($match, $user)) {
+        if (! $user?->can('manage', $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -284,35 +284,12 @@ class TournamentController extends Controller
         $match = FootballMatch::findOrFail($matchId);
         $user = $request->user();
 
-        if (! $this->canManageMatch($match, $user)) {
+        if (! $user?->can('manage', $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $match->delete();
         return response()->json(['message' => 'Fixture deleted successfully']);
-    }
-
-    /**
-     * Admin, the tournament organizer, or the match organizer when the match
-     * is not part of a tournament. A signed-in player cannot edit another match.
-     */
-    protected function canManageMatch(FootballMatch $match, $user): bool
-    {
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        $tournament = $match->tournament;
-
-        if ($tournament) {
-            return (int) $tournament->organizer_id === (int) $user->id;
-        }
-
-        return (int) $match->organizer_id === (int) $user->id;
     }
 
     /**

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Rules\NotSharedDefaultPassword;
 use App\Support\AttemptLimiter;
+use App\Support\AttemptResponse;
 use App\Support\AuthMessages;
 use App\Support\PlayerLocator;
+use App\Support\SharedPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -73,8 +75,8 @@ class CommunityAuthController extends Controller
         $identifier = PlayerLocator::identifier($input);
         $attempts = app(AttemptLimiter::class);
 
-        if ($attempts->blocked('login', $identifier, $request->ip())) {
-            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        if ($denied = AttemptResponse::ifBlocked($attempts, 'login', $identifier, $request->ip())) {
+            return $denied;
         }
 
         // If input contains '@', treat as email (for admin/organizer)
@@ -93,9 +95,23 @@ class CommunityAuthController extends Controller
         // A fixed hash keeps a missing account on the same cost as a real one.
         $hash = $user?->password ?? '$2y$12$0JVSj34kuHi7I8AV0oUaiOyzOqJPIGbVFHHTJZcfAHiiOlAH5CbVy';
         $passwordMatches = Hash::check($request->password, $hash);
-        $mustReset = $user && $user->role === 'player' && $user->password_reset_required;
+        $isPlayer = $user && $user->role === 'player';
+        $submittedShared = SharedPassword::same((string) $request->password);
 
-        if (! $user || ! $passwordMatches || $mustReset) {
+        if ($isPlayer && $passwordMatches) {
+            $user->forceFill(['password_is_shared' => $submittedShared])->save();
+        }
+
+        $forcedReset = $isPlayer && $passwordMatches && (
+            $user->password_reset_required
+            || (SharedPassword::retirementEnabled() && $submittedShared)
+        );
+
+        if ($forcedReset) {
+            SharedPassword::requireReset($user);
+        }
+
+        if (! $user || ! $passwordMatches || $forcedReset) {
             $attempts->hit('login', $identifier, $request->ip());
 
             return response()->json(['message' => AuthMessages::LOGIN_FAILED], 401);
@@ -157,8 +173,7 @@ class CommunityAuthController extends Controller
     // List pending players
     public function pendingPlayers(Request $request)
     {
-        // Only admin can access
-        if ($request->user()->role !== 'admin') {
+        if (! $request->user()->can('viewAny', User::class)) {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
@@ -176,14 +191,10 @@ class CommunityAuthController extends Controller
     // Approve player
     public function approvePlayer(Request $request, $id)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Access denied.'], 403);
-        }
-
         $player = User::findOrFail($id);
 
-        if ($player->role !== 'player') {
-            return response()->json(['message' => 'This user is not a player.'], 422);
+        if (! $request->user()->can('reviewRegistration', $player)) {
+            return response()->json(['message' => 'Access denied.'], 403);
         }
 
         $player->update(['status' => 'active']);
@@ -197,14 +208,10 @@ class CommunityAuthController extends Controller
     // Reject / delete player
     public function rejectPlayer(Request $request, $id)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Access denied.'], 403);
-        }
-
         $player = User::findOrFail($id);
 
-        if ($player->role !== 'player') {
-            return response()->json(['message' => 'This user is not a player.'], 422);
+        if (! $request->user()->can('reviewRegistration', $player)) {
+            return response()->json(['message' => 'Access denied.'], 403);
         }
 
         $name     = $player->name;
@@ -222,8 +229,8 @@ class CommunityAuthController extends Controller
         $identifier = PlayerLocator::identifier((string) $request->input('vellar_id', ''));
         $attempts = app(AttemptLimiter::class);
 
-        if ($attempts->blocked('check_status', $identifier, $request->ip())) {
-            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        if ($denied = AttemptResponse::ifBlocked($attempts, 'check_status', $identifier, $request->ip())) {
+            return $denied;
         }
 
         $attempts->hit('check_status', $identifier, $request->ip());

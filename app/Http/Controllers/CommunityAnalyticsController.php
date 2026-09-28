@@ -10,7 +10,7 @@ class CommunityAnalyticsController extends Controller
 {
     public function index(Request $request)
     {
-        if ($request->user()?->role !== 'admin') {
+        if (! $request->user()?->can('viewAnalytics')) {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 

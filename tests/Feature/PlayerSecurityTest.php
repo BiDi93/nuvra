@@ -29,6 +29,7 @@ class PlayerSecurityTest extends TestCase
             'vellar_id' => '99999',
             'password' => 'password',
         ]);
+        $this->travel(2)->seconds();
         $known = $this->postJson('/api/community/login', [
             'vellar_id' => '82',
             'password' => 'not-the-password',
@@ -61,47 +62,68 @@ class PlayerSecurityTest extends TestCase
         ])->assertStatus(401)->assertJson(['message' => AuthMessages::LOGIN_FAILED]);
     }
 
-    public function test_login_is_rate_limited_per_id_and_per_ip(): void
+    public function test_login_backoff_grows_and_then_expires(): void
     {
         config([
-            'nuvra.limits.login.id' => 3,
-            'nuvra.limits.login.ip' => 100,
+            'nuvra.backoff.login.base' => 1,
+            'nuvra.backoff.login.cap' => 8,
+            'nuvra.backoff.login.free' => 0,
         ]);
 
         $this->player('82');
 
-        for ($i = 0; $i < 3; $i++) {
-            $this->postJson('/api/community/login', [
-                'vellar_id' => '82',
-                'password' => 'wrong-password',
-            ])->assertStatus(401);
-        }
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'wrong-password',
+        ])->assertStatus(401);
+
+        $firstWait = $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'wrong-password',
+        ]);
+        $firstWait->assertStatus(429)->assertJson(['message' => AuthMessages::TOO_MANY]);
+        $firstRetry = (int) $firstWait->headers->get('Retry-After');
+        $this->assertGreaterThanOrEqual(1, $firstRetry);
+
+        $this->travel($firstRetry)->seconds();
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
             'password' => 'wrong-password',
-        ])->assertStatus(429)->assertJson(['message' => AuthMessages::TOO_MANY]);
+        ])->assertStatus(401);
+
+        $secondWait = $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'wrong-password',
+        ]);
+        $secondWait->assertStatus(429);
+        $this->assertGreaterThan($firstRetry, (int) $secondWait->headers->get('Retry-After'));
     }
 
-    public function test_login_is_rate_limited_per_ip_across_ids(): void
+    public function test_login_backoff_applies_per_ip_across_ids(): void
     {
         config([
-            'nuvra.limits.login.id' => 100,
-            'nuvra.limits.login.ip' => 2,
+            'nuvra.backoff.login.base' => 2,
+            'nuvra.backoff.login.cap' => 8,
+            'nuvra.backoff.login.free' => 0,
         ]);
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '501',
             'password' => 'wrong-password',
         ])->assertStatus(401);
+
         $this->postJson('/api/community/login', [
             'vellar_id' => '502',
             'password' => 'wrong-password',
-        ])->assertStatus(401);
+        ])->assertStatus(429);
+
+        $this->travel(2)->seconds();
+
         $this->postJson('/api/community/login', [
             'vellar_id' => '503',
             'password' => 'wrong-password',
-        ])->assertStatus(429);
+        ])->assertStatus(401);
     }
 
     public function test_registration_rejects_the_shared_default_password(): void
@@ -135,6 +157,7 @@ class PlayerSecurityTest extends TestCase
         $this->player('82', ['phone' => '0123456789']);
 
         $known = $this->postJson('/api/community/password/request', ['vellar_id' => '82']);
+        $this->travel(2)->seconds();
         $unknown = $this->postJson('/api/community/password/request', ['vellar_id' => '40404']);
 
         $known->assertOk();
@@ -179,6 +202,8 @@ class PlayerSecurityTest extends TestCase
             'password' => 'password',
         ])->assertStatus(401);
 
+        $this->travel(2)->seconds();
+
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
             'password' => 'brand-new-pass',
@@ -215,22 +240,21 @@ class PlayerSecurityTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_reset_attempts_are_rate_limited(): void
+    public function test_reset_attempts_use_backoff_instead_of_a_hard_lock(): void
     {
         config([
-            'nuvra.limits.password_reset.id' => 3,
-            'nuvra.limits.password_reset.ip' => 100,
+            'nuvra.backoff.password_reset.base' => 1,
+            'nuvra.backoff.password_reset.cap' => 8,
+            'nuvra.backoff.password_reset.free' => 0,
         ]);
         $this->player('82');
 
-        for ($i = 0; $i < 3; $i++) {
-            $this->postJson('/api/community/password/reset', [
-                'vellar_id' => '82',
-                'code' => 'AAAA-BBBB',
-                'password' => 'a-new-password',
-                'password_confirmation' => 'a-new-password',
-            ])->assertStatus(422);
-        }
+        $this->postJson('/api/community/password/reset', [
+            'vellar_id' => '82',
+            'code' => 'AAAA-BBBB',
+            'password' => 'a-new-password',
+            'password_confirmation' => 'a-new-password',
+        ])->assertStatus(422);
 
         $this->postJson('/api/community/password/reset', [
             'vellar_id' => '82',
@@ -238,6 +262,15 @@ class PlayerSecurityTest extends TestCase
             'password' => 'a-new-password',
             'password_confirmation' => 'a-new-password',
         ])->assertStatus(429);
+
+        $this->travel(2)->seconds();
+
+        $this->postJson('/api/community/password/reset', [
+            'vellar_id' => '82',
+            'code' => 'AAAA-BBBB',
+            'password' => 'a-new-password',
+            'password_confirmation' => 'a-new-password',
+        ])->assertStatus(422);
     }
 
     public function test_admin_activation_code_is_single_use_and_hidden_from_players(): void
@@ -289,6 +322,10 @@ class PlayerSecurityTest extends TestCase
         $this->assertTrue(Hash::check('password', $shared->fresh()->password));
         Mail::assertNothingSent();
 
+        config(['nuvra.retire_shared_passwords' => false]);
+        $this->artisan('players:retire-default-passwords', ['--force' => true])->assertFailed();
+
+        config(['nuvra.retire_shared_passwords' => true]);
         $this->artisan('players:retire-default-passwords', ['--force' => true])->assertFailed();
         $this->assertTrue(Hash::check('password', $shared->fresh()->password));
         $this->assertFalse($shared->fresh()->password_reset_required);
@@ -315,6 +352,8 @@ class PlayerSecurityTest extends TestCase
             ->getJson('/api/community/me')
             ->assertStatus(401);
 
+        $this->travel(2)->seconds();
+
         $this->postJson('/api/community/login', [
             'vellar_id' => '83',
             'password' => 'already-unique',
@@ -327,6 +366,7 @@ class PlayerSecurityTest extends TestCase
         $player = $this->player('82');
         $player->forceFill(['contact_email' => 'player@example.com'])->save();
 
+        config(['nuvra.retire_shared_passwords' => true]);
         $this->artisan('players:retire-default-passwords', ['--force' => true])->assertSuccessful();
 
         $this->assertTrue($player->fresh()->password_reset_required);
@@ -419,7 +459,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->actingAs($owner, 'sanctum')
             ->postJson("/api/community/notifications/{$id}/read")
-            ->assertStatus(404);
+            ->assertStatus(403);
 
         $this->assertNull(DB::table('notifications')->where('id', $id)->value('read_at'));
     }
@@ -490,6 +530,7 @@ class PlayerSecurityTest extends TestCase
         $placeholder = $this->postJson('/api/forgot-password', [
             'email' => 'vellar82@vellarleague.com',
         ]);
+        $this->travel(2)->seconds();
         $missing = $this->postJson('/api/forgot-password', [
             'email' => 'nobody@example.com',
         ]);
@@ -499,6 +540,8 @@ class PlayerSecurityTest extends TestCase
         $this->assertSame(AuthMessages::FORGOT_GENERIC, $placeholder->json('message'));
         $this->assertSame($placeholder->json('message'), $missing->json('message'));
         Notification::assertNothingSent();
+
+        $this->travel(2)->seconds();
 
         $this->postJson('/api/forgot-password', [
             'email' => 'real-person@example.com',
@@ -510,8 +553,9 @@ class PlayerSecurityTest extends TestCase
     public function test_check_status_is_rate_limited(): void
     {
         config([
-            'nuvra.limits.check_status.id' => 2,
-            'nuvra.limits.check_status.ip' => 2,
+            'nuvra.backoff.check_status.free' => 1,
+            'nuvra.backoff.check_status.base' => 30,
+            'nuvra.backoff.check_status.cap' => 30,
         ]);
 
         $this->postJson('/api/community/check-status', ['vellar_id' => '82'])->assertStatus(404);

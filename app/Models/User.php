@@ -64,7 +64,27 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'password_reset_required' => 'boolean',
+            'is_test_account' => 'boolean',
         ];
+    }
+
+    /**
+     * Null means this account has not been checked yet. The column is not
+     * cast: a boolean cast would turn that null into false.
+     */
+    public function sharedPasswordState(): ?bool
+    {
+        if (! array_key_exists('password_is_shared', $this->getAttributes())) {
+            return null;
+        }
+
+        $value = $this->getAttributes()['password_is_shared'];
+
+        if ($value === null) {
+            return null;
+        }
+
+        return (bool) $value;
     }
 
     /**
