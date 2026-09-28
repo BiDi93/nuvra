@@ -2,17 +2,15 @@
 
 namespace App\Models;
 
-use Laravel\Sanctum\HasApiTokens;
-
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable,HasApiTokens;
+    use HasApiTokens, HasFactory,Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -29,6 +27,7 @@ class User extends Authenticatable
         'club_logo',
         'address',
         'phone',
+        'contact_email',
         'club_name',
         'established_at',
         'location',
@@ -50,6 +49,9 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'status_token',
+        'contact_email_source',
+        'password_is_shared_verified',
     ];
 
     /**
@@ -62,7 +64,28 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'password_reset_required' => 'boolean',
+            'is_test_account' => 'boolean',
         ];
+    }
+
+    /**
+     * Null means this account has not been checked yet. The column is not
+     * cast: a boolean cast would turn that null into false.
+     */
+    public function sharedPasswordState(): ?bool
+    {
+        if (! array_key_exists('password_is_shared', $this->getAttributes())) {
+            return null;
+        }
+
+        $value = $this->getAttributes()['password_is_shared'];
+
+        if ($value === null) {
+            return null;
+        }
+
+        return (bool) $value;
     }
 
     /**
@@ -79,8 +102,8 @@ class User extends Authenticatable
     public function joinedMatches()
     {
         return $this->belongsToMany(FootballMatch::class, 'match_player', 'user_id', 'match_id')
-                    ->withPivot('status')
-                    ->withTimestamps();
+            ->withPivot('status')
+            ->withTimestamps();
     }
 
     /**

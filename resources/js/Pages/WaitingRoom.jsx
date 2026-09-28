@@ -20,14 +20,19 @@ const WaitingRoom = () => {
         if (!vellarId) return;
 
         try {
-            const res = await axios.post('/api/community/check-status', { vellar_id: vellarId });
+            const res = await axios.post('/api/community/check-status', {
+                vellar_id: vellarId,
+                status_token: localStorage.getItem('pending_status_token') || '',
+            });
             const data = res.data;
+            if (!data.status) return;
             setPlayer(data);
             setLastChecked(new Date());
 
             if (data.status === 'active') {
                 // Approved! Redirect to login
                 localStorage.removeItem('pending_vellar_id');
+                localStorage.removeItem('pending_status_token');
                 navigate('/login', {
                     state: { message: `✅ Your account has been approved! Sign in using Vellar ID ${vellarId}.` }
                 });
@@ -57,6 +62,7 @@ const WaitingRoom = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('pending_vellar_id');
+        localStorage.removeItem('pending_status_token');
         navigate('/login');
     };
 

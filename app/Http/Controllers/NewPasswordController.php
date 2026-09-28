@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Rules\NotSharedDefaultPassword;
+use App\Rules\PlayerPassword;
+use App\Support\AttemptLimiter;
+use App\Support\AttemptResponse;
+use App\Support\AuthMessages;
+use App\Support\PlayerContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
-use App\Models\User;
 
 class NewPasswordController extends Controller
 {
@@ -18,14 +22,37 @@ class NewPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        // Attempt to send the password reset link
-        $status = Password::broker()->sendResetLink(
-            $request->only('email')
-        );
+        $email = strtolower($request->email);
+        $attempts = app(AttemptLimiter::class);
 
-        return $status == Password::RESET_LINK_SENT
-                    ? response()->json(['message' => __($status), 'status' => 'success'])
-                    : response()->json(['message' => __($status), 'status' => 'error'], 400);
+        $identifier = 'email:'.$email;
+
+        if ($denied = AttemptResponse::ifBlocked($attempts, 'forgot_password', $identifier, $request->ip())) {
+            return $denied;
+        }
+
+        $attempts->hit('forgot_password', $identifier, $request->ip());
+
+        $user = User::where('email', $request->email)->first();
+
+        // Placeholder @vellarleague.com addresses are login keys, not inboxes.
+        // Send after the response so a live mailer does not reveal that the address exists.
+        if ($user && PlayerContact::usableEmail($user->email)) {
+            $inbox = $user->email;
+            $sent = false;
+            app()->terminating(function () use (&$sent, $inbox) {
+                if ($sent) {
+                    return;
+                }
+                $sent = true;
+                Password::broker()->sendResetLink(['email' => $inbox]);
+            });
+        }
+
+        return response()->json([
+            'message' => AuthMessages::FORGOT_GENERIC,
+            'status' => 'success',
+        ]);
     }
 
     /**
@@ -36,23 +63,37 @@ class NewPasswordController extends Controller
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:8|confirmed',
+            'password' => ['required', 'string', 'confirmed', new PlayerPassword, new NotSharedDefaultPassword],
         ]);
 
-        // Attempt to reset the user's password
+        $attempts = app(AttemptLimiter::class);
+        $identifier = 'email:'.strtolower($request->email);
+
+        if ($denied = AttemptResponse::ifBlocked($attempts, 'password_reset', $identifier, $request->ip())) {
+            return $denied;
+        }
+
         $status = Password::broker()->reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
                 $user->forceFill([
-                    'password' => Hash::make($password)
-                ])->setRememberToken(Str::random(60));
+                    'password' => $password,
+                    'password_reset_required' => false,
+                    'password_is_shared' => false,
+                    'password_is_shared_verified' => null,
+                    'remember_token' => Str::random(60),
+                ])->save();
 
-                $user->save();
+                $user->tokens()->delete();
             }
         );
 
-        return $status == Password::PASSWORD_RESET
-                    ? response()->json(['message' => __($status), 'status' => 'success'])
-                    : response()->json(['message' => __($status), 'status' => 'error'], 400);
+        if ($status != Password::PASSWORD_RESET) {
+            $attempts->hit('password_reset', $identifier, $request->ip());
+
+            return response()->json(['message' => AuthMessages::RESET_FAILED, 'status' => 'error'], 400);
+        }
+
+        return response()->json(['message' => __($status), 'status' => 'success']);
     }
 }

@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\FootballMatch;
 use App\Models\Performance;
-use Illuminate\Support\Facades\Hash;
+use App\Support\DemoData;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -14,13 +14,16 @@ class PlayerDummySeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Create a dummy Owner
+        DemoData::refuseInProduction(self::class);
+
+        // 1. Demo organizer. Not an admin, and not a known weak password.
         $owner = User::updateOrCreate(
             ['email' => 'owner@nuvra.com'],
             [
                 'name' => 'Nuvra Organizer',
-                'password' => Hash::make('password'),
-                'role' => 'admin',
+                'password' => DemoData::passwordHash(),
+                'role' => 'player',
+                'status' => 'active',
                 'club_name' => 'Nuvra Elite FC',
                 'established_at' => '2024-01-01',
                 'location' => 'Kuala Lumpur',
@@ -71,7 +74,7 @@ class PlayerDummySeeder extends Seeder
                 ['email' => "player{$num}@nuvra.com"],
                 [
                     'name'           => $data['name'],
-                    'password'       => Hash::make('password'),
+                    'password'       => DemoData::passwordHash(),
                     'role'           => 'player',
                     'phone'          => $data['phone'],
                     'address'        => $data['address'],

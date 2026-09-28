@@ -13,7 +13,7 @@ return new class extends Migration
     {
     Schema::table('players', function (Blueprint $table) {
         // Stores the encrypted password
-        $table->string('password')->default(bcrypt('password123')); 
+        $table->string('password'); 
         // Stores the URL to their photo (e.g. '/images/avatar1.png')
         $table->string('profile_image')->nullable(); 
     });

@@ -19,7 +19,9 @@ export default function PlayerProfile() {
         phone: "",
         position: "",
         club_name: "",
-        address: ""
+        address: "",
+        contact_email: "",
+        current_password: ""
     });
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState({ error: null, success: null });
@@ -73,6 +75,8 @@ export default function PlayerProfile() {
             position: profile.user.position || "",
             club_name: profile.user.club_name || "",
             address: profile.user.address || "",
+            contact_email: profile.user.contact_email || "",
+            current_password: "",
         });
         setSaveStatus({ error: null, success: null });
         setShowEditModal(true);
@@ -84,6 +88,9 @@ export default function PlayerProfile() {
         setSaveStatus({ error: null, success: null });
         try {
             const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+            const originalEmail = (profile?.user?.contact_email || "").trim().toLowerCase();
+            const nextEmail = (basicForm.contact_email || "").trim().toLowerCase();
+            const emailChanged = originalEmail !== nextEmail;
             const res = await fetch(`${API}/profile`, {
                 method: "PUT",
                 headers: {
@@ -97,6 +104,8 @@ export default function PlayerProfile() {
                     position: basicForm.position,
                     club_name: basicForm.club_name,
                     address: basicForm.address,
+                    contact_email: basicForm.contact_email,
+                    ...(emailChanged ? { current_password: basicForm.current_password } : {}),
                 })
             });
             const resData = await res.json();
@@ -111,6 +120,7 @@ export default function PlayerProfile() {
                         position: basicForm.position,
                         club_name: basicForm.club_name,
                         address: basicForm.address,
+                        contact_email: basicForm.contact_email,
                     }
                 }));
                 // Update cached user in localStorage
@@ -124,6 +134,7 @@ export default function PlayerProfile() {
                         position: basicForm.position,
                         club_name: basicForm.club_name,
                         address: basicForm.address,
+                        contact_email: basicForm.contact_email,
                     }));
                 }
                 setSaveStatus({ error: null, success: "Profile information updated successfully!" });
@@ -332,6 +343,7 @@ export default function PlayerProfile() {
                         <InfoItem label="Position" value={user.position || "Not set"} />
                         <InfoItem label="Club / Team" value={user.club_name || (isOwner ? club?.name : "Free Agent")} />
                         <InfoItem label="Phone" value={user.phone || "Not set"} />
+                        <InfoItem label="Recovery email" value={user.contact_email || "Not set"} />
                         <InfoItem label="Address" value={user.address || "Not set"} />
                         {isOwner && (
                             <>
@@ -492,6 +504,38 @@ export default function PlayerProfile() {
                                             className="modal-input"
                                         />
                                     </div>
+                                    <div style={{ gridColumn: "span 2" }}>
+                                        <label style={S.formLabel}>Recovery email</label>
+                                        {profile?.user?.contact_email_locked ? (
+                                            <p style={{ margin: "6px 0 0", color: "#9CA3AF", fontSize: "13px", lineHeight: 1.45 }}>
+                                                Your team manager will add your recovery email. You can change it after you set your own password.
+                                            </p>
+                                        ) : null}
+                                        <input
+                                            type="email"
+                                            placeholder="Personal email for password reset"
+                                            value={basicForm.contact_email}
+                                            readOnly={Boolean(profile?.user?.contact_email_locked)}
+                                            disabled={Boolean(profile?.user?.contact_email_locked)}
+                                            onChange={(e) => setBasicForm({ ...basicForm, contact_email: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    {!profile?.user?.contact_email_locked && (basicForm.contact_email || "").trim().toLowerCase() !== (profile?.user?.contact_email || "").trim().toLowerCase() && (
+                                        <div style={{ gridColumn: "span 2" }}>
+                                            <label style={S.formLabel}>Current password</label>
+                                            <input
+                                                type="password"
+                                                autoComplete="current-password"
+                                                placeholder="Required to change the recovery email"
+                                                value={basicForm.current_password}
+                                                onChange={(e) => setBasicForm({ ...basicForm, current_password: e.target.value })}
+                                                style={S.formInput}
+                                                className="modal-input"
+                                            />
+                                        </div>
+                                    )}
                                     <div>
                                         <label style={S.formLabel}>Address / Area</label>
                                         <input

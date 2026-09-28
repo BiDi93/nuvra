@@ -7,25 +7,28 @@ use App\Models\User;
 use App\Models\FootballMatch;
 use App\Models\Performance;
 use App\Models\MatchPlayer;
-use Illuminate\Support\Facades\Hash;
+use App\Support\DemoData;
 use Illuminate\Support\Facades\DB;
 
 class CommunitySeeder extends Seeder
 {
     public function run(): void
     {
+        DemoData::refuseInProduction(self::class);
+
         // 1. Clear legacy data tables first
         DB::statement('DELETE FROM match_player');
         DB::statement('DELETE FROM performances');
         DB::statement('DELETE FROM matches');
         DB::statement('DELETE FROM users');
 
-        // 2. Create an Admin (Organizer)
+        // 2. Demo organizer. Not an admin, and not a known weak password.
         $owner = User::create([
-            'name' => 'Organizer Nuvra (Admin)',
+            'name' => 'Organizer Nuvra',
             'email' => 'owner@nuvra.com',
-            'password' => Hash::make('password'),
-            'role' => 'admin',
+            'password' => DemoData::passwordHash(),
+            'role' => 'player',
+            'status' => 'active',
             'qr_code_path' => 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=NuvraPayment'
         ]);
 
@@ -35,7 +38,7 @@ class CommunitySeeder extends Seeder
             $player = User::create([
                 'name' => "Player Community $i",
                 'email' => "player$i@nuvra.com",
-                'password' => Hash::make('password'),
+                'password' => DemoData::passwordHash(),
                 'role' => 'player',
             ]);
             $playerIds[] = $player->id;

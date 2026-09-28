@@ -259,7 +259,7 @@ export default function PublicPlayerProfile() {
                     <IconChevronLeft size={14} /> Back to Members
                 </button>
                 <div style={{ display: "flex", gap: 10 }}>
-                    {currentUser && (currentUser.id === user.id || isAdmin) && (
+                    {currentUser && currentUser.id === user.id && (
                         <button
                             style={{
                                 ...S.adminEditBtn,
@@ -512,7 +512,7 @@ export default function PublicPlayerProfile() {
                                         <label style={S.formLabel}>Vellar ID</label>
                                         <input
                                             type="text"
-                                            placeholder="e.g. VELLAR 82"
+                                            placeholder="e.g. VELLAR 123"
                                             value={editForm.vellar_id}
                                             onChange={(e) => setEditForm({ ...editForm, vellar_id: e.target.value })}
                                             style={S.formInput}

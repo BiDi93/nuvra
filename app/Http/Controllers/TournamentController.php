@@ -59,9 +59,8 @@ class TournamentController extends Controller
             return response()->json(['message' => 'Tournament not found'], 404);
         }
 
-        // Check ownership
         $user = auth('sanctum')->user();
-        $isOrganizer = $user && ($user->id === $tournament->organizer_id || $user->role === 'admin');
+        $isOrganizer = $user && $user->can('manage', $tournament);
 
         // Fetch matches grouped by gameweek
         $matches = FootballMatch::where('tournament_id', $tournament->id)
@@ -109,7 +108,7 @@ class TournamentController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        if ($user->role !== 'admin') {
+        if (! $user->can('create', Tournament::class)) {
             return response()->json(['message' => 'Only administrators can create tournaments.'], 403);
         }
 
@@ -154,7 +153,7 @@ class TournamentController extends Controller
         $tournament = Tournament::findOrFail($tournamentId);
         $user = $request->user();
 
-        if ($tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (! $user->can('manage', $tournament)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -191,7 +190,7 @@ class TournamentController extends Controller
         $tournament = Tournament::findOrFail($tournamentId);
         $user = $request->user();
 
-        if ($tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (! $user->can('manage', $tournament)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -209,7 +208,7 @@ class TournamentController extends Controller
         $tournament = Tournament::findOrFail($tournamentId);
         $user = $request->user();
 
-        if ($tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (! $user->can('manage', $tournament)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -254,8 +253,7 @@ class TournamentController extends Controller
         $match = FootballMatch::findOrFail($matchId);
         $user = $request->user();
 
-        $tournament = $match->tournament;
-        if ($tournament && $tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (! $user?->can('manage', $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -285,8 +283,7 @@ class TournamentController extends Controller
         $match = FootballMatch::findOrFail($matchId);
         $user = $request->user();
 
-        $tournament = $match->tournament;
-        if ($tournament && $tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (! $user?->can('manage', $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

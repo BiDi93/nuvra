@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\FootballMatch;
 use App\Models\MatchPlayer;
+use App\Support\AuthMessages;
+use App\Support\ContactEmailChange;
+use App\Support\PlayerContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
@@ -17,8 +20,7 @@ class CommunityGameController extends Controller
         $match = FootballMatch::find($id);
         if (!$match) return response()->json(['message' => 'Match not found'], 404);
 
-        $me = $request->user();
-        if ((int) $match->organizer_id !== (int) $me->id && $me->role !== 'admin') {
+        if (! $request->user()->can('manage', $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -58,6 +60,8 @@ class CommunityGameController extends Controller
             'vellar_id', 'position', 'club_name',
             'stat_matches', 'stat_goals', 'stat_assists', 'stat_rating', 'stat_clean_sheets'
         )
+            ->where('role', 'player')
+            ->where('status', 'active')
             ->orderBy('id', 'asc')
             ->get()
             ->map(function($user) {
@@ -100,10 +104,18 @@ class CommunityGameController extends Controller
     }
 
     // Get Public Profile of another player
-    public function memberProfile($id)
+    public function memberProfile(Request $request, $id)
     {
         $user = User::find($id);
         if (!$user) return response()->json(['message' => 'User not found'], 404);
+
+        $viewer = $request->user('sanctum');
+        $isApprovedPlayer = $user->role === 'player' && $user->status === 'active';
+        $isSelf = $viewer && (int) $viewer->id === (int) $user->id;
+        $isAdmin = $viewer && $viewer->role === 'admin';
+        if (! $isApprovedPlayer && ! $isSelf && ! $isAdmin) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
 
         $stats = DB::table('performances')
             ->where('user_id', $user->id)
@@ -158,24 +170,33 @@ class CommunityGameController extends Controller
             ]);
         }
 
+        $canSeePrivate = $viewer && $viewer->can('viewPrivate', $user);
+
+        $profile = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'avatar' => $user->avatar,
+            'role' => $user->role,
+            'vellar_id' => $user->vellar_id,
+            'position' => $user->position,
+            'club_name' => $user->club_name,
+            'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
+            'club_logo' => $user->club_logo,
+            'stat_matches' => $user->stat_matches,
+            'stat_goals' => $user->stat_goals,
+            'stat_assists' => $user->stat_assists,
+            'stat_rating' => $user->stat_rating,
+            'stat_clean_sheets' => $user->stat_clean_sheets,
+        ];
+
+        if ($canSeePrivate) {
+            $profile['phone'] = $user->phone;
+            $profile['address'] = $user->address;
+            $profile['contact_email'] = $user->contact_email;
+        }
+
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'avatar' => $user->avatar,
-                'role' => $user->role,
-                'vellar_id' => $user->vellar_id,
-                'position' => $user->position,
-                'club_name' => $user->club_name,
-                'phone' => $user->phone,
-                'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
-                'club_logo' => $user->club_logo,
-                'stat_matches' => $user->stat_matches,
-                'stat_goals' => $user->stat_goals,
-                'stat_assists' => $user->stat_assists,
-                'stat_rating' => $user->stat_rating,
-                'stat_clean_sheets' => $user->stat_clean_sheets,
-            ],
+            'user' => $profile,
             'stats' => [
                 'total_matches' => $totalMatches,
                 'total_goals' => $totalGoals,
@@ -199,6 +220,8 @@ class CommunityGameController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
+                'contact_email' => $user->contact_email,
+                'contact_email_locked' => ContactEmailChange::locked($user),
                 'address' => $user->address,
                 'role' => $user->role,
                 'avatar' => $user->avatar,
@@ -290,6 +313,16 @@ class CommunityGameController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        if (! $user->can('update', $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($request->exists('contact_email')) {
+            $request->merge([
+                'contact_email' => ContactEmailChange::normalize($request->input('contact_email')),
+            ]);
+        }
+
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
             'phone'     => 'nullable|string|max:50',
@@ -297,18 +330,80 @@ class CommunityGameController extends Controller
             'club_name' => 'nullable|string|max:100',
             'address'   => 'nullable|string|max:255',
             'location'  => 'nullable|string|max:255',
+            'contact_email' => 'nullable|email|max:255',
         ]);
 
+        $emailChange = null;
+
+        if (array_key_exists('contact_email', $validated)) {
+            $nextEmail = ContactEmailChange::normalize($validated['contact_email']);
+
+            if (ContactEmailChange::isChanging($user, $nextEmail)) {
+                if ($denied = ContactEmailChange::refuse($request, $user, $nextEmail)) {
+                    return $denied;
+                }
+
+                if (ContactEmailChange::atDailyCap($user)) {
+                    return response()->json([
+                        'message' => AuthMessages::CONTACT_EMAIL_REJECTED,
+                    ], 422);
+                }
+
+                if ($nextEmail !== null) {
+                    $contactEmail = PlayerContact::usableEmail($nextEmail);
+                    $taken = $contactEmail !== null && User::query()
+                        ->where('id', '!=', $user->id)
+                        ->where(function ($query) use ($contactEmail) {
+                            $query->whereRaw('lower(email) = ?', [$contactEmail])
+                                ->orWhereRaw('lower(contact_email) = ?', [$contactEmail]);
+                        })
+                        ->exists();
+
+                    if (! $contactEmail || $taken) {
+                        ContactEmailChange::recordAttempt($user);
+
+                        return response()->json([
+                            'message' => AuthMessages::CONTACT_EMAIL_REJECTED,
+                        ], 422);
+                    }
+
+                    $nextEmail = $contactEmail;
+                }
+
+                $emailChange = [
+                    'previous' => $user->contact_email,
+                    'next' => $nextEmail,
+                ];
+            }
+        }
+
         // Strictly update only basic demographic/profile attributes
-        $user->fill([
+        $attributes = [
             'name'      => $validated['name'],
             'phone'     => $validated['phone'] ?? null,
             'position'  => $validated['position'] ?? null,
             'club_name' => $validated['club_name'] ?? null,
             'address'   => $validated['address'] ?? null,
             'location'  => $validated['location'] ?? null,
-        ]);
+        ];
+
+        if ($emailChange !== null) {
+            $attributes['contact_email'] = $emailChange['next'];
+        }
+
+        $user->fill($attributes);
+
+        if ($emailChange !== null) {
+            $user->forceFill([
+                'contact_email_source' => $emailChange['next'] === null ? null : 'player',
+            ]);
+        }
+
         $user->save();
+
+        if ($emailChange !== null) {
+            ContactEmailChange::record($request, $user, $emailChange['previous'], $emailChange['next']);
+        }
 
         $fresh = $user->fresh();
 
@@ -319,6 +414,8 @@ class CommunityGameController extends Controller
                 'name'      => $fresh->name,
                 'email'     => $fresh->email,
                 'phone'     => $fresh->phone,
+                'contact_email' => $fresh->contact_email,
+                'contact_email_locked' => ContactEmailChange::locked($fresh),
                 'address'   => $fresh->address,
                 'location'  => $fresh->location,
                 'role'      => $fresh->role,
@@ -378,14 +475,13 @@ class CommunityGameController extends Controller
     // Update Player Statistics & Info (Admin only)
     public function updatePlayerStats(Request $request, $id)
     {
-        $me = $request->user();
-        if (!$me || $me->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
-        }
-
         $player = User::find($id);
         if (!$player) {
             return response()->json(['message' => 'Player not found.'], 404);
+        }
+
+        if (! $request->user()?->can('updateStats', $player)) {
+            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
         }
 
         $validated = $request->validate([

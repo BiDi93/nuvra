@@ -2,37 +2,23 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
+use App\Models\FootballMatch;
 use App\Models\Tournament;
 use App\Models\TournamentTeam;
-use App\Models\FootballMatch;
+use App\Models\User;
+use App\Support\MasterbaseWorkbook;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use RuntimeException;
 
 class VellarMasterbaseStatsSeeder extends Seeder
 {
     public function run(): void
     {
-        $possiblePaths = [
-            base_path('MASTERBASE VELLAR ID S1.xlsx'),
-            '/Volumes/MUHAIMIN/Project/NUVRA/MASTERBASE VELLAR ID S1.xlsx',
-        ];
+        $excelPath = MasterbaseWorkbook::path();
 
-        $excelPath = null;
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
-                $excelPath = $path;
-                break;
-            }
-        }
-
-        if (!$excelPath) {
-            $this->command?->error("Masterbase Excel file not found!");
-            return;
-        }
-
-        $this->command?->info("Loading player stats and matches from: {$excelPath}");
+        $this->command?->info('Loading player stats from the configured masterbase workbook.');
 
         $admin = User::where('role', 'admin')->first();
         $adminId = $admin ? $admin->id : 1;
@@ -40,29 +26,29 @@ class VellarMasterbaseStatsSeeder extends Seeder
         // 1. Tournaments
         $tournamentsData = [
             'vellar-league-semenyih' => [
-                'name'        => 'Vellar League Semenyih',
+                'name' => 'Vellar League Semenyih',
                 'description' => 'Official FAS Affiliate Tournament - Semenyih Division',
-                'venue'       => 'Semenyih Sports Arena',
+                'venue' => 'Semenyih Sports Arena',
             ],
             'vellar-league-bangi' => [
-                'name'        => 'Vellar League Bangi',
+                'name' => 'Vellar League Bangi',
                 'description' => 'Official FAS Affiliate Tournament - Bangi Division',
-                'venue'       => 'Uptown Sports Bangi',
+                'venue' => 'Uptown Sports Bangi',
             ],
             'vellar-league-serdang' => [
-                'name'        => 'Vellar League Serdang',
+                'name' => 'Vellar League Serdang',
                 'description' => 'Official FAS Affiliate Tournament - Serdang Division',
-                'venue'       => 'Serdang Sports Complex',
+                'venue' => 'Serdang Sports Complex',
             ],
             'vellar-league-sepang' => [
-                'name'        => 'Vellar League Sepang',
+                'name' => 'Vellar League Sepang',
                 'description' => 'Official FAS Affiliate Tournament - Sepang Division',
-                'venue'       => 'Sepang Football Arena',
+                'venue' => 'Sepang Football Arena',
             ],
             'vellar-league-serdang-30an' => [
-                'name'        => 'Vellar League Serdang 30AN',
+                'name' => 'Vellar League Serdang 30AN',
                 'description' => 'Official FAS Affiliate Tournament - Serdang Veteran 30AN',
-                'venue'       => 'Serdang Sports Complex',
+                'venue' => 'Serdang Sports Complex',
             ],
         ];
 
@@ -72,22 +58,22 @@ class VellarMasterbaseStatsSeeder extends Seeder
                 ['slug' => $slug],
                 [
                     'organizer_id' => $adminId,
-                    'name'         => $tInfo['name'],
-                    'description'  => $tInfo['description'],
-                    'format'       => 'league',
-                    'season'       => 'Season 1 (2026)',
-                    'venue'        => $tInfo['venue'],
-                    'status'       => 'active',
+                    'name' => $tInfo['name'],
+                    'description' => $tInfo['description'],
+                    'format' => 'league',
+                    'season' => 'Season 1 (2026)',
+                    'venue' => $tInfo['venue'],
+                    'status' => 'active',
                 ]
             );
         }
 
         // 2. Tournament Teams
         $divisionTeams = [
-            'vellar-league-semenyih'     => ['HFRENZ FC', 'KODOI FC', 'FCFT', 'DER ALLIANZ FC'],
-            'vellar-league-bangi'        => ['BRG FC', 'KOMUXUSRA', 'BOSS SC', 'AMIGOS FC'],
-            'vellar-league-serdang'      => ['MAKKAH FC', 'ZNR FT', 'SEMUT MERAH FC', 'LEGACY FC'],
-            'vellar-league-sepang'       => ['Z.5 FC', 'PRIME UNITED', 'VVS1', 'PUTRA GATHERS'],
+            'vellar-league-semenyih' => ['HFRENZ FC', 'KODOI FC', 'FCFT', 'DER ALLIANZ FC'],
+            'vellar-league-bangi' => ['BRG FC', 'KOMUXUSRA', 'BOSS SC', 'AMIGOS FC'],
+            'vellar-league-serdang' => ['MAKKAH FC', 'ZNR FT', 'SEMUT MERAH FC', 'LEGACY FC'],
+            'vellar-league-sepang' => ['Z.5 FC', 'PRIME UNITED', 'VVS1', 'PUTRA GATHERS'],
             'vellar-league-serdang-30an' => ['MAULANA', 'FOURTEEN & CO FC', 'LOYAL TROOPERS', 'FENOMENO VFC'],
         ];
 
@@ -97,7 +83,7 @@ class VellarMasterbaseStatsSeeder extends Seeder
             foreach ($tList as $tName) {
                 $teamMap[$tName] = TournamentTeam::firstOrCreate([
                     'tournament_id' => $tId,
-                    'name'          => $tName,
+                    'name' => $tName,
                 ]);
             }
         }
@@ -178,32 +164,35 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
             $matchModels[] = FootballMatch::updateOrCreate(
                 [
-                    'tournament_id'  => $tourn->id,
-                    'gameweek'       => $gw,
+                    'tournament_id' => $tourn->id,
+                    'gameweek' => $gw,
                     'home_team_name' => $hName,
                     'away_team_name' => $aName,
                 ],
                 [
-                    'organizer_id'   => $adminId,
-                    'home_team_id'   => $hTeam ? $hTeam->id : null,
-                    'away_team_id'   => $aTeam ? $aTeam->id : null,
-                    'team_a_name'    => $hName,
-                    'team_b_name'    => $aName,
-                    'home_score'     => $hScore,
-                    'away_score'     => $aScore,
-                    'match_date'     => $mDate,
-                    'match_time'     => $mTime,
-                    'venue'          => $mVenue,
-                    'status'         => 'completed',
+                    'organizer_id' => $adminId,
+                    'home_team_id' => $hTeam ? $hTeam->id : null,
+                    'away_team_id' => $aTeam ? $aTeam->id : null,
+                    'team_a_name' => $hName,
+                    'team_b_name' => $aName,
+                    'home_score' => $hScore,
+                    'away_score' => $aScore,
+                    'match_date' => $mDate,
+                    'match_time' => $mTime,
+                    'venue' => $mVenue,
+                    'status' => 'completed',
                 ]
             );
         }
 
         // 4. Parse Excel for Cumulative Stats
-        $zip = new \ZipArchive();
+        if (! class_exists('ZipArchive')) {
+            throw new RuntimeException('The zip extension is required to read the masterbase workbook.');
+        }
+
+        $zip = new \ZipArchive;
         if ($zip->open($excelPath) !== true) {
-            $this->command?->error("Failed to open Excel zip archive.");
-            return;
+            throw new RuntimeException('The masterbase workbook could not be opened. Check NUVRA_MASTERBASE_PATH.');
         }
 
         $strings = [];
@@ -212,11 +201,11 @@ class VellarMasterbaseStatsSeeder extends Seeder
             $xml = simplexml_load_string($ssXml);
             foreach ($xml->si as $si) {
                 if (isset($si->t)) {
-                    $strings[] = (string)$si->t;
+                    $strings[] = (string) $si->t;
                 } else {
                     $text = '';
                     foreach ($si->r as $r) {
-                        $text .= (string)($r->t ?? '');
+                        $text .= (string) ($r->t ?? '');
                     }
                     $strings[] = $text;
                 }
@@ -227,6 +216,11 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
         // Sheet 2: TEAM REGISTRATION S1
         $sheet2Xml = $zip->getFromName('xl/worksheets/sheet2.xml');
+        if (! $sheet2Xml) {
+            $zip->close();
+            throw new RuntimeException('The masterbase workbook has no registration sheet.');
+        }
+
         if ($sheet2Xml) {
             $this->parseSheetStats($sheet2Xml, $strings, $playerStats, [
                 ['A', 'B', 'C', 'D', 'E', 'F'],
@@ -252,10 +246,10 @@ class VellarMasterbaseStatsSeeder extends Seeder
         $sheet3Overrides = [
             'VELLAR 340' => ['goals' => 6],
             'VELLAR 102' => ['goals' => 6],
-            'VELLAR 23'  => ['goals' => 5],
+            'VELLAR 23' => ['goals' => 5],
             'VELLAR 139' => ['goals' => 4],
             'VELLAR 470' => ['assists' => 4],
-            'VELLAR 41'  => ['assists' => 3],
+            'VELLAR 41' => ['assists' => 3],
             'VELLAR 343' => ['assists' => 3],
             'VELLAR 256' => ['goals' => 9],
             'VELLAR 352' => ['goals' => 5],
@@ -283,7 +277,7 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
         foreach ($sheet3Overrides as $vid => $ov) {
             $cleanVid = $this->cleanVellarId($vid);
-            if (!isset($playerStats[$cleanVid])) {
+            if (! isset($playerStats[$cleanVid])) {
                 $playerStats[$cleanVid] = ['goals' => 0, 'assists' => 0, 'motm' => 0, 'team' => null];
             }
             if (isset($ov['goals'])) {
@@ -303,14 +297,11 @@ class VellarMasterbaseStatsSeeder extends Seeder
             $st = $playerStats[$cleanVid] ?? ['goals' => 0, 'assists' => 0, 'motm' => 0, 'team' => null];
 
             $effectiveTeam = $this->normalizeTeamName($st['team'] ?: $user->club_name);
-            if ($user->name === 'Anouar Charik' && empty($effectiveTeam)) {
-                $effectiveTeam = 'MAKKAH FC';
-            }
 
             $matches = $this->getMatchesForTeam($effectiveTeam);
-            $goals = (int)$st['goals'];
-            $assists = (int)$st['assists'];
-            $motm = (int)$st['motm'];
+            $goals = (int) $st['goals'];
+            $assists = (int) $st['assists'];
+            $motm = (int) $st['motm'];
 
             $isDefOrGk = $this->isDefenderOrGoalkeeper($user->position);
             $cleanSheets = ($isDefOrGk && $matches > 0) ? $this->getTeamCleanSheets($effectiveTeam) : 0;
@@ -334,13 +325,13 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
             $user->save();
             $updatedUsers[$user->id] = [
-                'user'          => $user,
-                'team'          => $effectiveTeam,
-                'goals'         => $goals,
-                'assists'       => $assists,
-                'rating'        => $rating,
-                'clean_sheets'  => $cleanSheets,
-                'is_def_or_gk'  => $isDefOrGk,
+                'user' => $user,
+                'team' => $effectiveTeam,
+                'goals' => $goals,
+                'assists' => $assists,
+                'rating' => $rating,
+                'clean_sheets' => $cleanSheets,
+                'is_def_or_gk' => $isDefOrGk,
             ];
         }
 
@@ -367,8 +358,8 @@ class VellarMasterbaseStatsSeeder extends Seeder
         foreach ($matchModels as $match) {
             $hTeam = $this->normalizeTeamName($match->home_team_name ?: $match->team_a_name);
             $aTeam = $this->normalizeTeamName($match->away_team_name ?: $match->team_b_name);
-            $hScore = (int)$match->home_score;
-            $aScore = (int)$match->away_score;
+            $hScore = (int) $match->home_score;
+            $aScore = (int) $match->away_score;
 
             // Participants in this match
             $homePlayers = $playersByTeam[$hTeam] ?? [];
@@ -386,33 +377,44 @@ class VellarMasterbaseStatsSeeder extends Seeder
                 $mAssists = 0;
                 if ($totalGoals > 0 && $hScore > 0) {
                     $mGoals = ($hScore >= 4) ? 2 : 1;
-                    if ($mGoals > $totalGoals) $mGoals = $totalGoals;
+                    if ($mGoals > $totalGoals) {
+                        $mGoals = $totalGoals;
+                    }
                 }
                 if ($totalAssists > 0 && $hScore > 0) {
                     $mAssists = 1;
-                    if ($mAssists > $totalAssists) $mAssists = $totalAssists;
+                    if ($mAssists > $totalAssists) {
+                        $mAssists = $totalAssists;
+                    }
                 }
 
                 $cs = ($p['is_def_or_gk'] && $aScore === 0) ? 1 : 0;
 
                 // Match rating with realistic variation
                 $mRating = $baseRating;
-                if ($hScore > $aScore) $mRating += 0.3;
-                elseif ($hScore < $aScore) $mRating -= 0.3;
-                if ($mGoals > 0) $mRating += ($mGoals * 0.4);
-                if ($cs === 1) $mRating += 0.3;
+                if ($hScore > $aScore) {
+                    $mRating += 0.3;
+                } elseif ($hScore < $aScore) {
+                    $mRating -= 0.3;
+                }
+                if ($mGoals > 0) {
+                    $mRating += ($mGoals * 0.4);
+                }
+                if ($cs === 1) {
+                    $mRating += 0.3;
+                }
                 $mRating = min(9.9, max(5.8, round($mRating, 1)));
 
                 $perfInserts[] = [
-                    'user_id'        => $user->id,
-                    'match_id'       => $match->id,
-                    'goals'          => $mGoals,
-                    'assists'        => $mAssists,
-                    'rating'         => $mRating,
-                    'cleansheet'     => $cs,
+                    'user_id' => $user->id,
+                    'match_id' => $match->id,
+                    'goals' => $mGoals,
+                    'assists' => $mAssists,
+                    'rating' => $mRating,
+                    'cleansheet' => $cs,
                     'minutes_played' => 90,
-                    'created_at'     => $match->match_date . ' ' . ($match->match_time ?: '20:00:00'),
-                    'updated_at'     => $match->match_date . ' ' . ($match->match_time ?: '20:00:00'),
+                    'created_at' => $match->match_date.' '.($match->match_time ?: '20:00:00'),
+                    'updated_at' => $match->match_date.' '.($match->match_time ?: '20:00:00'),
                 ];
             }
 
@@ -427,32 +429,43 @@ class VellarMasterbaseStatsSeeder extends Seeder
                 $mAssists = 0;
                 if ($totalGoals > 0 && $aScore > 0) {
                     $mGoals = ($aScore >= 4) ? 2 : 1;
-                    if ($mGoals > $totalGoals) $mGoals = $totalGoals;
+                    if ($mGoals > $totalGoals) {
+                        $mGoals = $totalGoals;
+                    }
                 }
                 if ($totalAssists > 0 && $aScore > 0) {
                     $mAssists = 1;
-                    if ($mAssists > $totalAssists) $mAssists = $totalAssists;
+                    if ($mAssists > $totalAssists) {
+                        $mAssists = $totalAssists;
+                    }
                 }
 
                 $cs = ($p['is_def_or_gk'] && $hScore === 0) ? 1 : 0;
 
                 $mRating = $baseRating;
-                if ($aScore > $hScore) $mRating += 0.3;
-                elseif ($aScore < $hScore) $mRating -= 0.3;
-                if ($mGoals > 0) $mRating += ($mGoals * 0.4);
-                if ($cs === 1) $mRating += 0.3;
+                if ($aScore > $hScore) {
+                    $mRating += 0.3;
+                } elseif ($aScore < $hScore) {
+                    $mRating -= 0.3;
+                }
+                if ($mGoals > 0) {
+                    $mRating += ($mGoals * 0.4);
+                }
+                if ($cs === 1) {
+                    $mRating += 0.3;
+                }
                 $mRating = min(9.9, max(5.8, round($mRating, 1)));
 
                 $perfInserts[] = [
-                    'user_id'        => $user->id,
-                    'match_id'       => $match->id,
-                    'goals'          => $mGoals,
-                    'assists'        => $mAssists,
-                    'rating'         => $mRating,
-                    'cleansheet'     => $cs,
+                    'user_id' => $user->id,
+                    'match_id' => $match->id,
+                    'goals' => $mGoals,
+                    'assists' => $mAssists,
+                    'rating' => $mRating,
+                    'cleansheet' => $cs,
                     'minutes_played' => 90,
-                    'created_at'     => $match->match_date . ' ' . ($match->match_time ?: '20:00:00'),
-                    'updated_at'     => $match->match_date . ' ' . ($match->match_time ?: '20:00:00'),
+                    'created_at' => $match->match_date.' '.($match->match_time ?: '20:00:00'),
+                    'updated_at' => $match->match_date.' '.($match->match_time ?: '20:00:00'),
                 ];
             }
         }
@@ -467,27 +480,29 @@ class VellarMasterbaseStatsSeeder extends Seeder
             Schema::enableForeignKeyConstraints();
         }
 
-        $this->command?->info("Successfully updated statistics for " . count($updatedUsers) . " players and seeded " . count($perfInserts) . " match performances across 50 matches!");
+        $this->command?->info('Successfully updated statistics for '.count($updatedUsers).' players and seeded '.count($perfInserts).' match performances across 50 matches!');
     }
 
     private function parseSheetStats(string $xmlContent, array $strings, array &$playerStats, array $columnSets): void
     {
         $sXml = simplexml_load_string($xmlContent);
-        if (!$sXml || !isset($sXml->sheetData->row)) {
+        if (! $sXml || ! isset($sXml->sheetData->row)) {
             return;
         }
 
         foreach ($sXml->sheetData->row as $row) {
-            $rNum = (int)$row['r'];
-            if ($rNum <= 1) continue;
+            $rNum = (int) $row['r'];
+            if ($rNum <= 1) {
+                continue;
+            }
 
             $cells = [];
             foreach ($row->c as $c) {
-                $ref = (string)$c['r'];
+                $ref = (string) $c['r'];
                 $col = preg_replace('/[0-9]/', '', $ref);
-                $val = (string)$c->v;
-                if ((string)$c['t'] === 's' && isset($strings[(int)$val])) {
-                    $val = $strings[(int)$val];
+                $val = (string) $c->v;
+                if ((string) $c['t'] === 's' && isset($strings[(int) $val])) {
+                    $val = $strings[(int) $val];
                 }
                 $cells[$col] = $val;
             }
@@ -502,7 +517,7 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
                 if ($vid && stripos($vid, 'VELLAR') !== false && stripos($vid, 'ID') === false) {
                     $cleanVid = $this->cleanVellarId($vid);
-                    if (!isset($playerStats[$cleanVid])) {
+                    if (! isset($playerStats[$cleanVid])) {
                         $playerStats[$cleanVid] = ['goals' => 0, 'assists' => 0, 'motm' => 0, 'team' => null];
                     }
                     $playerStats[$cleanVid]['goals'] = max($playerStats[$cleanVid]['goals'], $g);
@@ -518,46 +533,97 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
     private function cleanVellarId(?string $vid): string
     {
-        if (!$vid) return '';
+        if (! $vid) {
+            return '';
+        }
+
         return strtoupper(preg_replace('/\s+/', ' ', trim($vid)));
     }
 
     private function parseNumber($val): int
     {
-        if ($val === null || $val === '') return 0;
-        return (int)round((float)$val);
+        if ($val === null || $val === '') {
+            return 0;
+        }
+
+        return (int) round((float) $val);
     }
 
     public function normalizeTeamName(?string $name): string
     {
-        if (!$name) return '';
+        if (! $name) {
+            return '';
+        }
         $n = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $name));
-        if (str_contains($n, 'HFRENZ')) return 'HFRENZ FC';
-        if (str_contains($n, 'KODOI')) return 'KODOI FC';
-        if (str_contains($n, 'ALLIANZ')) return 'DER ALLIANZ FC';
-        if (str_contains($n, 'FCFT') || str_contains($n, 'FCFC') || str_contains($n, 'FIEZTA')) return 'FCFT';
-        if (str_contains($n, 'BRG') || str_contains($n, 'BROSGANG')) return 'BRG FC';
-        if (str_contains($n, 'KOMU') || str_contains($n, 'KXU') || str_contains($n, 'USRA')) return 'KOMUXUSRA';
-        if (str_contains($n, 'BOSS')) return 'BOSS SC';
-        if (str_contains($n, 'AMIGO') || str_contains($n, 'AIMGOS')) return 'AMIGOS FC';
-        if (str_contains($n, 'MAKKAH')) return 'MAKKAH FC';
-        if (str_contains($n, 'ZNR') || str_contains($n, 'ZR')) return 'ZNR FT';
-        if (str_contains($n, 'SEMUT')) return 'SEMUT MERAH FC';
-        if (str_contains($n, 'LEGACY') || str_contains($n, 'LGCY') || str_contains($n, 'LFGCY')) return 'LEGACY FC';
-        if (str_contains($n, 'Z5') || str_contains($n, 'X5')) return 'Z.5 FC';
-        if (str_contains($n, 'PRIME')) return 'PRIME UNITED';
-        if (str_contains($n, 'VVS')) return 'VVS1';
-        if (str_contains($n, 'PUTRA') || $n === 'PG') return 'PUTRA GATHERS';
-        if (str_contains($n, 'FENOMENO')) return 'FENOMENO VFC';
-        if (str_contains($n, 'FOURTEEN')) return 'FOURTEEN & CO FC';
-        if (str_contains($n, 'MAULANA')) return 'MAULANA';
-        if (str_contains($n, 'LOYAL')) return 'LOYAL TROOPERS';
+        if (str_contains($n, 'HFRENZ')) {
+            return 'HFRENZ FC';
+        }
+        if (str_contains($n, 'KODOI')) {
+            return 'KODOI FC';
+        }
+        if (str_contains($n, 'ALLIANZ')) {
+            return 'DER ALLIANZ FC';
+        }
+        if (str_contains($n, 'FCFT') || str_contains($n, 'FCFC') || str_contains($n, 'FIEZTA')) {
+            return 'FCFT';
+        }
+        if (str_contains($n, 'BRG') || str_contains($n, 'BROSGANG')) {
+            return 'BRG FC';
+        }
+        if (str_contains($n, 'KOMU') || str_contains($n, 'KXU') || str_contains($n, 'USRA')) {
+            return 'KOMUXUSRA';
+        }
+        if (str_contains($n, 'BOSS')) {
+            return 'BOSS SC';
+        }
+        if (str_contains($n, 'AMIGO') || str_contains($n, 'AIMGOS')) {
+            return 'AMIGOS FC';
+        }
+        if (str_contains($n, 'MAKKAH')) {
+            return 'MAKKAH FC';
+        }
+        if (str_contains($n, 'ZNR') || str_contains($n, 'ZR')) {
+            return 'ZNR FT';
+        }
+        if (str_contains($n, 'SEMUT')) {
+            return 'SEMUT MERAH FC';
+        }
+        if (str_contains($n, 'LEGACY') || str_contains($n, 'LGCY') || str_contains($n, 'LFGCY')) {
+            return 'LEGACY FC';
+        }
+        if (str_contains($n, 'Z5') || str_contains($n, 'X5')) {
+            return 'Z.5 FC';
+        }
+        if (str_contains($n, 'PRIME')) {
+            return 'PRIME UNITED';
+        }
+        if (str_contains($n, 'VVS')) {
+            return 'VVS1';
+        }
+        if (str_contains($n, 'PUTRA') || $n === 'PG') {
+            return 'PUTRA GATHERS';
+        }
+        if (str_contains($n, 'FENOMENO')) {
+            return 'FENOMENO VFC';
+        }
+        if (str_contains($n, 'FOURTEEN')) {
+            return 'FOURTEEN & CO FC';
+        }
+        if (str_contains($n, 'MAULANA')) {
+            return 'MAULANA';
+        }
+        if (str_contains($n, 'LOYAL')) {
+            return 'LOYAL TROOPERS';
+        }
+
         return strtoupper(trim($name));
     }
 
     private function getMatchesForTeam(?string $team): int
     {
-        if (!$team) return 0;
+        if (! $team) {
+            return 0;
+        }
         $norm = $this->normalizeTeamName($team);
 
         if (in_array($norm, ['HFRENZ FC', 'KODOI FC', 'DER ALLIANZ FC', 'FCFT'])) {
@@ -575,30 +641,32 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
     private function getTeamCleanSheets(?string $team): int
     {
-        if (!$team) return 0;
+        if (! $team) {
+            return 0;
+        }
         $norm = $this->normalizeTeamName($team);
 
         $teamCleanSheets = [
-            'HFRENZ FC'         => 3,
-            'FCFT'              => 3,
-            'DER ALLIANZ FC'    => 1,
-            'KODOI FC'          => 0,
-            'BRG FC'            => 1,
-            'BOSS SC'           => 2,
-            'KOMUXUSRA'         => 1,
-            'AMIGOS FC'         => 0,
-            'MAKKAH FC'         => 2,
-            'ZNR FT'            => 2,
-            'LEGACY FC'         => 1,
-            'SEMUT MERAH FC'    => 1,
-            'PRIME UNITED'      => 1,
-            'Z.5 FC'            => 2,
-            'PUTRA GATHERS'     => 1,
-            'VVS1'              => 0,
-            'LOYAL TROOPERS'    => 3,
-            'FENOMENO VFC'      => 1,
-            'FOURTEEN & CO FC'  => 0,
-            'MAULANA'           => 0,
+            'HFRENZ FC' => 3,
+            'FCFT' => 3,
+            'DER ALLIANZ FC' => 1,
+            'KODOI FC' => 0,
+            'BRG FC' => 1,
+            'BOSS SC' => 2,
+            'KOMUXUSRA' => 1,
+            'AMIGOS FC' => 0,
+            'MAKKAH FC' => 2,
+            'ZNR FT' => 2,
+            'LEGACY FC' => 1,
+            'SEMUT MERAH FC' => 1,
+            'PRIME UNITED' => 1,
+            'Z.5 FC' => 2,
+            'PUTRA GATHERS' => 1,
+            'VVS1' => 0,
+            'LOYAL TROOPERS' => 3,
+            'FENOMENO VFC' => 1,
+            'FOURTEEN & CO FC' => 0,
+            'MAULANA' => 0,
         ];
 
         return $teamCleanSheets[$norm] ?? 0;
@@ -606,17 +674,23 @@ class VellarMasterbaseStatsSeeder extends Seeder
 
     private function isDefenderOrGoalkeeper(?string $pos): bool
     {
-        if (!$pos) return false;
+        if (! $pos) {
+            return false;
+        }
         $p = strtoupper($pos);
 
         foreach (['GOALKEEPER', 'PENJAGA GOL', 'KEEPER', 'GOAL KEEPER', 'DEFENDER', 'PERTAHANAN', 'GELANDANG BERTAHAN', 'DEFENCE', 'CENTER BACK', 'LEFT BACK', 'RIGHT BACK', 'SWEEPER'] as $kw) {
-            if (str_contains($p, $kw)) return true;
+            if (str_contains($p, $kw)) {
+                return true;
+            }
         }
 
         preg_match_all('/[A-Z]+/', $p, $matches);
         $tokens = array_flip($matches[0] ?? []);
         foreach (['GK', 'CB', 'LB', 'RB', 'DF', 'DMF', 'DMC', 'CDM', 'BEK', 'RWB', 'LWB'] as $tok) {
-            if (isset($tokens[$tok])) return true;
+            if (isset($tokens[$tok])) {
+                return true;
+            }
         }
 
         return false;

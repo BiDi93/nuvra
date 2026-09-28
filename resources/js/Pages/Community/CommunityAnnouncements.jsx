@@ -16,7 +16,9 @@ export default function CommunityAnnouncements() {
 
     const fetchAnnouncements = async () => {
         try {
-            const res  = await fetch(`${API}/announcements`);
+            const res  = await fetch(`${API}/announcements`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             const data = await res.json();
             setAnnouncements(Array.isArray(data) ? data : []);
         } finally {

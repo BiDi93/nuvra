@@ -1,6 +1,10 @@
 <?php
 
+use App\Http\Middleware\PreferCloudflareConnectingIp;
+use App\Http\Middleware\TrustProxies;
+use App\Http\Middleware\UatBasicAuth;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Middleware\TrustProxies as FrameworkTrustProxies;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
@@ -15,7 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->encryptCookies(except: [UatBasicAuth::COOKIE]);
+        $middleware->replace(FrameworkTrustProxies::class, TrustProxies::class);
+        $middleware->prepend(PreferCloudflareConnectingIp::class);
+        $middleware->prepend(UatBasicAuth::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $e) {

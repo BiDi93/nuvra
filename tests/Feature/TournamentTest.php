@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
-use App\Models\Tournament;
-use App\Models\TournamentTeam;
 use App\Models\FootballMatch;
+use App\Models\Tournament;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class TournamentTest extends TestCase
 {
@@ -29,12 +28,12 @@ class TournamentTest extends TestCase
 
         $response = $this->getJson("/api/community/tournaments/{$tournament->id}");
         $response->assertStatus(200)
-                 ->assertJsonStructure([
-                     'tournament',
-                     'teams',
-                     'gameweeks',
-                     'standings'
-                 ]);
+            ->assertJsonStructure([
+                'tournament',
+                'teams',
+                'gameweeks',
+                'standings',
+            ]);
     }
 
     public function test_organizer_can_update_score()
@@ -42,7 +41,7 @@ class TournamentTest extends TestCase
         $organizer = User::create([
             'name' => 'Organizer',
             'email' => 'org@test.com',
-            'password' => bcrypt('password'),
+            'password' => 'Admin-Unique-1',
             'role' => 'admin',
             'status' => 'active',
         ]);
@@ -55,28 +54,28 @@ class TournamentTest extends TestCase
         ]);
 
         $match = FootballMatch::create([
-            'tournament_id'  => $tournament->id,
-            'organizer_id'   => $organizer->id,
-            'gameweek'       => 'Matchweek 1',
+            'tournament_id' => $tournament->id,
+            'organizer_id' => $organizer->id,
+            'gameweek' => 'Matchweek 1',
             'home_team_name' => 'Team A',
             'away_team_name' => 'Team B',
-            'match_date'     => now()->toDateString(),
-            'match_time'     => '20:00:00',
-            'venue'          => 'Test Arena',
-            'status'         => 'scheduled',
+            'match_date' => now()->toDateString(),
+            'match_time' => '20:00:00',
+            'venue' => 'Test Arena',
+            'status' => 'scheduled',
         ]);
 
         $response = $this->actingAs($organizer, 'sanctum')->patchJson("/api/community/matches/{$match->id}/score", [
             'home_score' => 2,
             'away_score' => 1,
-            'status' => 'completed'
+            'status' => 'completed',
         ]);
 
         $response->assertStatus(200)
-                 ->assertJsonFragment([
-                     'home_score' => 2,
-                     'away_score' => 1,
-                     'status' => 'completed'
-                 ]);
+            ->assertJsonFragment([
+                'home_score' => 2,
+                'away_score' => 1,
+                'status' => 'completed',
+            ]);
     }
 }
