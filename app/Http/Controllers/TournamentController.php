@@ -254,8 +254,7 @@ class TournamentController extends Controller
         $match = FootballMatch::findOrFail($matchId);
         $user = $request->user();
 
-        $tournament = $match->tournament;
-        if ($tournament && $tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (!$this->canManageMatch($user, $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -285,13 +284,35 @@ class TournamentController extends Controller
         $match = FootballMatch::findOrFail($matchId);
         $user = $request->user();
 
-        $tournament = $match->tournament;
-        if ($tournament && $tournament->organizer_id !== $user->id && $user->role !== 'admin') {
+        if (!$this->canManageMatch($user, $match)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $match->delete();
         return response()->json(['message' => 'Fixture deleted successfully']);
+    }
+
+    /**
+     * Admins, the match organizer, or the tournament organizer may change a fixture.
+     * A missing tournament must not skip the check.
+     */
+    protected function canManageMatch($user, FootballMatch $match): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->role === 'admin') {
+            return true;
+        }
+
+        if ((int) $match->organizer_id === (int) $user->id) {
+            return true;
+        }
+
+        $tournament = $match->tournament;
+
+        return $tournament && (int) $tournament->organizer_id === (int) $user->id;
     }
 
     /**

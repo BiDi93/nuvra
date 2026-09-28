@@ -270,14 +270,28 @@ export default function CommunityLayout() {
                                         {notifications.length === 0 ? (
                                             <p style={S.emptyNotif}>No recent notifications.</p>
                                         ) : (
-                                            notifications.map(n => (
+                                            notifications.map(n => {
+                                                const kind = n.data?.type || n.data?.status;
+                                                const iconStyle = kind === "approved"
+                                                    ? S.notifIconOk
+                                                    : kind === "registered"
+                                                        ? S.notifIconInfo
+                                                        : S.notifIconNo;
+                                                return (
                                                 <div 
                                                     key={n.id} 
-                                                    style={{ ...S.notifItem, opacity: n.read_at ? 0.5 : 1 }} 
-                                                    onClick={() => handleMarkAsRead(n.id, n.data?.match_id)}
+                                                    style={{ ...S.notifItem, opacity: n.read_at && kind !== "registered" ? 0.5 : 1 }} 
+                                                    onClick={() => {
+                                                        if (kind === "registered" && n.data?.player_id) {
+                                                            setShowNotifications(false);
+                                                            navigate(`/community/members/${n.data.player_id}`);
+                                                            return;
+                                                        }
+                                                        handleMarkAsRead(n.id, n.data?.match_id);
+                                                    }}
                                                 >
-                                                    <div style={{ ...S.notifIcon, ...(n.data?.status === "approved" ? S.notifIconOk : S.notifIconNo) }}>
-                                                        {n.data?.status === "approved" ? <IconCheck size={13} /> : <IconX size={13} />}
+                                                    <div style={{ ...S.notifIcon, ...iconStyle }}>
+                                                        {kind === "approved" ? <IconCheck size={13} /> : kind === "registered" ? <IconUser size={13} /> : <IconX size={13} />}
                                                     </div>
                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                         <div style={S.notifMessage}>{n.data?.message}</div>
@@ -285,7 +299,8 @@ export default function CommunityLayout() {
                                                     </div>
                                                     {!n.read_at && <div style={S.unreadDot} />}
                                                 </div>
-                                            ))
+                                                );
+                                            })
                                         )}
                                     </div>
                                 </div>
@@ -684,6 +699,10 @@ const S = {
     notifIconNo: {
         background: "rgba(239, 68, 68, 0.14)",
         color: "#EF4444",
+    },
+    notifIconInfo: {
+        background: "rgba(0, 212, 236, 0.14)",
+        color: "#00D4EC",
     },
     notifMessage: {
         fontSize: 13,

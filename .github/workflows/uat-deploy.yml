@@ -14,9 +14,19 @@ jobs:
           cd /home/muhaimin/nuvra-uat
           git config --global --add safe.directory /home/muhaimin/nuvra-uat
           
+          # Keep the live SQLite file across reset --hard. It is gitignored,
+          # and a hard reset deletes it once it is no longer tracked.
+          if [ -f nuvra_db ]; then
+            cp -a nuvra_db /tmp/nuvra_db.uat-preserve
+          fi
+
           # Sync with GitHub (Force)
           git fetch origin uat
           git reset --hard origin/uat
+
+          if [ -f /tmp/nuvra_db.uat-preserve ]; then
+            mv /tmp/nuvra_db.uat-preserve nuvra_db
+          fi
           
           # Backend dependencies
           composer install --no-interaction --optimize-autoloader

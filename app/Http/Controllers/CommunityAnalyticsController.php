@@ -8,8 +8,24 @@ use Carbon\Carbon;
 
 class CommunityAnalyticsController extends Controller
 {
-    public function index()
+    /**
+     * Public landing-page counters. Counts only — no names or contact details.
+     */
+    public function publicStats()
     {
+        return response()->json([
+            'players' => (int) DB::table('users')->where('role', 'player')->count(),
+            'leagues' => (int) DB::table('tournaments')->where('status', 'active')->count(),
+            'teams'   => (int) DB::table('tournament_teams')->count(),
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
         $totalGames = DB::table('matches')->count();
 
         $playersRegistered = DB::table('users')
