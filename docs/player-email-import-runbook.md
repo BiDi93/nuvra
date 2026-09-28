@@ -19,7 +19,7 @@ php artisan players:clear-untrusted-contact-emails --force
 
 Team managers collect emails offline. The manager takes the email from the player face to face and puts their own name in Collected by. If an email arrives by message instead, it must come from the player's phone number, and the admin checks that number against the one on file before adding the row. The admin removes any row with an empty Collected by before running `--apply`. Never accept an address from someone who only knows the Vellar ID.
 
-The file is CSV. Save the spreadsheet as CSV. It needs a Vellar ID column and an email column. An optional collected-by column (the manager's name or ID) is stored on each audit row. Header names can vary in case and spacing (`Vellar ID`, `vellar_id`, `E-mail`, `Collected by`).
+The file is CSV. Save the spreadsheet as CSV. It needs a Vellar ID column, an email column, and a collected-by column (the manager's name). That name is stored on each audit row. Header names can vary in case and spacing (`Vellar ID`, `vellar_id`, `E-mail`, `Collected by`).
 
 Managers send the file through a private channel only. Do not send it in chat or in an email thread.
 
@@ -39,7 +39,7 @@ A dry run does not need `--admin-id` and writes nothing, including no audit rows
 php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv
 ```
 
-Review the problem rows. The dry run reports `Rows with no Collected by`, with the row numbers. Remove those rows before `--apply`. A row repeated inside the file is reported as `duplicate row in file`. Rows where one Vellar ID has different emails are skipped. Rows where one email maps to more than one player are skipped, because that inbox could reset each of those accounts. A row that would replace a different existing recovery email is skipped unless you pass `--replace-existing`. A row whose email already matches the current recovery email is unchanged and is not written again. Valid rows are written in one transaction, so a clash cannot leave the import half-written. If the transaction rolls back, the command prints the row number and a fixed reason. It does not print the database error. After `--apply`, each written row is marked `applied`.
+Review the problem rows. The dry run reports `Rows with no Collected by`, with the row numbers, and still writes nothing. `--apply` refuses when that count is above 0: it prints the count and the row numbers, writes nothing, and exits with an error. A row repeated inside the file is reported as `duplicate row in file`. Rows where one Vellar ID has different emails are skipped. Rows where one email maps to more than one player are skipped, because that inbox could reset each of those accounts. A row that would replace a different existing recovery email is skipped unless you pass `--replace-existing`. A row whose email already matches the current recovery email is unchanged and is not written again. Valid rows are written in one transaction, so a clash cannot leave the import half-written. A unique clash prints the row number and `email already held by another account`. Any other database error prints only that the import was rolled back. The command does not print the database error. After `--apply`, each written row is marked `applied`.
 
 ```bash
 php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv --admin-id=1 --apply

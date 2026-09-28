@@ -63,6 +63,20 @@ class ImportPlayerEmails extends Command
         $plan = $this->classify($rows, (bool) $this->option('replace-existing'));
         $written = 0;
 
+        if ($apply && $plan['counts']['no_collector'] > 0) {
+            $this->error('Rows with no Collected by: '.$plan['counts']['no_collector']);
+
+            foreach ($plan['lines'] as $line) {
+                if ($line['reason'] === 'no collected by') {
+                    $this->error('Row '.$line['row'].': no collected by');
+                }
+            }
+
+            $this->error('Nothing was changed.');
+
+            return self::FAILURE;
+        }
+
         if ($apply && $plan['ready'] !== []) {
             try {
                 $written = $this->write($plan['ready'], $admin->id, $hash);
@@ -403,7 +417,7 @@ class ImportPlayerEmails extends Command
                 $player = User::query()->whereKey($row['player_id'])->lockForUpdate()->first();
 
                 if (! $player || $player->role !== 'player') {
-                    throw new RuntimeException('The import was rolled back.');
+                    throw new PlayerEmailImportConflict($row['row'], 'player account was not found');
                 }
 
                 $email = strtolower(trim($row['email']));
@@ -424,7 +438,11 @@ class ImportPlayerEmails extends Command
                         'contact_email' => $email,
                         'contact_email_source' => 'admin',
                     ])->save();
-                } catch (QueryException) {
+                } catch (QueryException $exception) {
+                    if (! $this->uniqueConstraintViolation($exception)) {
+                        throw $exception;
+                    }
+
                     throw new PlayerEmailImportConflict($row['row'], 'email already held by another account');
                 }
                 $assigned[$email] = $player->id;
@@ -444,6 +462,22 @@ class ImportPlayerEmails extends Command
 
             return $written;
         });
+    }
+
+    private function uniqueConstraintViolation(QueryException $exception): bool
+    {
+        $info = $exception->errorInfo ?? [];
+        $driverCode = isset($info[1]) ? (int) $info[1] : 0;
+
+        // MySQL ER_DUP_ENTRY is 1062. SQLite SQLITE_CONSTRAINT_UNIQUE is 2067 when extended codes are on.
+        if (in_array($driverCode, [1062, 2067], true)) {
+            return true;
+        }
+
+        // SQLite usually reports every constraint as driver code 19. Only the unique failure uses this label.
+        $detail = (string) ($info[2] ?? '');
+
+        return $driverCode === 19 && str_starts_with($detail, 'UNIQUE constraint failed');
     }
 
     /**

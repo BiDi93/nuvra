@@ -9,12 +9,14 @@ use App\Support\AuthMessages;
 use App\Support\ContactEmailChange as ContactEmailGuard;
 use App\Support\EmailMask;
 use App\Support\PlayerContact;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use PDOException;
 use Tests\TestCase;
 
 class PlayerEmailImportTest extends TestCase
@@ -150,7 +152,7 @@ class PlayerEmailImportTest extends TestCase
         Mail::fake();
         $admin = $this->admin();
         $player = $this->player('82', ['contact_email' => 'old82@example.com']);
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,new82@example.com\n");
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,new82@example.com,Manager A\n");
 
         $this->artisan('players:import-emails', [
             'file' => $path,
@@ -236,7 +238,7 @@ class PlayerEmailImportTest extends TestCase
         $admin = $this->admin();
         $imported = $this->player('82');
         $left = $this->player('83');
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,alpha82@example.com,Manager A\n");
 
         $this->artisan('players:import-emails', [
             'file' => $path,
@@ -283,7 +285,7 @@ class PlayerEmailImportTest extends TestCase
             'contact_email' => 'self84@example.com',
             'contact_email_source' => 'player',
         ]);
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,alpha82@example.com,Manager A\n");
 
         $this->artisan('players:import-emails', [
             'file' => $path,
@@ -336,7 +338,7 @@ class PlayerEmailImportTest extends TestCase
         $admin = $this->admin();
         $retired = $this->player('82');
         $left = $this->player('83');
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,alpha82@example.com,Manager A\n");
 
         $this->artisan('players:import-emails', [
             'file' => $path,
@@ -449,6 +451,74 @@ class PlayerEmailImportTest extends TestCase
         $this->assertStringNotContainsString($address, $logged);
     }
 
+    public function test_apply_refuses_when_a_row_has_no_collected_by(): void
+    {
+        $admin = $this->admin();
+        $missing = $this->player('82');
+        $ready = $this->player('84');
+        $path = $this->outsideFile('.csv', implode("\n", [
+            'Vellar ID,Email,Collected by',
+            '82,alpha82@example.com,',
+            '84,other84@example.com,Manager A',
+        ]));
+
+        $this->artisan('players:import-emails', ['file' => $path])
+            ->expectsOutputToContain('Rows with no Collected by: 1')
+            ->expectsOutputToContain('Row 2: no collected by')
+            ->expectsOutputToContain('Dry run only. No accounts were changed.')
+            ->assertSuccessful();
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->expectsOutputToContain('Rows with no Collected by: 1')
+            ->expectsOutputToContain('Row 2: no collected by')
+            ->expectsOutputToContain('Nothing was changed.')
+            ->doesntExpectOutputToContain('alpha82@example.com')
+            ->doesntExpectOutputToContain('other84@example.com')
+            ->assertFailed();
+
+        $this->assertNull($missing->fresh()->contact_email);
+        $this->assertNull($ready->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+    }
+
+    public function test_a_non_unique_database_error_uses_the_generic_rollback_line(): void
+    {
+        $admin = $this->admin();
+        $player = $this->player('82');
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,alpha82@example.com,Manager A\n");
+
+        User::saving(function (User $user) use ($player) {
+            if ($user->id !== $player->id) {
+                return;
+            }
+
+            $previous = new PDOException('database is locked');
+            $previous->errorInfo = ['HY000', 5, 'database is locked'];
+
+            throw new QueryException('sqlite', 'update users set contact_email = ?', ['(withheld)'], $previous);
+        });
+
+        try {
+            $this->artisan('players:import-emails', [
+                'file' => $path,
+                '--admin-id' => $admin->id,
+                '--apply' => true,
+            ])->expectsOutputToContain('The import was rolled back. No accounts were changed.')
+                ->doesntExpectOutputToContain('email already held by another account')
+                ->doesntExpectOutputToContain('database is locked')
+                ->doesntExpectOutputToContain('alpha82@example.com')
+                ->assertFailed();
+        } finally {
+            User::getEventDispatcher()->forget('eloquent.saving: '.User::class);
+        }
+
+        $this->assertNull($player->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+    }
+
     public function test_import_does_not_log_the_raw_address(): void
     {
         $admin = $this->admin();
@@ -476,7 +546,7 @@ class PlayerEmailImportTest extends TestCase
     {
         $admin = $this->admin();
         $player = $this->player('82');
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,alpha82@example.com,Manager A\n");
         chmod($path, 0644);
 
         $this->artisan('players:import-emails', [
@@ -504,11 +574,11 @@ class PlayerEmailImportTest extends TestCase
     public function test_import_is_not_capped_at_five_addresses(): void
     {
         $admin = $this->admin();
-        $lines = ['Vellar ID,Email'];
+        $lines = ['Vellar ID,Email,Collected by'];
 
         for ($number = 1; $number <= 6; $number++) {
             $this->player((string) $number);
-            $lines[] = $number.',player'.$number.'@example.com';
+            $lines[] = $number.',player'.$number.'@example.com,Manager A';
         }
 
         $path = $this->outsideFile('.csv', implode("\n", $lines)."\n");
