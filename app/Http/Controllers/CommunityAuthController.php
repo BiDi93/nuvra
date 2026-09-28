@@ -44,6 +44,8 @@ class CommunityAuthController extends Controller
             $email = 'vellar'.$nextNumber.'@vellarleague.com';
         }
 
+        $statusToken = Str::random(40);
+
         $user = User::create([
             'name' => $request->name,
             'email' => $email,
@@ -54,6 +56,7 @@ class CommunityAuthController extends Controller
             'phone' => $request->phone ?? null,
             'position' => $request->position ?? null,
         ]);
+        $user->forceFill(['status_token' => hash('sha256', $statusToken)])->save();
 
         return response()->json([
             'message' => 'Registration successful! Awaiting admin approval.',
@@ -61,6 +64,7 @@ class CommunityAuthController extends Controller
             'vellar_number' => $nextNumber,
             'name' => $user->name,
             'status' => 'pending',
+            'status_token' => $statusToken,
         ], 201);
     }
 
@@ -293,7 +297,7 @@ class CommunityAuthController extends Controller
         ]);
     }
 
-    // Check status endpoint (for WaitingRoom polling)
+    // Registration status. A Vellar number alone never reveals whether it exists.
     public function checkStatus(Request $request)
     {
         $identifier = PlayerLocator::identifier((string) $request->input('vellar_id', ''));
@@ -305,17 +309,19 @@ class CommunityAuthController extends Controller
 
         $attempts->hit('check_status', $identifier, $request->ip());
 
-        $vellarNumber = preg_replace('/[^0-9]/', '', $request->input('vellar_id', ''));
+        $vellarNumber = preg_replace('/[^0-9]/', '', (string) $request->input('vellar_id', ''));
+        $user = $vellarNumber !== ''
+            ? User::where('email', 'vellar'.$vellarNumber.'@vellarleague.com')->first()
+            : null;
 
-        if (empty($vellarNumber)) {
-            return response()->json(['message' => 'Invalid Vellar ID.'], 422);
-        }
+        $presented = (string) $request->input('status_token', '');
+        $stored = (string) ($user->status_token ?? '');
+        $known = $user && $presented !== '' && $stored !== '' && hash_equals($stored, hash('sha256', $presented));
 
-        $email = 'vellar'.$vellarNumber.'@vellarleague.com';
-        $user = User::where('email', $email)->first(['id', 'name', 'vellar_id', 'position', 'status']);
+        if (! $known) {
+            hash_equals(hash('sha256', $presented), hash('sha256', 'missing-registration'));
 
-        if (! $user) {
-            return response()->json(['message' => 'Player not found.'], 404);
+            return response()->json(['message' => AuthMessages::STATUS_PRIVATE]);
         }
 
         return response()->json([

@@ -120,6 +120,8 @@ export default function CommunityHome() {
             if (!res.ok) throw new Error(data.message || "Registration failed.");
 
             // Show success with Vellar ID
+            if (data.status_token) localStorage.setItem("pending_status_token", data.status_token);
+            if (data.vellar_number) localStorage.setItem("pending_vellar_id", String(data.vellar_number));
             setSuccessData({ vellar_id: data.vellar_id, vellar_number: data.vellar_number, name: data.name });
             setTab("success");
         } catch (err) {

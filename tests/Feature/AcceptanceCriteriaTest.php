@@ -203,6 +203,50 @@ class AcceptanceCriteriaTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_admin_qa_tools_create_and_delete_only_flagged_players_and_are_off_by_default(): void
+    {
+        $admin = $this->admin();
+        $real = $this->player('82');
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/community/admin/qa-tools/test-players', ['email' => 'you@example.com'])
+            ->assertNotFound();
+
+        config(['nuvra.qa_tools' => true]);
+        $this->app['env'] = 'production';
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/community/admin/qa-tools')
+            ->assertNotFound();
+
+        $this->app['env'] = 'testing';
+        $this->actingAs($real, 'sanctum')
+            ->postJson('/api/community/admin/qa-tools/test-players', ['email' => 'you@example.com'])
+            ->assertForbidden();
+
+        $created = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/community/admin/qa-tools/test-players', ['email' => 'you@example.com'])
+            ->assertOk();
+
+        $created->assertJsonPath('vellar_ids.0', '900001');
+        $test = User::query()->where('is_test_account', true)->first();
+        $this->assertNotNull($test);
+        $this->assertSame('you@example.com', $test->contact_email);
+        $this->assertNull($test->phone);
+        $this->assertTrue(PlayerCodeAudit::query()->where('source', 'qa_admin')->where('detail', 'created VELLAR 900001')->exists());
+
+        $this->actingAs($admin, 'sanctum')
+            ->deleteJson('/api/community/admin/qa-tools/test-players')
+            ->assertOk()
+            ->assertJsonPath('deleted', 1);
+
+        $this->assertNull($test->fresh());
+        $this->assertNotNull($real->fresh());
+        $audit = PlayerCodeAudit::query()->where('detail', 'deleted VELLAR 900001')->first();
+        $this->assertNotNull($audit);
+        $this->assertNull($audit->player_id);
+        $this->assertSame($admin->id, $audit->admin_id);
+    }
+
     public function test_admin_on_a_weak_password_can_still_sign_in_while_the_force_flag_is_off(): void
     {
         config([

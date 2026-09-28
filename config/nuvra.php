@@ -39,8 +39,9 @@ return [
     |
     | Each failure starts a short wait that doubles, then expires. The first
     | `free` hits do not start a wait; the next hit does, and the request
-    | after that waits. check-status allows 40 polls so the waiting room
-    | can keep asking. Keys are a hash of the ID and a hash of the IP.
+    | after that waits. check-status uses the same wait as login so a
+    | Vellar number cannot be scanned. Keys are a hash of the ID and a
+    | hash of the IP.
     | There is no hard lockout.
     |
     */
@@ -53,7 +54,7 @@ return [
         'reset_destination' => ['base' => 60, 'cap' => 900, 'window' => 900, 'free' => 0],
         'activation_code' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
         'admin_password' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
-        'check_status' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 40],
+        'check_status' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
     ],
 
     /*
@@ -101,5 +102,17 @@ return [
         'user' => env('UAT_BASIC_AUTH_USER'),
         'password' => env('UAT_BASIC_AUTH_PASS'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | QA test-player tools
+    |--------------------------------------------------------------------------
+    |
+    | Off unless QA_TOOLS_ENABLED is true. Forced off when APP_ENV is
+    | production, even if the variable is set. Turn it off again after QA.
+    |
+    */
+
+    'qa_tools' => filter_var(env('QA_TOOLS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
 
 ];

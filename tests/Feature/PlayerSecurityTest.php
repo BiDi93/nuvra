@@ -558,9 +558,34 @@ class PlayerSecurityTest extends TestCase
             'nuvra.backoff.check_status.cap' => 30,
         ]);
 
-        $this->postJson('/api/community/check-status', ['vellar_id' => '82'])->assertStatus(404);
-        $this->postJson('/api/community/check-status', ['vellar_id' => '83'])->assertStatus(404);
+        $this->postJson('/api/community/check-status', ['vellar_id' => '82'])->assertOk();
+        $this->postJson('/api/community/check-status', ['vellar_id' => '83'])->assertOk();
         $this->postJson('/api/community/check-status', ['vellar_id' => '84'])->assertStatus(429);
+    }
+
+    public function test_check_status_does_not_reveal_whether_an_id_exists(): void
+    {
+        $player = $this->player('82', ['name' => 'Hidden Name', 'status' => 'pending']);
+        $token = 'registration-status-token';
+        $player->forceFill(['status_token' => hash('sha256', $token)])->save();
+
+        $known = $this->postJson('/api/community/check-status', ['vellar_id' => '82']);
+        $this->travel(2)->seconds();
+        $missing = $this->getJson('/api/community/check-status?vellar_id=999999');
+
+        $known->assertOk();
+        $missing->assertOk();
+        $this->assertSame(AuthMessages::STATUS_PRIVATE, $known->json('message'));
+        $this->assertSame($known->json(), $missing->json());
+        $this->assertArrayNotHasKey('name', $known->json());
+
+        $this->travel(2)->seconds();
+        $this->postJson('/api/community/check-status', [
+            'vellar_id' => '82',
+            'status_token' => $token,
+        ])->assertOk()
+            ->assertJsonPath('status', 'pending')
+            ->assertJsonPath('name', 'Hidden Name');
     }
 
     private function player(string $number, array $overrides = []): User

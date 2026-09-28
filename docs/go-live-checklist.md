@@ -5,6 +5,8 @@ This work lands on `uat` first. The owner tests and confirms there. Production (
 - **Part 1** is the UAT go-live. Merge and deploy to UAT, then run the checks there.
 - **Part 2** is the production promotion. Do not open that pull request until every item in Part 2 is true.
 
+Merge https://github.com/BiDi93/nuvra/pull/22 (`cursor/security-cleanup-uat-5200`) into `uat` before this pull request. That pull request already makes analytics admin-only, hides phone and address on public profiles, tightens fixture edits, adds `GET /api/community/public-stats`, and changes the UAT deploy workflow, `.gitignore`, and the masterbase spreadsheet. This pull request does not repeat those edits. Fixture authorization here follows that same rule: admin, match organizer, or tournament organizer.
+
 No real player has logged in anywhere yet. Do not invite a player on UAT until Part 1 is done there. Do not invite a player on production until Part 2 is done there.
 
 Merging and deploying does not change passwords, send email, or send SMS. Nothing in a migration sends a message. A code goes out only when a player asks for a reset, or when an admin issues one. The owner runs the commands on the server. This list does not change nginx, DNS, or the deploy pipeline.
@@ -32,6 +34,7 @@ On the server `.env` for that environment, set:
 | `NUVRA_RETIRE_SHARED_PASSWORDS` | Leave `false` until step 3 below. Then `true`. |
 | `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE` | Leave `false` on UAT. The current admin keeps signing in. Set `true` only when you want the forced admin password change, which is required for production promotion. |
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
+| `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
 
@@ -120,6 +123,10 @@ Leave SMS off (`SMS_DRIVER=none` or unset) until the provider is approved. After
 
 QA uses a few existing UAT player accounts for login, backoff, and IDOR only. Do not run a password reset on those accounts.
 
+`GET` and `POST /api/community/check-status` return the same message whether or not the Vellar number exists. They do not return a name or a status unless the caller sends the `status_token` from that player's own registration response. The same escalating backoff as login applies (1s, 2s, 4s, …, up to 60s, remembered for 15 minutes). There is no admin command to clear it. QA waits for `Retry-After`.
+
+QA cannot reach the UAT server, so the same create and delete actions are on `/community/admin/qa-tools` when `QA_TOOLS_ENABLED=true`. The screen is admin-only, creates and deletes only flagged test players, and writes each use to `player_code_audits` (Vellar number and admin id, not the email or phone). The flag is off by default and is ignored when `APP_ENV=production`. Turn it on for the QA window, then set it back to false and reload config when testing is finished. The artisan commands remain for someone on the server.
+
 - Sign-in with an unknown ID and with a wrong password returns the same message.
 - A second try too soon returns HTTP 429 and `Retry-After`. The wait starts at 1 second and doubles (2s, 4s, …) up to 60 seconds. When that many seconds have passed, the next try is accepted. It does not lock the account for 15 minutes.
 - The failure count is remembered for 15 minutes. Another failure inside that 15 minutes continues the doubling. After 15 minutes with no further failure for that ID and for that IP, the count is gone and the next failure starts again at 1 second. A successful sign-in clears the wait for that ID. It does not clear the wait for the IP, so the IP still follows `Retry-After`. There is no admin command to clear it. QA waits for `Retry-After` (at most 60 seconds).
@@ -189,7 +196,7 @@ Deploying does not retire passwords or send messages.
 2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both weak-password counts must be 0. The player retire command does not change admin passwords.
 3. **Admin forced password change is on, and admin passwords have been changed.** Set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, and have each admin sign in and set a new password. This does not send email or SMS. The audit then reports `Admin accounts on a known weak password: 0`. On UAT this step is optional. On production it is required.
 4. **Production secrets have been rotated** so none of them are values that appear in git history. See the scan below. Do this before the promotion deploy if the current production values are the leaked ones, and again if a deploy would copy an old secret back.
-5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing.
+5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing. `QA_TOOLS_ENABLED` must be false before promotion. Production forces the QA screen off even if the variable is left true.
 
 Also set production mail variables before offering email reset. Leave `SMS_DRIVER` unset or `none` until one test send has succeeded on production. Run `php artisan migrate --force` if the deploy does not migrate for you. Repeat the Part 1 verification on production. Invite players only after that.
 

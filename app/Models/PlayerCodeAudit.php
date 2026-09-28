@@ -11,6 +11,7 @@ class PlayerCodeAudit extends Model
         'player_id',
         'admin_id',
         'source',
+        'detail',
         'issued_at',
     ];
 

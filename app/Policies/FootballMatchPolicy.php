@@ -8,8 +8,9 @@ use App\Models\User;
 class FootballMatchPolicy
 {
     /**
-     * Admin, the tournament organizer, or the match organizer when the match
-     * has no tournament. A signed-in player cannot change someone else's match.
+     * Same rule as the fixture check on the security-cleanup branch: an
+     * admin, the match organizer, or the tournament organizer. A missing
+     * tournament does not skip the check.
      */
     public function manage(User $user, FootballMatch $match): bool
     {
@@ -17,12 +18,12 @@ class FootballMatchPolicy
             return true;
         }
 
-        $tournament = $match->tournament;
-
-        if ($tournament) {
-            return (int) $tournament->organizer_id === (int) $user->id;
+        if ((int) $match->organizer_id === (int) $user->id) {
+            return true;
         }
 
-        return (int) $match->organizer_id === (int) $user->id;
+        $tournament = $match->tournament;
+
+        return $tournament && (int) $tournament->organizer_id === (int) $user->id;
     }
 }

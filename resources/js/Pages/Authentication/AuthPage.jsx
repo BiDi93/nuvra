@@ -143,6 +143,8 @@ const AuthPage = () => {
             });
 
             // Show success screen with vellar_id
+            if (res.data.status_token) localStorage.setItem('pending_status_token', res.data.status_token);
+            if (res.data.vellar_number) localStorage.setItem('pending_vellar_id', String(res.data.vellar_number));
             setSuccessData({
                 vellar_id:     res.data.vellar_id,
                 vellar_number: res.data.vellar_number,

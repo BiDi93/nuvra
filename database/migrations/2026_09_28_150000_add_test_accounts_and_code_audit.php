@@ -16,14 +16,19 @@ return new class extends Migration
             if (! Schema::hasColumn('users', 'is_test_account')) {
                 $table->boolean('is_test_account')->default(false);
             }
+
+            if (! Schema::hasColumn('users', 'status_token')) {
+                $table->string('status_token', 64)->nullable();
+            }
         });
 
         if (! Schema::hasTable('player_code_audits')) {
             Schema::create('player_code_audits', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('player_id')->constrained('users')->cascadeOnDelete();
+                $table->foreignId('player_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->foreignId('admin_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('source', 32);
+                $table->string('detail', 120)->nullable();
                 $table->timestamp('issued_at');
                 $table->timestamps();
 
@@ -39,6 +44,10 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             if (Schema::hasColumn('users', 'is_test_account')) {
                 $table->dropColumn('is_test_account');
+            }
+
+            if (Schema::hasColumn('users', 'status_token')) {
+                $table->dropColumn('status_token');
             }
 
             if (Schema::hasColumn('users', 'password_is_shared')) {

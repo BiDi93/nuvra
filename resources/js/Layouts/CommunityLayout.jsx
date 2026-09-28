@@ -48,6 +48,7 @@ export default function CommunityLayout() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [showNotifications, setShowNotifications] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
+    const [qaTools, setQaTools] = useState(false);
 
     const fetchPendingCount = async () => {
         const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
@@ -96,6 +97,12 @@ export default function CommunityLayout() {
 
         fetchNotifications();
         fetchPendingCount();
+        const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+        if (token) {
+            fetch(`${API}/admin/qa-tools`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } })
+                .then((res) => setQaTools(res.ok))
+                .catch(() => setQaTools(false));
+        }
         const interval = setInterval(() => {
             fetchNotifications();
             fetchPendingCount();
@@ -323,6 +330,14 @@ export default function CommunityLayout() {
                                 badgeVariant="warn"
                                 onClick={() => navigate("/community/admin/pending-players")}
                             />
+                            {qaTools && (
+                                <NavItem
+                                    label="QA TOOLS"
+                                    icon={<IconSettings size={17} />}
+                                    active={isActive("/community/admin/qa-tools")}
+                                    onClick={() => navigate("/community/admin/qa-tools")}
+                                />
+                            )}
                         </>
                     )}
 

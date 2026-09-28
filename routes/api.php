@@ -9,6 +9,7 @@ use App\Http\Controllers\CommunityGameController;
 use App\Http\Controllers\CommunityNotificationController;
 use App\Http\Controllers\CommunityPasswordResetController;
 use App\Http\Controllers\NewPasswordController;
+use App\Http\Controllers\QaTestPlayerController;
 use App\Http\Controllers\TournamentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -43,7 +44,7 @@ Route::prefix('community')->group(function () {
     Route::post('/password/reset', [CommunityPasswordResetController::class, 'reset']);
 
     // ── Status Check (Public — for WaitingRoom polling) ───────────────────────
-    Route::post('/check-status', [CommunityAuthController::class, 'checkStatus']);
+    Route::match(['get', 'post'], '/check-status', [CommunityAuthController::class, 'checkStatus']);
 
     // ── Tournaments (Public Reads) ────────────────────────────────────────────
     Route::get('/tournaments', [TournamentController::class, 'index']);
@@ -93,6 +94,9 @@ Route::prefix('community')->group(function () {
         Route::post('/admin/approve-player/{id}', [CommunityAuthController::class, 'approvePlayer']);
         Route::delete('/admin/reject-player/{id}', [CommunityAuthController::class, 'rejectPlayer']);
         Route::post('/admin/players/{id}/activation-code', [CommunityPasswordResetController::class, 'issueActivationCode']);
+        Route::get('/admin/qa-tools', [QaTestPlayerController::class, 'show']);
+        Route::post('/admin/qa-tools/test-players', [QaTestPlayerController::class, 'store']);
+        Route::delete('/admin/qa-tools/test-players', [QaTestPlayerController::class, 'destroy']);
 
         // ── Admin: Player Statistics Management ──────────────────────────────
         Route::put('/admin/players/{id}/stats', [CommunityGameController::class, 'updatePlayerStats']);
