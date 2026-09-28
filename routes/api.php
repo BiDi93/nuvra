@@ -54,6 +54,9 @@ Route::prefix('community')->group(function () {
     Route::get('/members', [CommunityGameController::class, 'members']);
     Route::get('/members/{id}', [CommunityGameController::class, 'memberProfile']);
 
+    // Notices are public. Creating and deleting them stays behind Sanctum.
+    Route::get('/announcements', [CommunityAnnouncementController::class, 'index']);
+
     // ── Authenticated Routes ──────────────────────────────────────────────────
     Route::middleware(['auth:sanctum', \App\Http\Middleware\ForceVerifiedReset::class])->group(function () {
         Route::post('/logout', [CommunityAuthController::class, 'logout']);
@@ -82,7 +85,6 @@ Route::prefix('community')->group(function () {
         Route::post('/games/{id}/performances', [CommunityGameController::class, 'recordPerformances']);
 
         // ── Announcements ─────────────────────────────────────────────────────
-        Route::get('/announcements', [CommunityAnnouncementController::class, 'index']);
         Route::post('/announcements', [CommunityAnnouncementController::class, 'store']);
         Route::delete('/announcements/{id}', [CommunityAnnouncementController::class, 'destroy']);
 

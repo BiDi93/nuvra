@@ -8,14 +8,15 @@ use App\Models\User;
 class FootballMatchPolicy
 {
     /**
-     * Same rule as the fixture check on the security-cleanup branch: an
-     * admin, the match organizer, or the tournament organizer. A missing
-     * tournament does not skip the check.
+     * Score, delete, and performance edits. A current admin may edit a
+     * fixture. A missing tournament does not skip the check. organizer_id is
+     * historical: a former organizer demoted to player still has that id on
+     * old matches and is refused.
      */
     public function manage(User $user, FootballMatch $match): bool
     {
-        if ($user->role === 'admin') {
-            return true;
+        if ($user->role !== 'admin') {
+            return false;
         }
 
         if ((int) $match->organizer_id === (int) $user->id) {
@@ -24,6 +25,10 @@ class FootballMatchPolicy
 
         $tournament = $match->tournament;
 
-        return $tournament && (int) $tournament->organizer_id === (int) $user->id;
+        if ($tournament && (int) $tournament->organizer_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->role === 'admin';
     }
 }

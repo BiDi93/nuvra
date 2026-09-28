@@ -297,9 +297,6 @@ class VellarMasterbaseStatsSeeder extends Seeder
             $st = $playerStats[$cleanVid] ?? ['goals' => 0, 'assists' => 0, 'motm' => 0, 'team' => null];
 
             $effectiveTeam = $this->normalizeTeamName($st['team'] ?: $user->club_name);
-            if ($user->name === 'Anouar Charik' && empty($effectiveTeam)) {
-                $effectiveTeam = 'MAKKAH FC';
-            }
 
             $matches = $this->getMatchesForTeam($effectiveTeam);
             $goals = (int) $st['goals'];

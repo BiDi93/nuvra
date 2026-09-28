@@ -57,6 +57,8 @@ class CommunityGameController extends Controller
             'vellar_id', 'position', 'club_name',
             'stat_matches', 'stat_goals', 'stat_assists', 'stat_rating', 'stat_clean_sheets'
         )
+            ->where('role', 'player')
+            ->where('status', 'active')
             ->orderBy('id', 'asc')
             ->get()
             ->map(function($user) {
@@ -103,6 +105,14 @@ class CommunityGameController extends Controller
     {
         $user = User::find($id);
         if (!$user) return response()->json(['message' => 'User not found'], 404);
+
+        $viewer = $request->user('sanctum');
+        $isApprovedPlayer = $user->role === 'player' && $user->status === 'active';
+        $isSelf = $viewer && (int) $viewer->id === (int) $user->id;
+        $isAdmin = $viewer && $viewer->role === 'admin';
+        if (! $isApprovedPlayer && ! $isSelf && ! $isAdmin) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
 
         $stats = DB::table('performances')
             ->where('user_id', $user->id)
@@ -157,7 +167,6 @@ class CommunityGameController extends Controller
             ]);
         }
 
-        $viewer = $request->user('sanctum');
         $canSeePrivate = $viewer && $viewer->can('viewPrivate', $user);
 
         $profile = [

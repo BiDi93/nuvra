@@ -5,7 +5,11 @@ This work lands on `uat` first. The owner tests and confirms there. Production (
 - **Part 1** is the UAT go-live. Merge and deploy to UAT, then run the checks there.
 - **Part 2** is the production promotion. Do not open that pull request until every item in Part 2 is true.
 
-Merge https://github.com/BiDi93/nuvra/pull/22 (`cursor/security-cleanup-uat-5200`) into `uat` before this pull request. That pull request already makes analytics admin-only, hides phone and address on public profiles, tightens fixture edits, adds `GET /api/community/public-stats`, and changes the UAT deploy workflow and `.gitignore`. It does not move the masterbase workbook. This pull request removes that workbook from the tree. Fixture authorization here follows that same rule: admin, match organizer, or tournament organizer.
+Merge https://github.com/BiDi93/nuvra/pull/22 (`cursor/security-cleanup-uat-5200`) into `uat` before this pull request. That pull request makes analytics admin-only, hides phone and address on public profiles, tightens fixture edits, adds `GET /api/community/public-stats`, and changes the UAT deploy workflow and `.gitignore`. It does not move the masterbase workbook. This pull request removes that workbook from the tree.
+
+Both pull requests edit `.gitignore`. Merge #22 first. Keep #22's `*.exp`, `._*`, `.!*`, `/nuvra_db`, and `*.sqlite` lines, and keep this pull request's `*.xlsx`, `*.csv`, `nuvra_db-*`, and `.env.*` lines (`!.env.example` stays so the example file remains tracked).
+
+Fixture edits go through `FootballMatchPolicy` and `TournamentPolicy`. A current admin may edit. A former organizer who was demoted to player still has `organizer_id` on old rows and is refused. `GET /api/community/public-stats` is not on this branch. After #22 is merged, add `throttle:60,1` and about 5 minutes of caching on that route. This pull request does not add the route and does not edit `.github/workflows`.
 
 No real player has logged in anywhere yet. Do not invite a player on UAT until Part 1 is done there. Do not invite a player on production until Part 2 is done there.
 
@@ -177,7 +181,7 @@ For production promotion this flag must be true, and every admin must have chang
 
 ## 8. How admin accounts are created
 
-**On `uat` (this branch).** `DatabaseSeeder` calls `TournamentMasterbaseSeeder`, which `firstOrCreate`s `admin@vellarleague.com` with role `admin` and `Hash::make('password')`. `firstOrCreate` does not reset the password if that email already exists. `CommunitySeeder` and `PlayerDummySeeder` can also create an admin (`owner@nuvra.com`) with the same shared password, but `DatabaseSeeder` does not call them. No migration inserts an admin. Public registration creates players only, with status `pending`.
+**On `uat` (this branch).** `DatabaseSeeder` calls `TournamentMasterbaseSeeder`, which `firstOrCreate`s `admin@vellarleague.com` with role `admin` and `Hash::make('password')` only when the external workbook is present. `firstOrCreate` does not reset the password if that email already exists. `CommunitySeeder` and `PlayerDummySeeder` are demo seeders. They refuse to run when `APP_ENV=production`, they do not create an admin, and the accounts they create do not use `password`, `password123`, or `Nuvra2026!`. `DatabaseSeeder` does not call them. No migration inserts an admin. Public registration creates players only, with status `pending`.
 
 **On `main` (inspected, not changed).** `DatabaseSeeder` calls only `PlayerDummySeeder`, which `updateOrCreate`s `owner@nuvra.com` with role `club_owner` and `Hash::make('password')`. `CommunitySeeder` does the same for `owner@nuvra.com` as `club_owner` if someone runs it by hand. `ResetSeeder` is not called by `DatabaseSeeder`; if someone runs it, it creates `admin@nuvra.com` as `community_admin` and as `admin` and stores the shared password `Nuvra2026!`, and it prints that password. `TournamentMasterbaseSeeder` is not on `main`. No migration on `main` inserts an admin or rewrites `users.password`.
 
@@ -192,6 +196,22 @@ A TOTP second factor is not in this change. Laravel Sanctum is the only auth pac
 Open a separate pull request from the tested `uat` revision into `main`. The owner approves that pull request. Do not promote from this change, and do not invite a production player until every item below is done on production after that deploy.
 
 Deploying does not retire passwords or send messages.
+
+## Operator checks from the security review
+
+Do these in order. This pull request does not rewrite git history and does not edit the deploy workflows.
+
+1. Before the first deploy after #22, take a durable `sqlite3 .backup` of the live database and keep that copy outside the app directory.
+2. Production `.github/workflows/deploy.yml` must have #22's fail-fast preserve step before promotion. That step is on #22, not in this pull request. Do not promote until it is on the revision that deploys.
+3. Verify the production document root points at `public/`.
+4. Retire the local `.exp` and `deploy.sh` scripts. They are not in this tree. They remain on `main` and in git history until a later cleanup.
+5. Check that no seeded dummy admin exists on UAT or production. `CommunitySeeder` and `PlayerDummySeeder` no longer create one. Confirm with a count of `role = 'admin'`, not by printing emails.
+6. Enable GitHub secret scanning and push protection on the repository.
+7. Make the repository private, rotate the SSH key, and rewrite history only after the preserve steps above have landed. Do not rewrite history before that backup exists.
+
+`PaymentControllerBillplz` is not on this branch or on `uat`. It exists only on `main`, and no route on `main` registers it. Delete it in the promotion pull request. It is an IDOR if it is ever routed.
+
+`GET /api/community/public-stats` is added by #22 and is not in this tree. When that route is on the branch, give it `throttle:60,1` and cache the response for about 5 minutes.
 
 ## Required before the promotion is treated as live
 
@@ -253,7 +273,7 @@ The same weaknesses are in the `main` code, independent of what the database hol
 - There is no `password_reset_required` flag and no verified first-login reset.
 - `approveBooking` and `rejectBooking` do not check the organizer, so any signed-in user can approve or reject any booking. `uploadReceipt` is limited to the signed-in user's own booking, and `bookings` is limited to the organizer or an admin. Those game routes are on `main` and are not on current `uat`.
 - `memberProfile` on `main` does not return phone. `getProfile` returns the signed-in user's own phone.
-- `PaymentControllerBillplz` sets a callback URL of `/api/payment/callback` but no route registers that controller, so the callback is not reachable from `main`'s routes either.
+- `PaymentControllerBillplz` is only on `main`. No route registers it, so the callback is not reachable. Delete that controller in the promotion pull request. It is an IDOR if it is ever routed.
 
 On the production server, check counts only. Do not print names, emails, phone numbers, or hashes.
 

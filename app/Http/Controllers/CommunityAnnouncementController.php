@@ -7,21 +7,14 @@ use Illuminate\Support\Facades\DB;
 
 class CommunityAnnouncementController extends Controller
 {
-    private function resolveUser(Request $request)
-    {
-        $token = $request->bearerToken();
-        if (! $token) return null;
-        return DB::table('community_users')->where('remember_token', $token)->first();
-    }
-
     // ── GET /community/announcements ──────────────────────────────────────────
     public function index()
     {
         $announcements = DB::table('community_announcements')
-            ->join('community_users', 'community_announcements.created_by', '=', 'community_users.id')
+            ->leftJoin('users', 'community_announcements.created_by', '=', 'users.id')
             ->select(
                 'community_announcements.*',
-                'community_users.name as author_name'
+                'users.name as author_name'
             )
             ->orderBy('community_announcements.created_at', 'desc')
             ->get();
@@ -32,7 +25,7 @@ class CommunityAnnouncementController extends Controller
     // ── POST /community/announcements — admin only ────────────────────────────
     public function store(Request $request)
     {
-        $user = $this->resolveUser($request);
+        $user = $request->user();
 
         if (! $user || $user->role !== 'admin') {
             return response()->json(['message' => 'Forbidden. Admins only.'], 403);
@@ -40,19 +33,19 @@ class CommunityAnnouncementController extends Controller
 
         $request->validate([
             'title' => 'required|string|max:255',
-            'body'  => 'required|string',
+            'body' => 'required|string',
         ]);
 
         $id = DB::table('community_announcements')->insertGetId([
-            'title'      => $request->title,
-            'body'       => $request->body,
+            'title' => $request->title,
+            'body' => $request->body,
             'created_by' => $user->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         return response()->json([
-            'message'      => 'Announcement posted successfully.',
+            'message' => 'Announcement posted successfully.',
             'announcement' => DB::table('community_announcements')->where('id', $id)->first(),
         ], 201);
     }
@@ -60,7 +53,7 @@ class CommunityAnnouncementController extends Controller
     // ── DELETE /community/announcements/{id} — admin only ────────────────────
     public function destroy(Request $request, $id)
     {
-        $user = $this->resolveUser($request);
+        $user = $request->user();
 
         if (! $user || $user->role !== 'admin') {
             return response()->json(['message' => 'Forbidden. Admins only.'], 403);

@@ -40,3 +40,14 @@ scratch/
 # Player workbook. Names, phone numbers, and birth dates. Keep it outside the repo.
 MASTERBASE VELLAR ID S1.xlsx
 
+# Spreadsheets and exports. Do not commit player lists.
+*.xlsx
+*.csv
+
+# SQLite sidecars written next to a database file such as nuvra_db.
+nuvra_db-*
+
+# Local environment files. The tracked example stays available.
+.env.*
+!.env.example
+
