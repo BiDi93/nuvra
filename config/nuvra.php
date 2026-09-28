@@ -16,6 +16,17 @@ return [
 
     'shared_player_password' => 'password',
 
+    /*
+    | Passwords written by seeders. Admin accounts on any of these must
+    | change them at the next login. This list is not behind the player
+    | retirement flag.
+    */
+    'weak_passwords' => [
+        'password',
+        'password123',
+        'Nuvra2026!',
+    ],
+
     'retire_shared_passwords' => filter_var(env('NUVRA_RETIRE_SHARED_PASSWORDS', false), FILTER_VALIDATE_BOOLEAN),
 
     /*
@@ -38,6 +49,7 @@ return [
         'forgot_password' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
         'reset_destination' => ['base' => 60, 'cap' => 900, 'window' => 900, 'free' => 0],
         'activation_code' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
+        'admin_password' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 0],
         'check_status' => ['base' => 1, 'cap' => 60, 'window' => 900, 'free' => 40],
     ],
 

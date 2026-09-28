@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Contracts\SmsSender;
 use App\Models\User;
 use App\Support\PlayerContact;
+use App\Support\WeakPassword;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 
@@ -28,6 +29,7 @@ class AuditPlayerContacts extends Command
         $malformedEmails = 0;
         $noChannel = 0;
         $onDefault = 0;
+        $onWeak = 0;
 
         User::query()
             ->where('role', 'player')
@@ -44,6 +46,7 @@ class AuditPlayerContacts extends Command
                 &$malformedEmails,
                 &$noChannel,
                 &$onDefault,
+                &$onWeak,
             ) {
                 foreach ($rows as $player) {
                     $players++;
@@ -84,16 +87,24 @@ class AuditPlayerContacts extends Command
                     if (Hash::check($shared, $player->password)) {
                         $onDefault++;
                     }
+
+                    if (WeakPassword::matchesStored($player)) {
+                        $onWeak++;
+                    }
                 }
             });
 
         $adminsOnDefault = 0;
+        $adminsOnWeak = 0;
         $admins = 0;
 
-        User::query()->where('role', 'admin')->orderBy('id')->each(function (User $admin) use ($shared, &$admins, &$adminsOnDefault) {
+        User::query()->where('role', 'admin')->orderBy('id')->each(function (User $admin) use ($shared, &$admins, &$adminsOnDefault, &$adminsOnWeak) {
             $admins++;
             if (Hash::check($shared, $admin->password)) {
                 $adminsOnDefault++;
+            }
+            if (WeakPassword::matchesStored($admin)) {
+                $adminsOnWeak++;
             }
         });
 
@@ -107,8 +118,10 @@ class AuditPlayerContacts extends Command
         $this->line('Players with a malformed login email: '.$malformedEmails);
         $this->line('Players with neither a recovery email nor a usable phone: '.$noChannel);
         $this->line('Players still on the shared default password: '.$onDefault);
+        $this->line('Players on a known weak password: '.$onWeak);
         $this->line('Admin accounts: '.$admins);
         $this->line('Admin accounts still on the shared default password: '.$adminsOnDefault);
+        $this->line('Admin accounts on a known weak password: '.$adminsOnWeak);
         $this->line('SMS driver: '.($sms->enabled() ? 'enabled' : 'not configured'));
 
         return self::SUCCESS;

@@ -4,14 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Rules\NotSharedDefaultPassword;
+use App\Rules\StrongPassword;
 use App\Support\AttemptLimiter;
 use App\Support\AttemptResponse;
 use App\Support\AuthMessages;
 use App\Support\PlayerLocator;
 use App\Support\SharedPassword;
+use App\Support\WeakPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class CommunityAuthController extends Controller
@@ -20,46 +21,46 @@ class CommunityAuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name'                  => 'required|string|max:255',
-            'phone'                 => 'nullable|string|max:20',
-            'position'              => 'nullable|string|max:100',
-            'password'              => ['required', 'string', 'min:6', 'confirmed', new NotSharedDefaultPassword],
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'position' => 'nullable|string|max:100',
+            'password' => ['required', 'string', 'min:6', 'confirmed', new NotSharedDefaultPassword],
         ]);
 
         // Auto-increment Vellar ID: get highest number + 1
         $maxNumber = User::whereNotNull('vellar_id')
             ->get()
-            ->map(fn($u) => (int) preg_replace('/[^0-9]/', '', $u->vellar_id))
+            ->map(fn ($u) => (int) preg_replace('/[^0-9]/', '', $u->vellar_id))
             ->max() ?? 0;
 
         $nextNumber = $maxNumber + 1;
-        $vellarId   = 'VELLAR ' . $nextNumber;
-        $email      = 'vellar' . $nextNumber . '@vellarleague.com';
+        $vellarId = 'VELLAR '.$nextNumber;
+        $email = 'vellar'.$nextNumber.'@vellarleague.com';
 
         // Ensure email/vellar_id is unique (edge case check)
         while (User::where('email', $email)->exists()) {
             $nextNumber++;
-            $vellarId = 'VELLAR ' . $nextNumber;
-            $email    = 'vellar' . $nextNumber . '@vellarleague.com';
+            $vellarId = 'VELLAR '.$nextNumber;
+            $email = 'vellar'.$nextNumber.'@vellarleague.com';
         }
 
         $user = User::create([
-            'name'      => $request->name,
-            'email'     => $email,
-            'password'  => Hash::make($request->password),
-            'role'      => 'player',
-            'status'    => 'pending',   // Awaiting admin approval
+            'name' => $request->name,
+            'email' => $email,
+            'password' => Hash::make($request->password),
+            'role' => 'player',
+            'status' => 'pending',   // Awaiting admin approval
             'vellar_id' => $vellarId,
-            'phone'     => $request->phone ?? null,
-            'position'  => $request->position ?? null,
+            'phone' => $request->phone ?? null,
+            'position' => $request->position ?? null,
         ]);
 
         return response()->json([
-            'message'       => 'Registration successful! Awaiting admin approval.',
-            'vellar_id'     => $vellarId,
+            'message' => 'Registration successful! Awaiting admin approval.',
+            'vellar_id' => $vellarId,
             'vellar_number' => $nextNumber,
-            'name'          => $user->name,
-            'status'        => 'pending',
+            'name' => $user->name,
+            'status' => 'pending',
         ], 201);
     }
 
@@ -68,7 +69,7 @@ class CommunityAuthController extends Controller
     {
         $request->validate([
             'vellar_id' => 'required',
-            'password'  => 'required',
+            'password' => 'required',
         ]);
 
         $input = trim($request->vellar_id);
@@ -117,38 +118,106 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => AuthMessages::LOGIN_FAILED], 401);
         }
 
+        if ($user->role === 'admin' && WeakPassword::isKnown((string) $request->password)) {
+            $user->forceFill([
+                'password_reset_required' => true,
+                'password_is_shared' => true,
+                'remember_token' => Str::random(60),
+            ])->save();
+            $user->tokens()->delete();
+            $attempts->clearIdentifier('login', $identifier);
+
+            return response()->json([
+                'message' => AuthMessages::ADMIN_PASSWORD_CHANGE,
+                'password_change_required' => true,
+                'token' => $user->createToken('admin-password-change', ['admin:password'])->plainTextToken,
+            ]);
+        }
+
         $attempts->clearIdentifier('login', $identifier);
 
         // Check account status
         if ($user->status === 'pending') {
             return response()->json([
                 'message' => 'Your account is pending admin approval. Please check back shortly.',
-                'status'  => 'pending',
+                'status' => 'pending',
             ], 403);
         }
 
         if ($user->status === 'suspended') {
             return response()->json([
                 'message' => 'Your account has been suspended. Please contact support/admin.',
-                'status'  => 'suspended',
+                'status' => 'suspended',
             ], 403);
         }
 
         $token = $user->createToken('community_token')->plainTextToken;
 
         return response()->json([
-            'message'    => 'Login successful.',
-            'token'      => $token,
-            'status'     => $user->status,
+            'message' => 'Login successful.',
+            'token' => $token,
+            'status' => $user->status,
             'user' => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'role'      => $user->role,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
                 'vellar_id' => $user->vellar_id,
-                'position'  => $user->position,
+                'position' => $user->position,
                 'club_name' => $user->club_name,
-                'avatar'    => $user->avatar,
+                'avatar' => $user->avatar,
+            ],
+        ]);
+    }
+
+    // ── Admin password change (no email or SMS) ───────────────────────────────
+    public function changeAdminPassword(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'admin' || ! $user->tokenCan('admin:password')) {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => ['required', 'string', 'confirmed', new StrongPassword],
+        ]);
+
+        $attempts = app(AttemptLimiter::class);
+        $identifier = 'admin:'.$user->id;
+
+        if ($denied = AttemptResponse::ifBlocked($attempts, 'admin_password', $identifier, $request->ip())) {
+            return $denied;
+        }
+
+        if (! Hash::check((string) $request->current_password, $user->password)) {
+            $attempts->hit('admin_password', $identifier, $request->ip());
+
+            return response()->json(['message' => 'The current password is incorrect.'], 422);
+        }
+
+        if (Hash::check((string) $request->password, $user->password)) {
+            return response()->json(['message' => 'Choose a different password.'], 422);
+        }
+
+        $user->forceFill([
+            'password' => $request->password,
+            'password_reset_required' => false,
+            'password_is_shared' => false,
+            'remember_token' => Str::random(60),
+        ])->save();
+        $user->tokens()->delete();
+        $attempts->clearIdentifier('admin_password', $identifier);
+
+        return response()->json([
+            'message' => 'Your password has been updated.',
+            'token' => $user->createToken('community_token', ['*'])->plainTextToken,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
             ],
         ]);
     }
@@ -157,6 +226,7 @@ class CommunityAuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
+
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
@@ -183,7 +253,7 @@ class CommunityAuthController extends Controller
             ->get(['id', 'name', 'vellar_id', 'position', 'phone', 'status', 'created_at']);
 
         return response()->json([
-            'count'   => $players->count(),
+            'count' => $players->count(),
             'players' => $players,
         ]);
     }
@@ -200,8 +270,8 @@ class CommunityAuthController extends Controller
         $player->update(['status' => 'active']);
 
         return response()->json([
-            'message'   => "Player {$player->name} ({$player->vellar_id}) has been approved.",
-            'player'    => $player->only(['id', 'name', 'vellar_id', 'position', 'status']),
+            'message' => "Player {$player->name} ({$player->vellar_id}) has been approved.",
+            'player' => $player->only(['id', 'name', 'vellar_id', 'position', 'status']),
         ]);
     }
 
@@ -214,7 +284,7 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
-        $name     = $player->name;
+        $name = $player->name;
         $vellarId = $player->vellar_id;
         $player->delete();
 
@@ -241,18 +311,18 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => 'Invalid Vellar ID.'], 422);
         }
 
-        $email = 'vellar' . $vellarNumber . '@vellarleague.com';
-        $user  = User::where('email', $email)->first(['id', 'name', 'vellar_id', 'position', 'status']);
+        $email = 'vellar'.$vellarNumber.'@vellarleague.com';
+        $user = User::where('email', $email)->first(['id', 'name', 'vellar_id', 'position', 'status']);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Player not found.'], 404);
         }
 
         return response()->json([
-            'status'    => $user->status,
-            'name'      => $user->name,
+            'status' => $user->status,
+            'name' => $user->name,
             'vellar_id' => $user->vellar_id,
-            'position'  => $user->position,
+            'position' => $user->position,
         ]);
     }
 }

@@ -1,19 +1,17 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-
-// --- AUTH ---
-use App\Http\Controllers\NewPasswordController;
-
-// --- COMMUNITY & TOURNAMENT CONTROLLERS ---
-use App\Http\Controllers\CommunityAuthController;
-use App\Http\Controllers\CommunityGameController;
-use App\Http\Controllers\TournamentController;
-use App\Http\Controllers\CommunityAnnouncementController;
 use App\Http\Controllers\CommunityAnalyticsController;
+use App\Http\Controllers\CommunityAnnouncementController;
+// --- AUTH ---
+use App\Http\Controllers\CommunityAuthController;
+// --- COMMUNITY & TOURNAMENT CONTROLLERS ---
+use App\Http\Controllers\CommunityGameController;
 use App\Http\Controllers\CommunityNotificationController;
 use App\Http\Controllers\CommunityPasswordResetController;
+use App\Http\Controllers\NewPasswordController;
+use App\Http\Controllers\TournamentController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,7 +38,7 @@ Route::prefix('community')->group(function () {
 
     // ── Auth ──────────────────────────────────────────────────────────────────
     Route::post('/register', [CommunityAuthController::class, 'register']);
-    Route::post('/login',    [CommunityAuthController::class, 'login']);
+    Route::post('/login', [CommunityAuthController::class, 'login']);
     Route::post('/password/request', [CommunityPasswordResetController::class, 'requestReset']);
     Route::post('/password/reset', [CommunityPasswordResetController::class, 'reset']);
 
@@ -48,54 +46,55 @@ Route::prefix('community')->group(function () {
     Route::post('/check-status', [CommunityAuthController::class, 'checkStatus']);
 
     // ── Tournaments (Public Reads) ────────────────────────────────────────────
-    Route::get('/tournaments',      [TournamentController::class, 'index']);
+    Route::get('/tournaments', [TournamentController::class, 'index']);
     Route::get('/tournaments/{id}', [TournamentController::class, 'show']);
 
     // ── Members & Profiles (Public) ───────────────────────────────────────────
-    Route::get('/members',          [CommunityGameController::class, 'members']);
-    Route::get('/members/{id}',     [CommunityGameController::class, 'memberProfile']);
+    Route::get('/members', [CommunityGameController::class, 'members']);
+    Route::get('/members/{id}', [CommunityGameController::class, 'memberProfile']);
 
     // ── Authenticated Routes ──────────────────────────────────────────────────
     Route::middleware(['auth:sanctum', \App\Http\Middleware\ForceVerifiedReset::class])->group(function () {
-        Route::post('/logout',             [CommunityAuthController::class, 'logout']);
-        Route::get('/me',                  [CommunityAuthController::class, 'me']);
-        Route::get('/profile',             [CommunityGameController::class, 'getProfile']);
-        Route::put('/profile',             [CommunityGameController::class, 'updateProfile']);
-        Route::post('/profile/avatar',     [CommunityGameController::class, 'updateAvatar']);
-        Route::post('/profile/logo',       [CommunityGameController::class, 'updateClubLogo']);
+        Route::post('/logout', [CommunityAuthController::class, 'logout']);
+        Route::post('/admin/password', [CommunityAuthController::class, 'changeAdminPassword']);
+        Route::get('/me', [CommunityAuthController::class, 'me']);
+        Route::get('/profile', [CommunityGameController::class, 'getProfile']);
+        Route::put('/profile', [CommunityGameController::class, 'updateProfile']);
+        Route::post('/profile/avatar', [CommunityGameController::class, 'updateAvatar']);
+        Route::post('/profile/logo', [CommunityGameController::class, 'updateClubLogo']);
 
         // ── Notifications ──────────────────────────────────────────────────────
-        Route::get('/notifications',              [CommunityNotificationController::class, 'index']);
-        Route::post('/notifications/{id}/read',   [CommunityNotificationController::class, 'markAsRead']);
-        Route::post('/notifications/read-all',    [CommunityNotificationController::class, 'markAllAsRead']);
+        Route::get('/notifications', [CommunityNotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [CommunityNotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [CommunityNotificationController::class, 'markAllAsRead']);
 
         // ── Tournament Management (Organizer / Admin) ─────────────────────────
-        Route::post('/tournaments',                          [TournamentController::class, 'store']);
-        Route::post('/tournaments/{id}/teams',               [TournamentController::class, 'addTeam']);
-        Route::delete('/tournaments/{id}/teams/{teamId}',    [TournamentController::class, 'deleteTeam']);
-        Route::post('/tournaments/{id}/fixtures',            [TournamentController::class, 'createFixture']);
-        Route::patch('/matches/{matchId}/score',             [TournamentController::class, 'updateScore']);
-        Route::delete('/matches/{matchId}',                  [TournamentController::class, 'deleteFixture']);
+        Route::post('/tournaments', [TournamentController::class, 'store']);
+        Route::post('/tournaments/{id}/teams', [TournamentController::class, 'addTeam']);
+        Route::delete('/tournaments/{id}/teams/{teamId}', [TournamentController::class, 'deleteTeam']);
+        Route::post('/tournaments/{id}/fixtures', [TournamentController::class, 'createFixture']);
+        Route::patch('/matches/{matchId}/score', [TournamentController::class, 'updateScore']);
+        Route::delete('/matches/{matchId}', [TournamentController::class, 'deleteFixture']);
 
         // ── Match Performances (Admin) ────────────────────────────────────────
-        Route::post('/matches/{id}/performances',            [CommunityGameController::class, 'recordPerformances']);
-        Route::post('/games/{id}/performances',              [CommunityGameController::class, 'recordPerformances']);
+        Route::post('/matches/{id}/performances', [CommunityGameController::class, 'recordPerformances']);
+        Route::post('/games/{id}/performances', [CommunityGameController::class, 'recordPerformances']);
 
         // ── Announcements ─────────────────────────────────────────────────────
-        Route::get('/announcements',          [CommunityAnnouncementController::class, 'index']);
-        Route::post('/announcements',         [CommunityAnnouncementController::class, 'store']);
-        Route::delete('/announcements/{id}',  [CommunityAnnouncementController::class, 'destroy']);
+        Route::get('/announcements', [CommunityAnnouncementController::class, 'index']);
+        Route::post('/announcements', [CommunityAnnouncementController::class, 'store']);
+        Route::delete('/announcements/{id}', [CommunityAnnouncementController::class, 'destroy']);
 
         // ── Analytics ─────────────────────────────────────────────────────────
         Route::get('/analytics', [CommunityAnalyticsController::class, 'index']);
 
         // ── Admin: Player Approval ─────────────────────────────────────────────
-        Route::get('/admin/pending-players',           [CommunityAuthController::class, 'pendingPlayers']);
-        Route::post('/admin/approve-player/{id}',      [CommunityAuthController::class, 'approvePlayer']);
-        Route::delete('/admin/reject-player/{id}',     [CommunityAuthController::class, 'rejectPlayer']);
+        Route::get('/admin/pending-players', [CommunityAuthController::class, 'pendingPlayers']);
+        Route::post('/admin/approve-player/{id}', [CommunityAuthController::class, 'approvePlayer']);
+        Route::delete('/admin/reject-player/{id}', [CommunityAuthController::class, 'rejectPlayer']);
         Route::post('/admin/players/{id}/activation-code', [CommunityPasswordResetController::class, 'issueActivationCode']);
 
         // ── Admin: Player Statistics Management ──────────────────────────────
-        Route::put('/admin/players/{id}/stats',        [CommunityGameController::class, 'updatePlayerStats']);
+        Route::put('/admin/players/{id}/stats', [CommunityGameController::class, 'updatePlayerStats']);
     });
 });

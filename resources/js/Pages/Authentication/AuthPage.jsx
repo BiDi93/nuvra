@@ -38,6 +38,7 @@ const AuthPage = () => {
         vellar_id: '', code: '', password: '', password_confirmation: '',
     });
     const [resetNotice, setResetNotice] = useState('');
+    const [adminChange, setAdminChange] = useState(null);
 
     // Hero image slideshow
     useEffect(() => {
@@ -64,6 +65,17 @@ const AuthPage = () => {
 
             const { token, user, status } = res.data;
 
+            if (res.data.password_change_required) {
+                setAdminChange({
+                    token,
+                    current_password: loginForm.password,
+                    password: '',
+                    password_confirmation: '',
+                });
+                setView('admin-password');
+                return;
+            }
+
             if (status === 'pending') {
                 navigate('/waiting-room', { state: { vellar_id: loginForm.vellar_id } });
                 return;
@@ -81,6 +93,32 @@ const AuthPage = () => {
         } catch (err) {
             const msg = err.response?.data?.message ?? 'An error occurred during sign in. Please try again.';
             setError(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAdminPassword = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            const res = await axios.post('/api/community/admin/password', {
+                current_password: adminChange.current_password,
+                password: adminChange.password,
+                password_confirmation: adminChange.password_confirmation,
+            }, {
+                headers: { Authorization: `Bearer ${adminChange.token}` },
+            });
+            const { token, user } = res.data;
+            localStorage.setItem('community_token', token);
+            localStorage.setItem('auth_token', token);
+            localStorage.setItem('player_role', user.role);
+            localStorage.setItem('community_user', JSON.stringify(user));
+            localStorage.setItem('player_name', user.name ?? '');
+            navigate('/community/feed');
+        } catch (err) {
+            setError(err.response?.data?.message ?? 'Could not update the password.');
         } finally {
             setLoading(false);
         }
@@ -206,6 +244,21 @@ const AuthPage = () => {
                     {/* ══════════════════════════════════════
                         LOGIN VIEW
                     ══════════════════════════════════════ */}
+                    {view === 'admin-password' && adminChange && (
+                        <div style={S.viewWrap}>
+                            <div style={S.viewHeader}>
+                                <h1 style={S.viewTitle}>New admin password</h1>
+                                <p style={S.viewSubtitle}>This password is a shared default. Choose at least 12 characters with upper and lower case letters and a number.</p>
+                            </div>
+                            {error && <p style={S.errorMsg}>{error}</p>}
+                            <form onSubmit={handleAdminPassword} style={S.form}>
+                                <input className="auth-input" type="password" placeholder="New password" value={adminChange.password} onChange={e => { setError(''); setAdminChange(f => ({ ...f, password: e.target.value })); }} style={S.input} required />
+                                <input className="auth-input" type="password" placeholder="Confirm new password" value={adminChange.password_confirmation} onChange={e => { setError(''); setAdminChange(f => ({ ...f, password_confirmation: e.target.value })); }} style={S.input} required />
+                                <button style={S.submitBtn} type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save password'}</button>
+                            </form>
+                        </div>
+                    )}
+
                     {view === 'login' && (
                         <div style={S.viewWrap}>
                             <div style={S.viewHeader}>

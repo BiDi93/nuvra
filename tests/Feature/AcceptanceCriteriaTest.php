@@ -203,6 +203,78 @@ class AcceptanceCriteriaTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_admin_on_a_weak_password_must_change_it_before_anything_else(): void
+    {
+        config(['nuvra.retire_shared_passwords' => false]);
+
+        $admin = User::factory()->create([
+            'email' => 'admin@example.com',
+            'role' => 'admin',
+            'status' => 'active',
+            'password' => 'Nuvra2026!',
+        ]);
+
+        $unknown = $this->postJson('/api/community/login', [
+            'vellar_id' => 'missing-admin@example.com',
+            'password' => 'Nuvra2026!',
+        ]);
+        $this->travel(2)->seconds();
+        $wrong = $this->postJson('/api/community/login', [
+            'vellar_id' => 'admin@example.com',
+            'password' => 'not-the-password',
+        ]);
+
+        $unknown->assertUnauthorized();
+        $wrong->assertUnauthorized();
+        $this->assertSame(AuthMessages::LOGIN_FAILED, $unknown->json('message'));
+        $this->assertSame($unknown->json('message'), $wrong->json('message'));
+        $this->assertArrayNotHasKey('password_change_required', $unknown->json());
+        $this->assertArrayNotHasKey('password_change_required', $wrong->json());
+
+        $this->travel(3)->seconds();
+        $forced = $this->postJson('/api/community/login', [
+            'vellar_id' => 'admin@example.com',
+            'password' => 'Nuvra2026!',
+        ])->assertOk();
+        $forced->assertJsonPath('password_change_required', true);
+        $limited = $forced->json('token');
+
+        $this->withToken($limited)
+            ->getJson('/api/community/analytics')
+            ->assertForbidden()
+            ->assertJsonPath('password_change_required', true);
+
+        $this->withToken($limited)
+            ->postJson('/api/community/admin/password', [
+                'current_password' => 'Nuvra2026!',
+                'password' => 'short',
+                'password_confirmation' => 'short',
+            ])->assertStatus(422);
+
+        $changed = $this->withToken($limited)
+            ->postJson('/api/community/admin/password', [
+                'current_password' => 'Nuvra2026!',
+                'password' => 'Correct-Horse-9',
+                'password_confirmation' => 'Correct-Horse-9',
+            ])->assertOk();
+
+        $stored = \Laravel\Sanctum\PersonalAccessToken::query()->first();
+        $plain = explode('|', (string) $limited, 2)[1] ?? '';
+        $this->assertNotNull($stored);
+        $this->assertSame('community_token', $stored->name);
+        $this->assertFalse(hash_equals($stored->token, hash('sha256', $plain)));
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($limited)->getJson('/api/community/analytics')->assertUnauthorized();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($changed->json('token'))->getJson('/api/community/analytics')->assertOk();
+
+        $admin->refresh();
+        $this->assertFalse($admin->password_reset_required);
+        $this->assertFalse($admin->sharedPasswordState());
+        $this->assertTrue(Hash::check('Correct-Horse-9', $admin->password));
+    }
+
     private function player(string $number, array $overrides = []): User
     {
         return User::factory()->create(array_merge([

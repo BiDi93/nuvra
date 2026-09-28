@@ -1,12 +1,23 @@
 # Go-live checklist
 
-No real player has logged in anywhere yet. Do not invite a player until all three of these are merged on the environment they will use and have been verified there:
+This work lands on `uat` first. The owner tests and confirms there. Production (`main`) is a later promotion pull request that the owner approves. This change does not edit `main`.
+
+- **Part 1** is the UAT go-live. Merge and deploy to UAT, then run the checks there.
+- **Part 2** is the production promotion. Do not open that pull request until every item in Part 2 is true.
+
+No real player has logged in anywhere yet. Do not invite a player on UAT until Part 1 is done there. Do not invite a player on production until Part 2 is done there.
+
+Merging and deploying does not change passwords, send email, or send SMS. Nothing in a migration sends a message. A code goes out only when a player asks for a reset, or when an admin issues one. The owner runs the commands on the server. This list does not change nginx, DNS, or the deploy pipeline.
+
+On UAT, three player controls still have to be verified before an invitation:
 
 1. Verified first-login reset (recovery-email link, SMS code, or an admin activation code). Codes last 15 minutes, are stored hashed, and a new code replaces every older one.
 2. The shared default player password has been retired. That switch stays off until one test account has finished a real reset, then the owner turns it on and runs the command below.
 3. Sign-in and reset use temporary escalating backoff, per ID and per IP, instead of a hard lockout.
 
-Merging and deploying does not change passwords, send email, or send SMS. Nothing in a migration sends a message. A code goes out only when a player asks for a reset, or when an admin issues one. The owner runs the commands on the server. This list does not change nginx, DNS, or the deploy pipeline.
+Admin accounts do not wait for item 2. An admin whose password is still `password`, `password123`, or `Nuvra2026!` is stopped at the next login and must set a new password before they can open player records. That step does not send email or SMS.
+
+# Part 1 — UAT go-live
 
 ## 1. Environment variables
 
@@ -136,18 +147,68 @@ Turn the gate **off**:
 
 Leave both variables unset on production unless you have decided to gate production the same way.
 
-## 7. Promote to `main` / production
+## 7. Admin password on UAT
 
-Do this only after UAT verification above, and before any player is invited to production.
+The UAT admin is seeded as `admin@vellarleague.com` with the shared password `password` (`database/seeders/TournamentMasterbaseSeeder.php`, called from `DatabaseSeeder`). Sign in with that email on `/community`. The response is a password-change step, not access to the player list. Set a password of at least 12 characters with upper and lower case letters and a number. The old session stops working. This happens even while `NUVRA_RETIRE_SHARED_PASSWORDS` is still false.
 
-1. Merge the tested `uat` revision into `main` through the normal release path. Deploying does not retire passwords or send messages.
-2. Set production `.env` mail variables. Leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless production should sit behind the same gate.
-3. Leave `SMS_DRIVER` unset or `none` until the test send in step 4 has succeeded on production.
-4. Run `php artisan migrate --force` if the deploy does not migrate for you.
-5. Leave `NUVRA_RETIRE_SHARED_PASSWORDS` false. Create test players, complete one real reset, then set the flag to true and reload config.
-6. Run `php artisan players:contact-audit`, issue activation codes, then `php artisan players:retire-default-passwords` and, when the counts are right, the `--force` form. Delete the test players when QA is done.
-7. Repeat the verification in step 5 on production.
-8. Invite players only after that.
+A wrong admin password, and an email that is not an account, both return the same failure message and the same escalating wait.
+
+## 8. How admin accounts are created
+
+**On `uat` (this branch).** `DatabaseSeeder` calls `TournamentMasterbaseSeeder`, which `firstOrCreate`s `admin@vellarleague.com` with role `admin` and `Hash::make('password')`. `firstOrCreate` does not reset the password if that email already exists. `CommunitySeeder` and `PlayerDummySeeder` can also create an admin (`owner@nuvra.com`) with the same shared password, but `DatabaseSeeder` does not call them. No migration inserts an admin. Public registration creates players only, with status `pending`.
+
+**On `main` (inspected, not changed).** `DatabaseSeeder` calls only `PlayerDummySeeder`, which `updateOrCreate`s `owner@nuvra.com` with role `club_owner` and `Hash::make('password')`. `CommunitySeeder` does the same for `owner@nuvra.com` as `club_owner` if someone runs it by hand. `ResetSeeder` is not called by `DatabaseSeeder`; if someone runs it, it creates `admin@nuvra.com` as `community_admin` and as `admin` and stores the shared password `Nuvra2026!`, and it prints that password. `TournamentMasterbaseSeeder` is not on `main`. No migration on `main` inserts an admin or rewrites `users.password`.
+
+The UAT snapshot read earlier has one admin, `admin@vellarleague.com`, and that hash matches `password`.
+
+## 9. Admin second factor
+
+A TOTP second factor is not in this change. Laravel Sanctum is the only auth package here, and a correct TOTP setup also needs an encrypted secret, an enrollment confirmation, clock skew, replay protection, and a recovery path so the only admin is not locked out. That is a production launch prerequisite, not a UAT blocker. Ship it before players are invited to production, behind its own switch, after the admin password in section 7 has been changed.
+
+# Part 2 — Production promotion
+
+Open a separate pull request from the tested `uat` revision into `main`. The owner approves that pull request. Do not promote from this change, and do not invite a production player until every item below is done on production after that deploy.
+
+Deploying does not retire passwords or send messages.
+
+## Required before the promotion is treated as live
+
+1. **Verified reset is on, and a test account has proved it.** On production, leave `NUVRA_RETIRE_SHARED_PASSWORDS` false until one test account finishes a real reset (recovery email, SMS, or an admin activation code). Then set the flag to `true`, reload config, and confirm the shared password `password` no longer opens a session for that test account. Delete the test players when that proof is done (`php artisan nuvra:delete-test-players`).
+2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both weak-password counts must be 0. The player retire command does not change admin passwords. Each admin still on a known weak password must sign in and set a new one (section 7).
+3. **Admin passwords have been changed.** The same check reports `Admin accounts on a known weak password: 0`.
+4. **Production secrets have been rotated** so none of them are values that appear in git history. See the scan below. Do this before the promotion deploy if the current production values are the leaked ones, and again if a deploy would copy an old secret back.
+5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing.
+
+Also set production mail variables before offering email reset. Leave `SMS_DRIVER` unset or `none` until one test send has succeeded on production. Run `php artisan migrate --force` if the deploy does not migrate for you. Repeat the Part 1 verification on production. Invite players only after that.
+
+## Count-only password check
+
+On the production server. This prints integers only. It does not print names, emails, phone numbers, or hashes.
+
+```bash
+php artisan players:contact-audit
+```
+
+Promotion stays blocked while either of these lines is above zero:
+
+- `Players on a known weak password`
+- `Admin accounts on a known weak password`
+
+The known weak passwords are the ones the seeders write: `password`, `password123`, and `Nuvra2026!`.
+
+## Secrets the history scan found
+
+Scanned git history on 2026-09-28. Values are not copied here.
+
+| Secret | What history shows | What to rotate |
+| --- | --- | --- |
+| SSH deploy key and passphrase | `ssh_deploy.exp`, `deploy_vm.exp`, `final_deploy.exp`, `force_deploy_vm.exp`, `manual_deploy.exp`, and `fix_github_ssh.exp` spawn SSH and send a passphrase. `deploy.sh` names the GitHub deploy key path on the server. No private-key block (`BEGIN OPENSSH PRIVATE KEY` / `BEGIN RSA PRIVATE KEY`) was found. | Replace the GitHub deploy key, the SSH login passphrase those scripts send, and the Actions secret `SSH_PRIVATE_KEY` if it is that same key. Remove the scripts from the working tree (a separate change). History still contains the passphrase, so rotation is required even after the files are gone. |
+| `APP_KEY` | Every committed `.env.example` has an empty `APP_KEY`. No `APP_KEY=base64:` value was found. | Rotate the production `APP_KEY` if it was ever copied into a shell, a log, or a file this scan did not see. Rotation signs everyone out. |
+| Database | `.env.example` has an empty `DB_PASSWORD`. No database password value was found in the tree. | Rotate the production database user password. The leaked SSH login could read the server `.env`. |
+| Mail | `MAIL_PASSWORD` in `.env.example` is empty. No SMTP password was found. | Rotate the production mail password if one is set on the server. |
+| SMS | No SMS token value was found. | Rotate `SMS_HTTP_TOKEN` if one was ever placed on the server. |
+| Payment | Billplz keys in `config/services.php` are `env()` references only. No key value was found in `TECHNICAL_DOCUMENT.md` or the config. | Rotate `BILLPLZ_API_KEY` and `BILLPLZ_X_SIGNATURE` if they were set on the server. |
+| Google | `GOOGLE_CLIENT_SECRET` is an `env()` reference only. | Rotate it if it was set on the server. |
 
 ## What `main` implies for production
 

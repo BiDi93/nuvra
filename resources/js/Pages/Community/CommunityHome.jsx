@@ -29,6 +29,7 @@ export default function CommunityHome() {
     const [regData, setRegData]     = useState({ name: "", phone: "", position: "", password: "", password_confirmation: "" });
     const [resetData, setResetData] = useState({ vellar_id: "", code: "", password: "", password_confirmation: "" });
     const [resetNotice, setResetNotice] = useState("");
+    const [adminChange, setAdminChange] = useState(null);
 
     // ── LOGIN ──────────────────────────────────────────────────
     const handleLogin = async (e) => {
@@ -50,6 +51,46 @@ export default function CommunityHome() {
 
             if (!res.ok) throw new Error(data.message || "Login failed.");
 
+            if (data.password_change_required) {
+                setAdminChange({
+                    token: data.token,
+                    current_password: loginData.password,
+                    password: "",
+                    password_confirmation: "",
+                });
+                setTab("admin-password");
+                return;
+            }
+
+            localStorage.setItem("community_token", data.token);
+            localStorage.setItem("auth_token", data.token);
+            localStorage.setItem("community_user", JSON.stringify(data.user));
+            navigate("/community/feed");
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAdminPassword = async (e) => {
+        e.preventDefault();
+        setError(""); setLoading(true);
+        try {
+            const res = await fetch(`${API}/admin/password`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${adminChange.token}`,
+                },
+                body: JSON.stringify({
+                    current_password: adminChange.current_password,
+                    password: adminChange.password,
+                    password_confirmation: adminChange.password_confirmation,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Could not update the password.");
             localStorage.setItem("community_token", data.token);
             localStorage.setItem("auth_token", data.token);
             localStorage.setItem("community_user", JSON.stringify(data.user));
@@ -206,6 +247,21 @@ export default function CommunityHome() {
                             <p style={styles.browseHint} onClick={() => navigate("/community/feed")}>
                                 Browse tournaments without signing in →
                             </p>
+                        </>
+                    )}
+
+                    {tab === "admin-password" && adminChange && (
+                        <>
+                            <div style={styles.tabBar}>
+                                <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>New Password</button>
+                            </div>
+                            {error && <div style={styles.errorBox}>⚠ {error}</div>}
+                            <p style={styles.hint}>This admin password is a shared default. Set a new one of at least 12 characters, with upper and lower case letters and a number, before opening the league.</p>
+                            <form onSubmit={handleAdminPassword} style={styles.form}>
+                                <input type="password" placeholder="New password" value={adminChange.password} onChange={e => { setError(""); setAdminChange({ ...adminChange, password: e.target.value }); }} style={styles.input} required />
+                                <input type="password" placeholder="Confirm new password" value={adminChange.password_confirmation} onChange={e => { setError(""); setAdminChange({ ...adminChange, password_confirmation: e.target.value }); }} style={styles.input} required />
+                                <button style={styles.submitBtn} type="submit" disabled={loading}>{loading ? "Saving…" : "SAVE PASSWORD →"}</button>
+                            </form>
                         </>
                     )}
 
