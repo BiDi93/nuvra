@@ -15,13 +15,15 @@ class TournamentMasterbaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $shared = \App\Support\SharedPassword::requireForWrite('importing the masterbase');
         $excelPath = MasterbaseWorkbook::path();
+        $defaultPwd = Hash::make($shared);
 
         $organizer = User::firstOrCreate(
             ['email' => 'admin@vellarleague.com'],
             [
                 'name' => 'Vellar League Admin',
-                'password' => Hash::make('password'),
+                'password' => $defaultPwd,
                 'role' => 'admin',
                 'club_name' => 'Vellar League Official',
                 'location' => 'Bangi, Selangor',
@@ -239,7 +241,6 @@ class TournamentMasterbaseSeeder extends Seeder
             }
 
             $sXml = simplexml_load_string($sheetXml);
-            $defaultPwd = Hash::make('password');
             $batchUsers = [];
 
             foreach ($sXml->sheetData->row as $row) {

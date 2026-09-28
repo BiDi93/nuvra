@@ -9,9 +9,9 @@ class NotSharedDefaultPassword implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $shared = (string) config('nuvra.shared_player_password');
+        $shared = \App\Support\SharedPassword::configuredValue();
 
-        if (is_string($value) && strcasecmp(trim($value), $shared) === 0) {
+        if ($shared !== null && is_string($value) && strcasecmp(trim($value), $shared) === 0) {
             $fail('Choose a password that is not the shared default.');
         }
     }

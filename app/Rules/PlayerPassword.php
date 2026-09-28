@@ -15,9 +15,9 @@ class PlayerPassword implements ValidationRule
             return;
         }
 
-        $shared = (string) config('nuvra.shared_player_password');
+        $shared = \App\Support\SharedPassword::configuredValue();
 
-        if (strcasecmp(trim($value), $shared) === 0) {
+        if ($shared !== null && strcasecmp(trim($value), $shared) === 0) {
             $fail('Choose a password that is not the shared default.');
         }
     }

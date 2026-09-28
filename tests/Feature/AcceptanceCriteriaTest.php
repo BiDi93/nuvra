@@ -133,7 +133,7 @@ class AcceptanceCriteriaTest extends TestCase
         config(['nuvra.retire_shared_passwords' => false]);
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertOk();
 
         config(['nuvra.retire_shared_passwords' => true]);
@@ -149,7 +149,7 @@ class AcceptanceCriteriaTest extends TestCase
         $this->travel(2)->seconds();
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertStatus(403)
             ->assertJson([
                 'message' => AuthMessages::SET_PASSWORD,
@@ -193,13 +193,13 @@ class AcceptanceCriteriaTest extends TestCase
         $this->assertSame('you@example.com', $tests[0]->contact_email);
         $this->assertNull($tests[0]->phone);
         $this->assertSame('NUVRA TEST PLAYER 900001', $tests[0]->name);
-        $this->assertTrue(Hash::check('password', $tests[0]->password));
+        $this->assertTrue(Hash::check($this->sharedPassword(), $tests[0]->password));
         $this->assertTrue($tests[0]->password_reset_required);
         Mail::assertNothingSent();
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '900001',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertStatus(403)
             ->assertJson([
                 'message' => AuthMessages::SET_PASSWORD,
@@ -293,12 +293,12 @@ class AcceptanceCriteriaTest extends TestCase
             'email' => 'admin@example.com',
             'role' => 'admin',
             'status' => 'active',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ]);
 
         $response = $this->postJson('/api/community/login', [
             'vellar_id' => 'admin@example.com',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertOk();
 
         $this->assertArrayNotHasKey('password_change_required', $response->json());
@@ -317,12 +317,12 @@ class AcceptanceCriteriaTest extends TestCase
             'email' => 'admin@example.com',
             'role' => 'admin',
             'status' => 'active',
-            'password' => 'Nuvra2026!',
+            'password' => $this->weakPassword(),
         ]);
 
         $unknown = $this->postJson('/api/community/login', [
             'vellar_id' => 'missing-admin@example.com',
-            'password' => 'Nuvra2026!',
+            'password' => $this->weakPassword(),
         ]);
         $this->travel(2)->seconds();
         $wrong = $this->postJson('/api/community/login', [
@@ -340,7 +340,7 @@ class AcceptanceCriteriaTest extends TestCase
         $this->travel(3)->seconds();
         $forced = $this->postJson('/api/community/login', [
             'vellar_id' => 'admin@example.com',
-            'password' => 'Nuvra2026!',
+            'password' => $this->weakPassword(),
         ])->assertOk();
         $forced->assertJsonPath('password_change_required', true);
         $limited = $forced->json('token');
@@ -352,14 +352,14 @@ class AcceptanceCriteriaTest extends TestCase
 
         $this->withToken($limited)
             ->postJson('/api/community/admin/password', [
-                'current_password' => 'Nuvra2026!',
+                'current_password' => $this->weakPassword(),
                 'password' => 'short',
                 'password_confirmation' => 'short',
             ])->assertStatus(422);
 
         $changed = $this->withToken($limited)
             ->postJson('/api/community/admin/password', [
-                'current_password' => 'Nuvra2026!',
+                'current_password' => $this->weakPassword(),
                 'password' => 'Correct-Horse-9',
                 'password_confirmation' => 'Correct-Horse-9',
             ])->assertOk();
@@ -416,7 +416,7 @@ class AcceptanceCriteriaTest extends TestCase
             'vellar_id' => 'VELLAR '.$number,
             'role' => 'player',
             'status' => 'active',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
             'phone' => null,
         ], $overrides));
     }

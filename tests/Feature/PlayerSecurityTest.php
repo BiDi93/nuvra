@@ -28,7 +28,7 @@ class PlayerSecurityTest extends TestCase
 
         $unknown = $this->postJson('/api/community/login', [
             'vellar_id' => '99999',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ]);
         $this->travel(2)->seconds();
         $known = $this->postJson('/api/community/login', [
@@ -48,7 +48,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertOk()->assertJsonStructure(['token']);
     }
 
@@ -65,7 +65,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertStatus(403)
             ->assertJson([
                 'message' => AuthMessages::SET_PASSWORD,
@@ -75,7 +75,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertStatus(429);
     }
 
@@ -147,8 +147,8 @@ class PlayerSecurityTest extends TestCase
     {
         $this->postJson('/api/community/register', [
             'name' => 'New Player',
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => $this->sharedPassword(),
+            'password_confirmation' => $this->sharedPassword(),
         ])->assertStatus(422);
     }
 
@@ -164,7 +164,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertOk();
     }
 
@@ -216,7 +216,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertStatus(401);
 
         $this->travel(2)->seconds();
@@ -309,8 +309,8 @@ class PlayerSecurityTest extends TestCase
         $this->postJson('/api/community/password/reset', [
             'vellar_id' => '82',
             'code' => $code,
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => $this->sharedPassword(),
+            'password_confirmation' => $this->sharedPassword(),
         ])->assertStatus(422);
 
         $this->postJson('/api/community/password/reset', [
@@ -336,7 +336,7 @@ class PlayerSecurityTest extends TestCase
         $token = $shared->createToken('session')->plainTextToken;
 
         $this->artisan('players:retire-default-passwords')->assertSuccessful();
-        $this->assertTrue(Hash::check('password', $shared->fresh()->password));
+        $this->assertTrue(Hash::check($this->sharedPassword(), $shared->fresh()->password));
         Mail::assertNothingSent();
 
         config(['nuvra.retire_shared_passwords' => false]);
@@ -344,7 +344,7 @@ class PlayerSecurityTest extends TestCase
 
         config(['nuvra.retire_shared_passwords' => true]);
         $this->artisan('players:retire-default-passwords', ['--force' => true])->assertFailed();
-        $this->assertTrue(Hash::check('password', $shared->fresh()->password));
+        $this->assertTrue(Hash::check($this->sharedPassword(), $shared->fresh()->password));
         $this->assertFalse($shared->fresh()->password_reset_required);
 
         $this->artisan('players:retire-default-passwords', [
@@ -354,7 +354,7 @@ class PlayerSecurityTest extends TestCase
 
         $shared->refresh();
         $unique->refresh();
-        $this->assertFalse(Hash::check('password', $shared->password));
+        $this->assertFalse(Hash::check($this->sharedPassword(), $shared->password));
         $this->assertTrue($shared->password_reset_required);
         $this->assertTrue(Hash::check('already-unique', $unique->password));
         $this->assertFalse($unique->password_reset_required);
@@ -362,7 +362,7 @@ class PlayerSecurityTest extends TestCase
 
         $this->postJson('/api/community/login', [
             'vellar_id' => '82',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ])->assertStatus(401);
 
         $this->withHeader('Authorization', 'Bearer '.$token)
@@ -387,7 +387,7 @@ class PlayerSecurityTest extends TestCase
         $this->artisan('players:retire-default-passwords', ['--force' => true])->assertSuccessful();
 
         $this->assertTrue($player->fresh()->password_reset_required);
-        $this->assertFalse(Hash::check('password', $player->fresh()->password));
+        $this->assertFalse(Hash::check($this->sharedPassword(), $player->fresh()->password));
         Mail::assertNothingSent();
     }
 
@@ -681,6 +681,29 @@ class PlayerSecurityTest extends TestCase
         $this->assertSame('198.51.100.20', request()->ip());
     }
 
+    public function test_unset_shared_password_does_not_match_and_does_not_write(): void
+    {
+        $player = $this->player('82', ['password' => 'unique-pass-1']);
+        $before = $player->password;
+
+        config(['nuvra.shared_player_password' => null]);
+
+        $this->assertFalse(\App\Support\SharedPassword::same('unique-pass-1'));
+        $this->artisan('players:retire-default-passwords', ['--force' => true])->assertSuccessful();
+        $this->assertSame($before, $player->fresh()->password);
+
+        $count = \App\Models\User::query()->count();
+
+        try {
+            app(\App\Support\TestPlayers::class)->create(['you@example.com'], null, 'qa_cli');
+            $this->fail('A test player was created without NUVRA_SHARED_DEFAULT_PASSWORD.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('NUVRA_SHARED_DEFAULT_PASSWORD', $e->getMessage());
+        }
+
+        $this->assertSame($count, \App\Models\User::query()->count());
+    }
+
     private function player(string $number, array $overrides = []): User
     {
         return User::factory()->create(array_merge([
@@ -689,7 +712,7 @@ class PlayerSecurityTest extends TestCase
             'vellar_id' => 'VELLAR '.$number,
             'role' => 'player',
             'status' => 'active',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
             'phone' => null,
         ], $overrides));
     }

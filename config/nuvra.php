@@ -7,26 +7,29 @@ return [
     | Shared player password
     |--------------------------------------------------------------------------
     |
-    | Historical imports stored this same password for every player. It is
-    | used only to recognise those hashes. Deploying this config does not
-    | change any account. Retirement stays off until the owner sets
-    | NUVRA_RETIRE_SHARED_PASSWORDS=true after a test reset.
+    | Historical imports stored one shared password for every player. The
+    | value comes only from NUVRA_SHARED_DEFAULT_PASSWORD. When that
+    | variable is unset, recognition is off and nothing is changed.
+    | Deploying this config does not change any account. Retirement stays
+    | off until the owner sets NUVRA_RETIRE_SHARED_PASSWORDS=true after a
+    | test reset. There is no hardcoded fallback.
     |
     */
 
-    'shared_player_password' => 'password',
+    'shared_player_password' => env('NUVRA_SHARED_DEFAULT_PASSWORD'),
 
     /*
-    | Passwords written by seeders. When NUVRA_FORCE_ADMIN_PASSWORD_CHANGE
-    | is true, an admin still on one of these must replace it at the next
-    | login. The flag defaults to false, so a UAT deploy does not interrupt
-    | the current admin. It is not the player retirement flag.
+    | Comma-separated list in NUVRA_WEAK_PASSWORDS. When
+    | NUVRA_FORCE_ADMIN_PASSWORD_CHANGE is true, an admin still on one of
+    | these must replace it at the next login. An empty list turns the
+    | check off. The flag defaults to false, so a UAT deploy does not
+    | interrupt the current admin. It is not the player retirement flag.
+    | There is no hardcoded fallback.
     */
-    'weak_passwords' => [
-        'password',
-        'password123',
-        'Nuvra2026!',
-    ],
+    'weak_passwords' => array_values(array_filter(array_map(
+        trim(...),
+        explode(',', (string) env('NUVRA_WEAK_PASSWORDS', ''))
+    ), fn (string $password) => $password !== '')),
 
     'retire_shared_passwords' => filter_var(env('NUVRA_RETIRE_SHARED_PASSWORDS', false), FILTER_VALIDATE_BOOLEAN),
 

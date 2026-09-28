@@ -20,7 +20,14 @@ class RetireDefaultPlayerPasswords extends Command
 
     public function handle(SmsSender $sms): int
     {
-        $shared = (string) config('nuvra.shared_player_password');
+        $shared = SharedPassword::configuredValue();
+
+        if ($shared === null) {
+            $this->info('NUVRA_SHARED_DEFAULT_PASSWORD is unset, so the shared-password check is off. Nothing was changed and no messages were sent.');
+
+            return self::SUCCESS;
+        }
+
         $smsReady = $sms->enabled();
         $apply = (bool) $this->option('force');
 

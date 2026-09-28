@@ -31,5 +31,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="NUVRA_SHARED_DEFAULT_PASSWORD" value="synthetic-shared-1"/>
+        <env name="NUVRA_WEAK_PASSWORDS" value="synthetic-shared-1,synthetic-weak-1"/>
     </php>
 </phpunit>

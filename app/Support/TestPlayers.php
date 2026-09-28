@@ -15,6 +15,7 @@ class TestPlayers
      */
     public function create(array $contacts, ?int $adminId, string $source): array
     {
+        $password = SharedPassword::requireForWrite('creating a test player');
         $parsed = $this->parse($contacts);
         $rows = [];
 
@@ -36,7 +37,7 @@ class TestPlayers
             ];
         }
 
-        return DB::transaction(function () use ($rows, $adminId, $source) {
+        return DB::transaction(function () use ($rows, $adminId, $source, $password) {
             $created = [];
 
             foreach ($rows as $row) {
@@ -44,7 +45,7 @@ class TestPlayers
                 $player->forceFill([
                     'name' => 'NUVRA TEST PLAYER '.$row['number'],
                     'email' => $row['login'],
-                    'password' => SharedPassword::value(),
+                    'password' => $password,
                     'role' => 'player',
                     'status' => 'active',
                     'vellar_id' => 'VELLAR '.$row['number'],

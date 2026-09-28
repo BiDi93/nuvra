@@ -32,4 +32,4 @@ Each issue writes one row in `player_code_audits`: the admin id, the player id, 
 
 ## Contact shown to players
 
-Set `NUVRA_ACTIVATION_CONTACT` in the server `.env` to the contact players should use, such as a WhatsApp number or an admin's name. Leave it empty to keep the neutral sentence. Do not put that value in the repository. Reload config after editing `.env`.
+`NUVRA_ACTIVATION_CONTACT` is optional and stays unset. The reset message uses the neutral sentence. Do not put a contact in the repository.

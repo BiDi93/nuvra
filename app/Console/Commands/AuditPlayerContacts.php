@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Contracts\SmsSender;
 use App\Models\User;
 use App\Support\PlayerContact;
+use App\Support\SharedPassword;
 use App\Support\WeakPassword;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
@@ -17,7 +18,7 @@ class AuditPlayerContacts extends Command
 
     public function handle(SmsSender $sms): int
     {
-        $shared = (string) config('nuvra.shared_player_password');
+        $shared = SharedPassword::configuredValue();
 
         $players = 0;
         $placeholderEmails = 0;
@@ -84,7 +85,7 @@ class AuditPlayerContacts extends Command
                         $noChannel++;
                     }
 
-                    if (Hash::check($shared, $player->password)) {
+                    if ($shared !== null && Hash::check($shared, $player->password)) {
                         $onDefault++;
                     }
 
@@ -100,7 +101,7 @@ class AuditPlayerContacts extends Command
 
         User::query()->where('role', 'admin')->orderBy('id')->each(function (User $admin) use ($shared, &$admins, &$adminsOnDefault, &$adminsOnWeak) {
             $admins++;
-            if (Hash::check($shared, $admin->password)) {
+            if ($shared !== null && Hash::check($shared, $admin->password)) {
                 $adminsOnDefault++;
             }
             if (WeakPassword::matchesStored($admin)) {
@@ -117,10 +118,14 @@ class AuditPlayerContacts extends Command
         $this->line('Players whose phone contains letters: '.$phonesWithLetters);
         $this->line('Players with a malformed login email: '.$malformedEmails);
         $this->line('Players with neither a recovery email nor a usable phone: '.$noChannel);
-        $this->line('Players still on the shared default password: '.$onDefault);
+        $this->line($shared === null
+            ? 'Players still on the shared default password: not checked (NUVRA_SHARED_DEFAULT_PASSWORD unset)'
+            : 'Players still on the shared default password: '.$onDefault);
         $this->line('Players on a known weak password: '.$onWeak);
         $this->line('Admin accounts: '.$admins);
-        $this->line('Admin accounts still on the shared default password: '.$adminsOnDefault);
+        $this->line($shared === null
+            ? 'Admin accounts still on the shared default password: not checked (NUVRA_SHARED_DEFAULT_PASSWORD unset)'
+            : 'Admin accounts still on the shared default password: '.$adminsOnDefault);
         $this->line('Admin accounts on a known weak password: '.$adminsOnWeak);
         $this->line('SMS driver: '.($sms->enabled() ? 'enabled' : 'not configured'));
 

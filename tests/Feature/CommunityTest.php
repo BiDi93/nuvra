@@ -23,7 +23,7 @@ class CommunityTest extends TestCase
         // 1. Create a regular Player
         $this->user = User::factory()->create([
             'email' => 'community@nuvrasports.com',
-            'password' => bcrypt('password'),
+            'password' => bcrypt($this->sharedPassword()),
             'role' => 'player',
             'status' => 'active',
         ]);
@@ -46,8 +46,8 @@ class CommunityTest extends TestCase
             'name' => 'New Community User',
             'phone' => '0123456789',
             'position' => 'Forward',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'register-pass-1',
+            'password_confirmation' => 'register-pass-1',
         ]);
 
         $response->assertStatus(201)
@@ -61,7 +61,7 @@ class CommunityTest extends TestCase
     {
         $response = $this->postJson('/api/community/login', [
             'vellar_id' => 'community@nuvrasports.com',
-            'password' => 'password',
+            'password' => $this->sharedPassword(),
         ]);
 
         $response->assertStatus(200)

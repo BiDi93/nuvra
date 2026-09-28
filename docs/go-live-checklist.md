@@ -40,7 +40,8 @@ On the server `.env` for that environment, set:
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
 | `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
 | `NUVRA_MASTERBASE_PATH` | Absolute path of the player workbook, outside this repository. Leave it unset on the servers. Seeders fail if it is empty, missing, or inside the repo. Deploy does not read it. |
-| `NUVRA_ACTIVATION_CONTACT` | Optional. A WhatsApp number or an admin's name, shown when a player needs an activation code. Leave unset for the neutral sentence. Do not commit it. See `docs/admin-activation-runbook.md`. |
+| `NUVRA_SHARED_DEFAULT_PASSWORD` | Value the shared-password check compares against. Leave unset to turn that check off. Seeders that must store it refuse to run until it is set. Do not commit a value. This deploy does not change the live admin password. |
+| `NUVRA_WEAK_PASSWORDS` | Optional comma-separated list for the admin forced-change check. Leave unset to turn that check off. Do not commit values. |
 | `NUVRA_TRUSTED_PROXIES` | Leave unset. The default is Cloudflare's published ranges. `*` is ignored. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case set `NUVRA_TRUSTED_PROXIES=127.0.0.1`. That is only safe when the origin is closed to everything else. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
@@ -144,7 +145,7 @@ QA cannot reach the UAT server, so the same create and delete actions are on `/c
 
 The end-to-end reset is only the one flagged email-only test player from step 3 (`you@example.com` replaced with an inbox the team controls). On that account, after `NUVRA_RETIRE_SHARED_PASSWORDS=true`:
 
-- The shared password `password` does not open a session, and an old session for that account is rejected.
+- The shared default does not open a session, and an old session for that account is rejected.
 - An activation code sets a new password once, and a second use of that code fails.
 - A recovery-email link, when mail is configured, opens `/reset-password?token=...` and works once.
 - A reset request returns the same message whether or not the ID or the contact exists.
@@ -183,17 +184,17 @@ Leave both variables unset on production unless you have decided to gate product
 
 On UAT, leave the flag false. Trying the forced change here is optional. To try it: set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, sign in on `/community`, and set a password of at least 12 characters with upper and lower case letters and a number. That step does not send email or SMS. Set the flag back to false if you want the old password to work again.
 
-For production promotion this flag must be true, and every admin must have changed off `password`, `password123`, and `Nuvra2026!`. See Part 2.
+For production promotion this flag must be true, and every admin must have changed off whatever is listed in `NUVRA_WEAK_PASSWORDS`. See Part 2. This deploy does not change the live admin password.
 
 ## 8. How admin accounts are created
 
-**On `uat` (this branch).** `DatabaseSeeder` calls `TournamentMasterbaseSeeder`, which `firstOrCreate`s `admin@vellarleague.com` with role `admin` and `Hash::make('password')` only when the external workbook is present. `firstOrCreate` does not reset the password if that email already exists. `CommunitySeeder` and `PlayerDummySeeder` are demo seeders. They refuse to run when `APP_ENV=production`, they do not create an admin, and the accounts they create do not use `password`, `password123`, or `Nuvra2026!`. `DatabaseSeeder` does not call them. No migration inserts an admin. Public registration creates players only, with status `pending`.
+**On `uat` (this branch).** `DatabaseSeeder` calls `TournamentMasterbaseSeeder`, which creates an admin only when the external workbook is present and `NUVRA_SHARED_DEFAULT_PASSWORD` is set. It uses `firstOrCreate`, so an existing admin password is not reset. If that variable is missing, the seeder throws before it writes. `CommunitySeeder` and `PlayerDummySeeder` are demo seeders. They refuse to run when `APP_ENV=production`, they do not create an admin, and they store a random password. `DatabaseSeeder` does not call them. No migration inserts an admin. Public registration creates players only, with status `pending`. This change does not alter the live UAT admin password.
 
-**On `main` (inspected, not changed).** `DatabaseSeeder` calls only `PlayerDummySeeder`, which `updateOrCreate`s `owner@nuvra.com` with role `club_owner` and `Hash::make('password')`. `CommunitySeeder` does the same for `owner@nuvra.com` as `club_owner` if someone runs it by hand. `ResetSeeder` is not called by `DatabaseSeeder`; if someone runs it, it creates `admin@nuvra.com` as `community_admin` and as `admin` and stores the shared password `Nuvra2026!`, and it prints that password. `TournamentMasterbaseSeeder` is not on `main`. No migration on `main` inserts an admin or rewrites `users.password`.
+**On `main` (inspected, not changed).** `DatabaseSeeder` calls only `PlayerDummySeeder`. `ResetSeeder` is not called by `DatabaseSeeder`. `TournamentMasterbaseSeeder` is not on `main`. No migration on `main` inserts an admin or rewrites `users.password`.
 
 ## 9. Admin second factor
 
-A TOTP second factor is not in this change. Laravel Sanctum is the only auth package here, and a correct TOTP setup also needs an encrypted secret, an enrollment confirmation, clock skew, replay protection, and a recovery path so the only admin is not locked out. That is not small enough to add behind a flag in this pull request. It remains a production launch prerequisite, after the admin password change in Part 2.
+An admin TOTP or second factor is not required by the owner (decision 2026-09-29). It is not in this change, and it does not block production promotion.
 
 # Part 2 — Production promotion
 
@@ -219,16 +220,15 @@ Do these in order. This pull request does not rewrite git history and does not e
 
 ## Required before the promotion is treated as live
 
-1. **Verified reset is on, and one flagged email-only test account has proved it.** On production, create that player with `php artisan nuvra:create-test-players you@example.com` (replace `you@example.com` with an inbox the team controls; do not pass a phone). Leave `NUVRA_RETIRE_SHARED_PASSWORDS` false until that account finishes a real reset. Then set the flag to `true`, reload config, and confirm the shared password `password` no longer opens a session for that test account. Delete it with `php artisan nuvra:delete-test-players`, which removes only flagged test players.
+1. **Verified reset is on, and one flagged email-only test account has proved it.** On production, create that player with `php artisan nuvra:create-test-players you@example.com` (replace `you@example.com` with an inbox the team controls; do not pass a phone). Set `NUVRA_SHARED_DEFAULT_PASSWORD` on the server before that command. Leave `NUVRA_RETIRE_SHARED_PASSWORDS` false until that account finishes a real reset. Then set the flag to `true`, reload config, and confirm the shared default no longer opens a session for that test account. Delete it with `php artisan nuvra:delete-test-players`, which removes only flagged test players.
 2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both weak-password counts must be 0. The player retire command does not change admin passwords.
 3. **Admin forced password change is on, and admin passwords have been changed.** Set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, and have each admin sign in and set a new password. This does not send email or SMS. The audit then reports `Admin accounts on a known weak password: 0`. On UAT this step is optional. On production it is required.
 4. **Production secrets have been rotated** so none of them are values that appear in git history. See the scan below. Do this before the promotion deploy if the current production values are the leaked ones, and again if a deploy would copy an old secret back.
 5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing. `QA_TOOLS_ENABLED` must be false before promotion. Production forces the QA screen off even if the variable is left true.
-6. **An admin second factor is on, or the owner has recorded a decision to defer it.** TOTP is not in this change. Production launch still needs it unless that decision is written down.
-7. **`storage` and `bootstrap/cache` are not mode `777`.** Replace the deploy's `chmod -R 777` on those directories with a mode the web user can write and other users cannot.
-8. If a deploy fails after `artisan down`, the site stays in maintenance mode. A person checks the database and the release, then runs `php artisan up` by hand. The deploy only runs `artisan up` after every step has succeeded. A pre-flight failure happens before `artisan down`, so the site stays up. Workflow follow-up. This pull request does not edit the workflows.
-9. **Trusted proxies are Cloudflare's ranges only, and the origin accepts Cloudflare only.** `NUVRA_TRUSTED_PROXIES` stays empty unless you are replacing the published list. `*` is ignored. Lock the origin firewall so only Cloudflare can reach it. Optional nginx `real_ip`, using `CF-Connecting-IP` and `set_real_ip_from` for those same ranges, is for logs. The app still refuses a spoofed forwarding header from any other address. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case `NUVRA_TRUSTED_PROXIES=127.0.0.1` is needed, and it is only safe when the origin is closed to everything else.
-10. **`APP_ENV` on production is exactly `production`.** That forces the QA tools off even if `QA_TOOLS_ENABLED` is left true.
+6. **`storage` and `bootstrap/cache` are not mode `777`.** Replace the deploy's `chmod -R 777` on those directories with a mode the web user can write and other users cannot.
+7. If a deploy fails after `artisan down`, the site stays in maintenance mode. A person checks the database and the release, then runs `php artisan up` by hand. The deploy only runs `artisan up` after every step has succeeded. A pre-flight failure happens before `artisan down`, so the site stays up. Workflow follow-up. This pull request does not edit the workflows.
+8. **Trusted proxies are Cloudflare's ranges only, and the origin accepts Cloudflare only.** `NUVRA_TRUSTED_PROXIES` stays empty unless you are replacing the published list. `*` is ignored. Lock the origin firewall so only Cloudflare can reach it. Optional nginx `real_ip`, using `CF-Connecting-IP` and `set_real_ip_from` for those same ranges, is for logs. The app still refuses a spoofed forwarding header from any other address. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case `NUVRA_TRUSTED_PROXIES=127.0.0.1` is needed, and it is only safe when the origin is closed to everything else.
+9. **`APP_ENV` on production is exactly `production`.** That forces the QA tools off even if `QA_TOOLS_ENABLED` is left true.
 
 Also set production mail variables before offering email reset. Leave `SMS_DRIVER` unset or `none` until one test send has succeeded on production. Run `php artisan migrate --force` if the deploy does not migrate for you. Repeat the Part 1 verification on production. Invite players only after that.
 
@@ -245,7 +245,7 @@ Promotion stays blocked while either of these lines is above zero:
 - `Players on a known weak password`
 - `Admin accounts on a known weak password`
 
-The known weak passwords are the ones the seeders write: `password`, `password123`, and `Nuvra2026!`.
+The known-weak check uses `NUVRA_WEAK_PASSWORDS` on the server. Leave that variable unset and the check stays off. Do not commit the values.
 
 ## Secrets the history scan found
 
@@ -265,16 +265,16 @@ Scanned git history on 2026-09-28. Values are not copied here.
 
 Checked against `main` at `bf929f8` (2026-09-28). The production database was not queried. Nothing below is a live row.
 
-The shared password `password` is what `main` would write if its seeders or factory were used:
+`main` seeders and its user factory still contain one shared default. That revision is not changed here. The value is not copied into this document. It remains in git history until the planned history rewrite.
 
 - `database/seeders/DatabaseSeeder.php` calls only `PlayerDummySeeder`.
-- `PlayerDummySeeder` and `CommunitySeeder` store `Hash::make('password')` for the club owner and for player users.
-- `database/factories/UserFactory.php` uses the same `password` default.
-- `PlayerSeeder` and `CoachSeeder` store one shared hash of `password123` on the legacy `players` / coaches tables, not on `users`.
-- Migration `2026_01_07_153836_add_auth_fields_to_players_table.php` defaults the legacy `players.password` column to `bcrypt('password123')` for rows inserted without a password.
-- `ResetSeeder` stores one shared password (`Nuvra2026!`) on the users it creates and prints that password when it runs.
+- `PlayerDummySeeder` and `CommunitySeeder` store one shared hash for the club owner and for player users.
+- `database/factories/UserFactory.php` uses that same default.
+- `PlayerSeeder` and `CoachSeeder` store one shared hash on the legacy `players` and coaches tables, not on `users`.
+- Migration `2026_01_07_153836_add_auth_fields_to_players_table.php` on `main` still defaults the legacy `players.password` column. On this branch that default is gone.
+- `ResetSeeder` stores one shared password on the users it creates and prints it when it runs.
 
-`TournamentMasterbaseSeeder` (the UAT import that wrote one shared `password` hash for the Vellar list) is not on `main`. No migration on `main` updates existing `users.password` values. So production has that shared player password if the database was seeded or copied that way, and it does not if the accounts were created some other way. The code cannot decide which.
+`TournamentMasterbaseSeeder` is not on `main`. No migration on `main` updates existing `users.password` values. So production has that shared player password if the database was seeded or copied that way, and it does not if the accounts were created some other way. The code cannot decide which. This change does not alter the live UAT admin password.
 
 The same weaknesses are in the `main` code, independent of what the database holds:
 
@@ -299,30 +299,10 @@ FROM users
 WHERE role = 'player';
 ```
 
-Then count how many stored hashes still match a seeder password. This prints integers only:
+Then count how many stored hashes still match the shared default or the weak list. Set `NUVRA_SHARED_DEFAULT_PASSWORD` and `NUVRA_WEAK_PASSWORDS` in the server environment first. Do not commit those values. This prints integers only:
 
 ```bash
-php artisan tinker --execute="
-\$candidates = ['password', 'password123', 'Nuvra2026!'];
-foreach (['player', 'admin', 'club_owner'] as \$role) {
-    \$matched = array_fill_keys(\$candidates, 0);
-    \$n = 0;
-    App\Models\User::query()->where('role', \$role)->select('id', 'password')->orderBy('id')->chunkById(200, function (\$rows) use (\$candidates, &\$matched, &\$n) {
-        foreach (\$rows as \$row) {
-            \$n++;
-            foreach (\$candidates as \$candidate) {
-                if (Illuminate\Support\Facades\Hash::check(\$candidate, \$row->password)) {
-                    \$matched[\$candidate]++;
-                }
-            }
-        }
-    });
-    echo \$role.' count='.\$n.PHP_EOL;
-    foreach (\$matched as \$candidate => \$hits) {
-        echo \$role.' hash_matches['.\$candidate.']='.\$hits.PHP_EOL;
-    }
-}
-"
+php artisan players:contact-audit
 ```
 
-A `player hash_matches[password]` count above zero means those accounts still open with the shared default. Run the retire command on production before inviting anyone. If the count is zero, the live data does not currently match that seeder password; still confirm the other two candidates and that distinct hashes are not a single shared value.
+A player count above zero on the shared-default line means those accounts still open with it. Run the retire command on production before inviting anyone. If `NUVRA_SHARED_DEFAULT_PASSWORD` is unset, that line says the check is off and no account is changed.
