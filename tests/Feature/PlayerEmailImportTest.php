@@ -484,6 +484,23 @@ class PlayerEmailImportTest extends TestCase
         $this->assertSame(0, PlayerEmailAudit::query()->count());
     }
 
+    public function test_apply_refuses_a_file_with_no_collected_by_column(): void
+    {
+        $admin = $this->admin();
+        $player = $this->player('82');
+        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->expectsOutputToContain('Rows with no Collected by: 1')
+            ->assertFailed();
+
+        $this->assertNull($player->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+    }
+
     public function test_a_non_unique_database_error_uses_the_generic_rollback_line(): void
     {
         $admin = $this->admin();

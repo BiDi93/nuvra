@@ -17,7 +17,7 @@ use Throwable;
 class ImportPlayerEmails extends Command
 {
     protected $signature = 'players:import-emails
-        {file : CSV outside the repository. Columns: Vellar ID, email, and an optional collected-by column.}
+        {file : CSV outside the repository. Columns: Vellar ID, email, and a required Collected by column.}
         {--apply : Write the valid rows. Without this flag the command only reports counts.}
         {--admin-id= : Required with --apply. User id of the admin running the import.}
         {--replace-existing : Replace a recovery email that is already set to a different address.}
