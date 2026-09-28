@@ -8,9 +8,9 @@ use Illuminate\Console\Command;
 class ClearUntrustedContactEmails extends Command
 {
     protected $signature = 'players:clear-untrusted-contact-emails
-        {--force : Clear recovery emails that were not set by an admin process. Without this flag the command only prints counts.}';
+        {--force : Clear recovery emails with no source, from before this deploy. Without this flag the command only prints counts.}';
 
-    protected $description = 'Count recovery emails and clear any that were not set by an admin process. Prints counts only.';
+    protected $description = 'Count recovery emails and clear any with no source. Keeps admin and player sources. Prints counts only.';
 
     public function handle(): int
     {
@@ -20,14 +20,16 @@ class ClearUntrustedContactEmails extends Command
 
         $total = (clone $withEmail)->count();
         $adminSet = (clone $withEmail)->where('contact_email_source', 'admin')->count();
-        $untrusted = $total - $adminSet;
+        $playerSet = (clone $withEmail)->where('contact_email_source', 'player')->count();
+        $beforeDeploy = (clone $withEmail)->whereNull('contact_email_source')->count();
 
         $this->line('Accounts with a recovery email: '.$total);
         $this->line('Set by an admin process: '.$adminSet);
-        $this->line('Not set by an admin process: '.$untrusted);
+        $this->line('Set by the player: '.$playerSet);
+        $this->line('Set before this deploy: '.$beforeDeploy);
 
         if (! $this->option('force')) {
-            $this->info('Counts only. No recovery emails were cleared. Re-run with --force to clear the ones not set by an admin process.');
+            $this->info('Counts only. No recovery emails were cleared. Re-run with --force to clear emails that have no source. Admin and player sources are kept, so running this between import rounds is safe.');
 
             return self::SUCCESS;
         }
@@ -35,10 +37,7 @@ class ClearUntrustedContactEmails extends Command
         $cleared = 0;
 
         (clone $withEmail)
-            ->where(function ($query) {
-                $query->whereNull('contact_email_source')
-                    ->orWhere('contact_email_source', '!=', 'admin');
-            })
+            ->whereNull('contact_email_source')
             ->orderBy('id')
             ->chunkById(100, function ($users) use (&$cleared) {
                 foreach ($users as $user) {

@@ -7,6 +7,7 @@ use App\Models\ContactEmailChange as ContactEmailChangeRecord;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -30,12 +31,29 @@ class ContactEmailChange
     }
 
     /**
-     * A session from the shared default, or an account that still has to
-     * set its own password, must not attach a recovery email.
+     * A player cannot attach a recovery email until the shared-password
+     * variable is set, or while they still use that password, or while a
+     * reset is still required.
      */
     public static function locked(User $user): bool
     {
+        if ($user->role === 'player' && SharedPassword::configuredValue() === null) {
+            return true;
+        }
+
         return (bool) $user->password_reset_required || SharedPassword::usesSharedPassword($user);
+    }
+
+    public static function atDailyCap(User $user): bool
+    {
+        return count(self::recentAttempts($user)) >= 5;
+    }
+
+    public static function recordAttempt(User $user): void
+    {
+        $hits = self::recentAttempts($user);
+        $hits[] = now()->getTimestamp();
+        Cache::put(self::attemptKey($user), $hits, 86400);
     }
 
     public static function mask(?string $email): string
@@ -86,6 +104,8 @@ class ContactEmailChange
 
     public static function record(Request $request, User $user, ?string $previous, ?string $next): void
     {
+        self::recordAttempt($user);
+
         ContactEmailChangeRecord::query()->create([
             'player_id' => $user->id,
             'old_email_masked' => self::mask($previous),
@@ -102,10 +122,33 @@ class ContactEmailChange
         }
 
         try {
-            Mail::to($old)->queue(new ContactEmailChanged);
+            Mail::to($old)->send(new ContactEmailChanged);
         } catch (\Throwable) {
             Log::error('The recovery-email change notice could not be sent.');
         }
+    }
+
+    /**
+     * @return list<int>
+     */
+    private static function recentAttempts(User $user): array
+    {
+        $now = now()->getTimestamp();
+        $hits = Cache::get(self::attemptKey($user), []);
+
+        if (! is_array($hits)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $hits,
+            fn ($hit) => is_int($hit) && $hit > $now - 86400
+        ));
+    }
+
+    private static function attemptKey(User $user): string
+    {
+        return 'contact-email-change:'.$user->id;
     }
 
     private static function loginIdentifier(User $user): string

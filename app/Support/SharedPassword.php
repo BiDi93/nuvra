@@ -58,8 +58,9 @@ class SharedPassword
     }
 
     /**
-     * Null until this account has been checked. The result is stored so later
-     * requests do not repeat the password hash.
+     * Null until this account has been checked while the shared password
+     * variable was set. A stored false from a period when that variable was
+     * unset is not trusted.
      */
     public static function usesSharedPassword(User $user): bool
     {
@@ -71,14 +72,28 @@ class SharedPassword
 
         $state = $user->sharedPasswordState();
 
-        if ($state !== null) {
+        if ($state !== null && self::checkIsVerified($user)) {
             return $state;
         }
 
         $matches = Hash::check($shared, $user->password);
-        $user->forceFill(['password_is_shared' => $matches])->save();
+        $user->forceFill([
+            'password_is_shared' => $matches,
+            'password_is_shared_verified' => true,
+        ])->save();
 
         return $matches;
+    }
+
+    public static function checkIsVerified(User $user): bool
+    {
+        if (! array_key_exists('password_is_shared_verified', $user->getAttributes())) {
+            return false;
+        }
+
+        $value = $user->getAttributes()['password_is_shared_verified'];
+
+        return $value === true || $value === 1 || $value === '1';
     }
 
     public static function requireReset(User $user): void

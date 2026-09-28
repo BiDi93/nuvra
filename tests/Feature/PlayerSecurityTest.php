@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Support\AuthMessages;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -565,7 +566,7 @@ class PlayerSecurityTest extends TestCase
         $this->assertStringNotContainsString('old.player@example.com', $audit->old_email_masked);
         $this->assertStringNotContainsString('new.player@example.com', $audit->new_email_masked);
 
-        Mail::assertQueued(ContactEmailChanged::class, function (ContactEmailChanged $mail) {
+        Mail::assertSent(ContactEmailChanged::class, function (ContactEmailChanged $mail) {
             $html = $mail->render();
 
             return $mail->hasTo('old.player@example.com')
@@ -596,7 +597,6 @@ class PlayerSecurityTest extends TestCase
         $this->assertSame('real.player@example.com', $player->fresh()->contact_email);
         $this->assertSame(1, ContactEmailChange::query()->count());
         Mail::assertNothingSent();
-        Mail::assertNothingQueued();
     }
 
     public function test_taken_and_unknown_recovery_emails_cannot_be_told_apart(): void
@@ -662,7 +662,7 @@ class PlayerSecurityTest extends TestCase
         });
 
         $pending = \Mockery::mock();
-        $pending->shouldReceive('queue')->once()->andThrow(new RuntimeException('smtp failed for old.player@example.com'));
+        $pending->shouldReceive('send')->once()->andThrow(new RuntimeException('smtp failed for old.player@example.com'));
         Mail::shouldReceive('to')->once()->andReturn($pending);
 
         $player = $this->player('82', [
@@ -746,21 +746,150 @@ class PlayerSecurityTest extends TestCase
         $adminSet->forceFill(['contact_email_source' => 'admin'])->save();
 
         $this->artisan('players:clear-untrusted-contact-emails')
-            ->expectsOutputToContain('Not set by an admin process: 2')
             ->expectsOutputToContain('Set by an admin process: 1')
+            ->expectsOutputToContain('Set by the player: 1')
+            ->expectsOutputToContain('Set before this deploy: 1')
             ->doesntExpectOutputToContain('@')
             ->assertSuccessful();
 
         $this->assertSame('player.set@example.com', $playerSet->fresh()->contact_email);
 
         $this->artisan('players:clear-untrusted-contact-emails', ['--force' => true])
-            ->expectsOutputToContain('Cleared 2')
+            ->expectsOutputToContain('Cleared 1')
             ->doesntExpectOutputToContain('@')
             ->assertSuccessful();
 
-        $this->assertNull($playerSet->fresh()->contact_email);
+        $this->assertSame('player.set@example.com', $playerSet->fresh()->contact_email);
         $this->assertNull($unknown->fresh()->contact_email);
         $this->assertSame('admin.set@example.com', $adminSet->fresh()->contact_email);
+    }
+
+    public function test_contact_email_stays_locked_until_the_shared_password_variable_is_set(): void
+    {
+        $shared = $this->sharedPassword();
+        $unique = $this->player('82', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+        ]);
+        $unique->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => true,
+        ])->save();
+
+        config(['nuvra.shared_player_password' => null]);
+
+        $this->actingAs($unique, 'sanctum')
+            ->getJson('/api/community/profile')
+            ->assertOk()
+            ->assertJsonPath('user.contact_email_locked', true);
+
+        $this->actingAs($unique, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Renamed',
+            'phone' => '0123000111',
+        ])->assertOk();
+
+        $unique->refresh();
+        $this->assertSame('Renamed', $unique->name);
+        $this->assertSame('0123000111', $unique->phone);
+
+        $this->actingAs($unique, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken',
+            'contact_email' => 'attacker@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertForbidden()
+            ->assertJsonPath('message', AuthMessages::CONTACT_EMAIL_LOCKED);
+
+        $unique->refresh();
+        $this->assertSame('Renamed', $unique->name);
+        $this->assertNull($unique->contact_email);
+
+        config(['nuvra.shared_player_password' => $shared]);
+
+        $onShared = $this->player('83', ['name' => 'Shared']);
+        config(['nuvra.shared_player_password' => null]);
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '83',
+            'password' => $shared,
+        ])->assertOk();
+
+        $onShared->refresh();
+        $this->assertNull($onShared->sharedPasswordState());
+
+        $onShared->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => null,
+        ])->save();
+
+        config(['nuvra.shared_player_password' => $shared]);
+
+        $this->actingAs($onShared, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken',
+            'contact_email' => 'attacker@example.com',
+            'current_password' => $shared,
+        ])->assertForbidden();
+
+        $onShared->refresh();
+        $this->assertSame('Shared', $onShared->name);
+        $this->assertNull($onShared->contact_email);
+        $this->assertTrue($onShared->sharedPasswordState());
+        $this->assertTrue(\App\Support\SharedPassword::checkIsVerified($onShared));
+    }
+
+    public function test_contact_email_changes_are_capped_at_five_a_day(): void
+    {
+        Cache::flush();
+
+        $admin = $this->admin();
+        $admin->forceFill(['email' => 'Desk@Example.com'])->save();
+
+        $player = $this->player('82', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+        ]);
+        $player->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => true,
+        ])->save();
+
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+                'name' => 'Original',
+                'contact_email' => 'vellar82@vellarleague.com',
+                'current_password' => 'unique-pass-1',
+            ])->assertStatus(422)
+                ->assertJsonPath('message', AuthMessages::CONTACT_EMAIL_REJECTED);
+        }
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Original',
+            'contact_email' => 'first.change@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertOk();
+
+        $this->assertSame('first.change@example.com', $player->fresh()->contact_email);
+
+        $taken = $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Original',
+            'contact_email' => 'Desk@Example.com',
+            'current_password' => 'unique-pass-1',
+        ]);
+        $free = $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Original',
+            'contact_email' => 'second.change@example.com',
+            'current_password' => 'unique-pass-1',
+        ]);
+
+        $taken->assertStatus(422);
+        $this->assertSame($taken->status(), $free->status());
+        $this->assertSame($taken->getContent(), $free->getContent());
+        $this->assertSame(AuthMessages::CONTACT_EMAIL_REJECTED, $taken->json('message'));
+        $this->assertStringNotContainsString('Desk@Example.com', $taken->getContent());
+        $this->assertStringNotContainsString('desk@example.com', strtolower($taken->getContent()));
+        $this->assertStringNotContainsString('second.change@example.com', $free->getContent());
+        $this->assertSame('first.change@example.com', $player->fresh()->contact_email);
+
+        Cache::flush();
     }
 
     public function test_player_cannot_read_or_mark_another_players_notification(): void

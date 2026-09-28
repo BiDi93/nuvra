@@ -116,10 +116,14 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => AuthMessages::PASSWORD_CHECKS_UNCONFIGURED], 503);
         }
 
-        $submittedShared = SharedPassword::same((string) $request->password);
+        $submittedShared = SharedPassword::configuredValue() !== null
+            && SharedPassword::same((string) $request->password);
 
-        if ($isPlayer && $passwordMatches) {
-            $user->forceFill(['password_is_shared' => $submittedShared])->save();
+        if ($isPlayer && $passwordMatches && SharedPassword::configuredValue() !== null) {
+            $user->forceFill([
+                'password_is_shared' => $submittedShared,
+                'password_is_shared_verified' => true,
+            ])->save();
         }
 
         $forcedReset = $isPlayer && $passwordMatches && (

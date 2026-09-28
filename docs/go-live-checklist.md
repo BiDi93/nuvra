@@ -25,6 +25,18 @@ Admin sign-in uses the same backoff and the same failure message as a player. Fo
 
 # Part 1 — UAT go-live
 
+## Before this pull request is deployed
+
+Set `NUVRA_SHARED_DEFAULT_PASSWORD` in the UAT `.env`, then run `php artisan config:cache`. Do this before the deploy, not only before turning retirement on. Do not commit the value. The deploy caches config again, so the variable has to already be in that `.env`.
+
+Straight after the deploy, and before anyone signs in, run:
+
+```bash
+php artisan players:contact-audit
+```
+
+Read the line `Players still on the shared default password`. Expect roughly 472. If that count is 0, or the line says `not checked`, the value is wrong or not loaded. Stop and fix it before continuing. The command prints counts only.
+
 ## 1. Environment variables
 
 On the server `.env` for that environment, set:
@@ -40,7 +52,7 @@ On the server `.env` for that environment, set:
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
 | `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
 | `NUVRA_MASTERBASE_PATH` | Absolute path of the player workbook, outside this repository. Leave it unset on the servers. Seeders fail if it is empty, missing, or inside the repo. Deploy does not read it. |
-| `NUVRA_SHARED_DEFAULT_PASSWORD` | Required before `NUVRA_RETIRE_SHARED_PASSWORDS=true` and before the Part 2 counts. Set it in the server `.env`, then run `php artisan config:cache`. If the flag is on while this is unset, the setup is invalid. Seeders that must store it refuse to run until it is set. Do not commit a value. This deploy does not change the live admin password. |
+| `NUVRA_SHARED_DEFAULT_PASSWORD` | Required in the UAT `.env` before this pull request is deployed, not only before retirement. Set it, then run `php artisan config:cache`. Also required before `NUVRA_RETIRE_SHARED_PASSWORDS=true` and before the Part 2 counts. If the flag is on while this is unset, the setup is invalid. While it is unset, no player can change a recovery email. Seeders that must store it refuse to run until it is set. Do not commit a value. This deploy does not change the live admin password. |
 | `NUVRA_WEAK_PASSWORDS` | Required before `NUVRA_RETIRE_SHARED_PASSWORDS=true` and before the Part 2 counts. Set it in the server `.env`, then run `php artisan config:cache`. If the flag is on while this is unset, the setup is invalid. The forced admin password change also treats a missing list as invalid. Do not commit values. |
 | `NUVRA_TRUSTED_PROXIES` | Leave unset. The default is Cloudflare's published ranges. `*` is ignored. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case set `NUVRA_TRUSTED_PROXIES=127.0.0.1`. That is only safe when the origin is closed to everything else. |
 
@@ -68,7 +80,7 @@ php artisan migrate --force
 
 Run these yourself. None of them run on deploy.
 
-Before the first email import, and after this deploy, list and clear any recovery emails that were not set by an admin process. The profile form used to accept `contact_email` from a signed-in player. That path is closed. Show counts only. Do not print addresses.
+Before the first email import, and after this deploy, list and clear recovery emails that have no source. Those are values set before this deploy. The profile form used to accept `contact_email` from a signed-in player. That path is closed. Show counts only. Do not print addresses.
 
 ```bash
 php artisan players:clear-untrusted-contact-emails
@@ -81,11 +93,12 @@ The same counts, without printing addresses:
 SELECT
   SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '') AS with_recovery_email,
   SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source = 'admin') AS set_by_admin,
-  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND (contact_email_source IS NULL OR contact_email_source != 'admin')) AS not_set_by_admin
+  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source = 'player') AS set_by_player,
+  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source IS NULL) AS set_before_this_deploy
 FROM users;
 ```
 
-`--force` clears only the last of those three. An admin import, which is a separate change, must set `contact_email_source` to `admin` or this command will clear it. Flagged test players created by `nuvra:create-test-players` are already marked that way.
+`--force` clears only `set_before_this_deploy`. It keeps `source=admin` and `source=player`. Running it again between import rounds is safe. An admin import, which is a separate change, must set `contact_email_source` to `admin`. Flagged test players created by `nuvra:create-test-players` are already marked that way.
 
 Set both password variables in the UAT `.env` before you turn the retirement flag on. Then rebuild the cached config. Do not commit the values. `nuvra:create-test-players` also refuses to write until `NUVRA_SHARED_DEFAULT_PASSWORD` is set.
 

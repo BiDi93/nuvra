@@ -51,6 +51,7 @@ class User extends Authenticatable
         'remember_token',
         'status_token',
         'contact_email_source',
+        'password_is_shared_verified',
     ];
 
     /**

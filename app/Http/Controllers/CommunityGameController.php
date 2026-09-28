@@ -221,6 +221,7 @@ class CommunityGameController extends Controller
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'contact_email' => $user->contact_email,
+                'contact_email_locked' => ContactEmailChange::locked($user),
                 'address' => $user->address,
                 'role' => $user->role,
                 'avatar' => $user->avatar,
@@ -342,6 +343,12 @@ class CommunityGameController extends Controller
                     return $denied;
                 }
 
+                if (ContactEmailChange::atDailyCap($user)) {
+                    return response()->json([
+                        'message' => AuthMessages::CONTACT_EMAIL_REJECTED,
+                    ], 422);
+                }
+
                 if ($nextEmail !== null) {
                     $contactEmail = PlayerContact::usableEmail($nextEmail);
                     $taken = $contactEmail !== null && User::query()
@@ -353,6 +360,8 @@ class CommunityGameController extends Controller
                         ->exists();
 
                     if (! $contactEmail || $taken) {
+                        ContactEmailChange::recordAttempt($user);
+
                         return response()->json([
                             'message' => AuthMessages::CONTACT_EMAIL_REJECTED,
                         ], 422);
@@ -406,6 +415,7 @@ class CommunityGameController extends Controller
                 'email'     => $fresh->email,
                 'phone'     => $fresh->phone,
                 'contact_email' => $fresh->contact_email,
+                'contact_email_locked' => ContactEmailChange::locked($fresh),
                 'address'   => $fresh->address,
                 'location'  => $fresh->location,
                 'role'      => $fresh->role,

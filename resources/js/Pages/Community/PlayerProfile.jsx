@@ -506,16 +506,23 @@ export default function PlayerProfile() {
                                     </div>
                                     <div style={{ gridColumn: "span 2" }}>
                                         <label style={S.formLabel}>Recovery email</label>
+                                        {profile?.user?.contact_email_locked ? (
+                                            <p style={{ margin: "6px 0 0", color: "#9CA3AF", fontSize: "13px", lineHeight: 1.45 }}>
+                                                Your team manager will add your recovery email. You can change it after you set your own password.
+                                            </p>
+                                        ) : null}
                                         <input
                                             type="email"
                                             placeholder="Personal email for password reset"
                                             value={basicForm.contact_email}
+                                            readOnly={Boolean(profile?.user?.contact_email_locked)}
+                                            disabled={Boolean(profile?.user?.contact_email_locked)}
                                             onChange={(e) => setBasicForm({ ...basicForm, contact_email: e.target.value })}
                                             style={S.formInput}
                                             className="modal-input"
                                         />
                                     </div>
-                                    {(basicForm.contact_email || "").trim().toLowerCase() !== (profile?.user?.contact_email || "").trim().toLowerCase() && (
+                                    {!profile?.user?.contact_email_locked && (basicForm.contact_email || "").trim().toLowerCase() !== (profile?.user?.contact_email || "").trim().toLowerCase() && (
                                         <div style={{ gridColumn: "span 2" }}>
                                             <label style={S.formLabel}>Current password</label>
                                             <input
