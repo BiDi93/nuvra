@@ -62,4 +62,21 @@ return [
         'token' => env('SMS_HTTP_TOKEN'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | UAT HTTP basic auth
+    |--------------------------------------------------------------------------
+    |
+    | The gate is on only when both values are non-empty. Leave them empty
+    | on production. After editing .env, run `php artisan config:clear`
+    | (or `php artisan config:cache` if this server caches config).
+    | See docs/go-live-checklist.md.
+    |
+    */
+
+    'uat_basic_auth' => [
+        'user' => env('UAT_BASIC_AUTH_USER'),
+        'password' => env('UAT_BASIC_AUTH_PASS'),
+    ],
+
 ];
