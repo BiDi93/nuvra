@@ -19,28 +19,271 @@ jobs:
         username: ${{ secrets.VM_SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT || 22 }}
+        script_stop: true
         script: |
-          cd /var/www/html
-          git config --global --add safe.directory /var/www/html
-          
-          # Maintain maintenance mode
-          php artisan down || true
-          
-          # Sync with GitHub (Force)
+          set -eu
+          bash -s <<'EOF'
+          set -euo pipefail
+
+          APP_DIR=/var/www/html
+          BACKUP_DIR="${HOME}/nuvra-backups"
+          KEEP_BACKUPS=10
+          PRESERVE_DIR=""
+
+          cleanup() {
+            local status=$?
+            if [[ -n "${PRESERVE_DIR}" && -d "${PRESERVE_DIR}" ]]; then
+              rm -rf "${PRESERVE_DIR}"
+            fi
+            if [[ -d "${APP_DIR}" ]]; then
+              if ! (cd "${APP_DIR}" && php artisan up); then
+                echo "ERROR: php artisan up failed" >&2
+                if [[ "${status}" -eq 0 ]]; then
+                  status=1
+                fi
+              fi
+            fi
+            exit "${status}"
+          }
+          trap cleanup EXIT
+
+          read_env_value() {
+            local file="$1" key="$2" line value
+            line=$(grep -E "^[[:space:]]*${key}=" "${file}" | tail -n 1 || true)
+            line="${line%$'\r'}"
+            if [[ -z "${line}" ]]; then
+              return 1
+            fi
+            value="${line#*=}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ "${value}" == \"*\" && "${value}" == *\" ]]; then
+              value="${value:1:${#value}-2}"
+            elif [[ "${value}" == \'*\' && "${value}" == *\' ]]; then
+              value="${value:1:${#value}-2}"
+            fi
+            printf '%s' "${value}"
+          }
+
+          resolve_db_path() {
+            local env_file="$1" connection path
+            if [[ ! -f "${env_file}" ]]; then
+              echo "ERROR: ${env_file} is missing; cannot resolve DB_DATABASE." >&2
+              return 1
+            fi
+            connection=$(read_env_value "${env_file}" DB_CONNECTION || true)
+            if [[ -n "${connection}" && "${connection}" != "sqlite" ]]; then
+              echo "ERROR: DB_CONNECTION is '${connection}'. This deploy only preserves a SQLite file from DB_DATABASE." >&2
+              return 1
+            fi
+            if ! path=$(read_env_value "${env_file}" DB_DATABASE); then
+              echo "ERROR: DB_DATABASE is not set in ${env_file}." >&2
+              return 1
+            fi
+            if [[ "${path}" != /* ]]; then
+              echo "ERROR: DB_DATABASE must be an absolute path to the live SQLite file, not '${path}'." >&2
+              return 1
+            fi
+            if [[ ! -f "${path}" ]]; then
+              echo "ERROR: DB_DATABASE does not point at an existing file: ${path}" >&2
+              return 1
+            fi
+            printf '%s' "${path}"
+          }
+
+          detect_web_group() {
+            local conf="" group=""
+            local -a candidates=()
+            shopt -s nullglob
+            candidates=(/etc/php/*/fpm/pool.d/www.conf)
+            if ((${#candidates[@]} == 0)); then
+              candidates=(/etc/php/*/fpm/pool.d/*.conf)
+            fi
+            shopt -u nullglob
+            if ((${#candidates[@]} == 0)); then
+              return 1
+            fi
+            conf="${candidates[0]}"
+            group=$(awk -F= '/^[[:space:]]*group[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); gsub(/;.*/, "", $2); print $2; exit }' "${conf}" || true)
+            if [[ -z "${group}" ]]; then
+              return 1
+            fi
+            printf '%s' "${group}"
+          }
+
+          resolve_db_owner() {
+            local db="$1"
+            if [[ -n "${NUVRA_DB_OWNER:-}" ]]; then
+              printf '%s' "${NUVRA_DB_OWNER}"
+              return
+            fi
+            stat -c '%U' "${db}"
+          }
+
+          resolve_db_group() {
+            local db="$1" group=""
+            if [[ -n "${NUVRA_DB_GROUP:-}" ]]; then
+              printf '%s' "${NUVRA_DB_GROUP}"
+              return
+            fi
+            group=$(ps -eo user:32,group:32,args | awk '/php-fpm: pool/ && $1 != "root" { print $2; exit }' || true)
+            if [[ -n "${group}" ]]; then
+              echo "Detected php-fpm pool group: ${group}" >&2
+              printf '%s' "${group}"
+              return
+            fi
+            if group=$(detect_web_group); then
+              echo "Detected group from php-fpm pool config: ${group}" >&2
+              printf '%s' "${group}"
+              return
+            fi
+            group=$(stat -c '%G' "${db}")
+            echo "Using the database file's current group: ${group}" >&2
+            printf '%s' "${group}"
+          }
+
+          apply_db_permissions() {
+            local db="$1" owner group path
+            owner=$(resolve_db_owner "${db}")
+            group=$(resolve_db_group "${db}")
+            echo "Setting SQLite mode 660 and ownership ${owner}:${group}"
+            for path in "${db}" "${db}-wal" "${db}-shm"; do
+              [[ -e "${path}" ]] || continue
+              # Mode first, while this user still owns the file. chown may hand
+              # it to the web group afterwards.
+              if ! chmod 660 "${path}"; then
+                if ! sudo -n chmod 660 "${path}"; then
+                  echo "ERROR: unable to chmod 660 ${path}." >&2
+                  return 1
+                fi
+              fi
+              if ! chown "${owner}:${group}" "${path}"; then
+                if ! sudo -n chown "${owner}:${group}" "${path}"; then
+                  echo "ERROR: unable to chown ${path} to ${owner}:${group}." >&2
+                  echo "Set NUVRA_DB_OWNER and NUVRA_DB_GROUP to a pair this user can assign, or allow passwordless sudo for chown." >&2
+                  return 1
+                fi
+              fi
+            done
+          }
+
+          prune_backups() {
+            local dir="$1" keep="$2"
+            local -a files=()
+            local f extra i
+            shopt -s nullglob
+            for f in "${dir}"/nuvra_db.*; do
+              [[ "${f}" == *-wal || "${f}" == *-shm ]] && continue
+              files+=("${f}")
+            done
+            shopt -u nullglob
+            if ((${#files[@]} == 0)); then
+              return
+            fi
+            IFS=$'\n' files=($(printf '%s\n' "${files[@]}" | sort))
+            unset IFS
+            extra=$((${#files[@]} - keep))
+            for ((i=0; i<extra; i++)); do
+              echo "Removing old backup ${files[$i]}"
+              rm -f "${files[$i]}" "${files[$i]}-wal" "${files[$i]}-shm"
+            done
+          }
+
+          backup_sqlite() {
+            local src="$1" reason="$2" stamp dest method
+            mkdir -p "${BACKUP_DIR}"
+            chmod 700 "${BACKUP_DIR}"
+            stamp=$(date -u +%Y%m%dT%H%M%SZ)
+            dest="${BACKUP_DIR}/nuvra_db.${stamp}"
+            if [[ -e "${dest}" ]]; then
+              dest="${dest}.$$"
+            fi
+            if command -v sqlite3 >/dev/null 2>&1; then
+              method="sqlite3 .backup"
+              echo "SQLite backup (${reason}): method=${method} destination=${dest}"
+              sqlite3 "${src}" ".backup '${dest}'"
+            else
+              method="file-copy (sqlite3 missing)"
+              echo "SQLite backup (${reason}): method=${method} destination=${dest}"
+              cp -a "${src}" "${dest}"
+              if [[ -f "${src}-wal" ]]; then
+                cp -a "${src}-wal" "${dest}-wal"
+              fi
+              if [[ -f "${src}-shm" ]]; then
+                cp -a "${src}-shm" "${dest}-shm"
+              fi
+            fi
+            chmod 600 "${dest}"
+            [[ -f "${dest}-wal" ]] && chmod 600 "${dest}-wal"
+            [[ -f "${dest}-shm" ]] && chmod 600 "${dest}-shm"
+            prune_backups "${BACKUP_DIR}" "${KEEP_BACKUPS}"
+          }
+
+          preserve_live_db() {
+            local src="$1"
+            PRESERVE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/nuvra-db.XXXXXX")
+            chmod 700 "${PRESERVE_DIR}"
+            cp -a "${src}" "${PRESERVE_DIR}/db"
+            if [[ -f "${src}-wal" ]]; then
+              cp -a "${src}-wal" "${PRESERVE_DIR}/db-wal"
+            fi
+            if [[ -f "${src}-shm" ]]; then
+              cp -a "${src}-shm" "${PRESERVE_DIR}/db-shm"
+            fi
+          }
+
+          restore_preserved_if_missing() {
+            local dest="$1"
+            if [[ -f "${dest}" ]]; then
+              echo "Database still present after reset; leaving the live file in place."
+              return
+            fi
+            if [[ -z "${PRESERVE_DIR}" || ! -f "${PRESERVE_DIR}/db" ]]; then
+              echo "ERROR: database is missing after reset and no preserve copy is available." >&2
+              return 1
+            fi
+            echo "Database missing after reset; restoring the preserve copy taken immediately before reset."
+            cp -a "${PRESERVE_DIR}/db" "${dest}"
+            if [[ -f "${PRESERVE_DIR}/db-wal" ]]; then
+              cp -a "${PRESERVE_DIR}/db-wal" "${dest}-wal"
+            else
+              rm -f "${dest}-wal"
+            fi
+            if [[ -f "${PRESERVE_DIR}/db-shm" ]]; then
+              cp -a "${PRESERVE_DIR}/db-shm" "${dest}-shm"
+            else
+              rm -f "${dest}-shm"
+            fi
+          }
+
+          cd "${APP_DIR}"
+          git config --global --add safe.directory "${APP_DIR}"
+
+          DB_PATH=$(resolve_db_path "${APP_DIR}/.env")
+          echo "Using SQLite database ${DB_PATH}"
+
+          php artisan down
+
           git fetch origin main
+          backup_sqlite "${DB_PATH}" "before reset"
+          preserve_live_db "${DB_PATH}"
           git reset --hard origin/main
-          
-          # Update Backend
-          composer install --no-dev --optimize-autoloader
-          
-          # Update Frontend
+          restore_preserved_if_missing "${DB_PATH}"
+
+          DB_PATH=$(resolve_db_path "${APP_DIR}/.env")
+
+          composer install --no-dev --no-interaction --optimize-autoloader
           npm install
           npm run build
-          
-          # Database & Optimization
+
+          if [[ ! -f "${DB_PATH}" ]]; then
+            echo "ERROR: database file is missing before migrate (${DB_PATH}). Refusing to let migrate create an empty database." >&2
+            exit 1
+          fi
+          backup_sqlite "${DB_PATH}" "before migrate"
           php artisan migrate --force
           php artisan optimize
           php artisan view:cache
-          
-          # Bring app back up
-          php artisan up
+
+          apply_db_permissions "${DB_PATH}"
+          EOF
