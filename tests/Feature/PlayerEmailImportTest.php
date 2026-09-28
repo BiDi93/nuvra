@@ -2,30 +2,35 @@
 
 namespace Tests\Feature;
 
+use App\Mail\RecoveryEmailChanged;
 use App\Models\PlayerEmailAudit;
 use App\Models\User;
 use App\Support\EmailMask;
 use App\Support\PlayerContact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
-use ZipArchive;
 
 class PlayerEmailImportTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_csv_import_validates_each_category_and_dry_run_writes_nothing(): void
+    public function test_dry_run_writes_nothing_and_masks_every_address(): void
     {
+        Mail::fake();
         $admin = $this->admin();
         $player = $this->player('82');
         $this->player('84');
         $this->player('85');
-        $this->player('86');
         $this->player('87');
+        $holder = $this->player('90', ['contact_email' => 'taken@example.com']);
         $this->player('88', ['contact_email' => 'kept88@example.com']);
-        $this->player('90', ['contact_email' => 'taken@example.com']);
+        $existing = $this->player('89', ['contact_email' => 'other89@example.com']);
+        $this->player('92');
+        $this->player('93');
+        $this->player('94');
         $this->player('91', [
             'role' => 'admin',
             'email' => 'vellar91@vellarleague.com',
@@ -33,148 +38,171 @@ class PlayerEmailImportTest extends TestCase
         ]);
 
         $path = $this->outsideFile('.csv', implode("\n", [
-            'Vellar ID, Email',
-            '  82 ,  Alpha82@Example.com',
-            '84, not-an-email',
-            '85, keeper85@vellarleague.com',
-            '86, player86@nuvra.com',
-            '999, missing@example.com',
-            '87, taken@example.com',
-            '91, staff91@example.com',
-            '88, Kept88@Example.com',
-            '',
+            'Vellar ID, Email, Collected by',
+            '  82 ,  Alpha82@Example.com , Manager A',
+            '84, not-an-email, Manager A',
+            '85, keeper85@vellarleague.com, Manager A',
+            '999, missing@example.com, Manager A',
+            '87,  Taken@Example.com , Manager A',
+            '91, staff91@example.com, Manager A',
+            '88,  Kept88@Example.com , Manager A',
+            '89, new89@example.com, Manager A',
+            '92, first92@example.com, Manager A',
+            '92, second92@example.com, Manager A',
+            '93, shared93@example.com, Manager A',
+            '94, shared93@example.com, Manager A',
         ]));
 
-        $before = $player->contact_email;
+        $mask = EmailMask::mask('alpha82@example.com');
 
         $this->artisan('players:import-emails', [
             'file' => $path,
-            '--admin-id' => $admin->id,
-        ])->expectsOutputToContain('Invalid email: 1')
-            ->expectsOutputToContain('Placeholder email: 2')
-            ->expectsOutputToContain('Unknown Vellar ID: 1')
-            ->expectsOutputToContain('Not a player: 1')
-            ->expectsOutputToContain('Email already held: 1')
-            ->expectsOutputToContain('Unchanged: 1')
-            ->expectsOutputToContain('Would update: 1')
-            ->expectsOutputToContain('Row 3: invalid email')
-            ->expectsOutputToContain('Row 4: placeholder email')
-            ->expectsOutputToContain('Row 5: placeholder email')
-            ->expectsOutputToContain('Row 6: unknown Vellar ID')
-            ->expectsOutputToContain('Row 7: email already held')
-            ->expectsOutputToContain('Row 8: not a player')
-            ->expectsOutputToContain('Row 9: unchanged')
+        ])->expectsOutputToContain('File SHA-256: '.hash_file('sha256', $path))
+            ->expectsOutputToContain('Rows read: 12')
+            ->expectsOutputToContain('Rows to apply: 1')
+            ->expectsOutputToContain('Rows unchanged: 1')
+            ->expectsOutputToContain('Invalid email or placeholder: 2')
+            ->expectsOutputToContain('Vellar ID not found or not a player: 2')
+            ->expectsOutputToContain('Same ID with different emails: 2')
+            ->expectsOutputToContain('Email maps to more than one player: 3')
+            ->expectsOutputToContain('Would replace an existing recovery email: 1')
+            ->expectsOutputToContain('Players with a route afterwards: 4')
+            ->expectsOutputToContain('Players with no route afterwards: 6')
+            ->expectsOutputToContain('Row 2: would apply '.$mask)
             ->expectsOutputToContain('Dry run only. No accounts were changed.')
-            ->doesntExpectOutputToContain('Alpha82@Example.com')
             ->doesntExpectOutputToContain('alpha82@example.com')
+            ->doesntExpectOutputToContain('Alpha82@Example.com')
             ->doesntExpectOutputToContain('taken@example.com')
             ->doesntExpectOutputToContain('keeper85@vellarleague.com')
             ->assertSuccessful();
 
-        $this->assertSame($before, $player->fresh()->contact_email);
-        $this->assertSame(0, PlayerEmailAudit::query()->count());
+        $this->assertNull($player->fresh()->contact_email);
         $this->assertSame('vellar82@vellarleague.com', $player->fresh()->email);
+        $this->assertSame('taken@example.com', $holder->fresh()->contact_email);
+        $this->assertSame('other89@example.com', $existing->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+        Mail::assertNothingSent();
 
         $this->artisan('players:import-emails', [
             'file' => $path,
             '--admin-id' => $admin->id,
             '--apply' => true,
-        ])->expectsOutputToContain('Updated: 1')
-            ->expectsOutputToContain('Updated 1 player account(s).')
+        ])->expectsOutputToContain('Rows applied: 1')
+            ->expectsOutputToContain('Row 2: would apply '.$mask)
             ->doesntExpectOutputToContain('alpha82@example.com')
             ->assertSuccessful();
 
         $player->refresh();
         $this->assertSame('alpha82@example.com', $player->contact_email);
         $this->assertSame('vellar82@vellarleague.com', $player->email);
-        $this->assertSame('kept88@example.com', User::where('vellar_id', 'VELLAR 88')->first()->contact_email);
+        $this->assertSame('other89@example.com', $existing->fresh()->contact_email);
 
-        $audit = PlayerEmailAudit::query()->first();
-        $this->assertNotNull($audit);
+        $audit = PlayerEmailAudit::query()->sole();
         $this->assertSame($player->id, $audit->player_id);
         $this->assertSame($admin->id, $audit->admin_id);
+        $this->assertSame('import', $audit->source);
+        $this->assertSame('Manager A', $audit->collected_by);
         $this->assertSame('(none)', $audit->old_email_masked);
-        $this->assertSame(EmailMask::mask('alpha82@example.com'), $audit->new_email_masked);
+        $this->assertSame($mask, $audit->new_email_masked);
+        $this->assertSame(hash_file('sha256', $path), $audit->source_sha256);
         $this->assertStringNotContainsString('alpha82', $audit->new_email_masked);
         $this->assertStringNotContainsString('example.com', $audit->new_email_masked);
-        $this->assertSame(hash_file('sha256', $path), $audit->source_sha256);
-        $this->assertNotNull($audit->created_at);
-        $this->assertSame(1, PlayerEmailAudit::query()->count());
-
-        $this->postJson('/api/community/login', [
-            'vellar_id' => '82',
-            'password' => $this->sharedPassword(),
-        ])->assertOk();
-
-        $this->artisan('players:contact-audit')
-            ->expectsOutputToContain('Players with a usable recovery email: 3')
-            ->assertSuccessful();
+        Mail::assertNothingSent();
     }
 
-    public function test_xlsx_import_applies_and_deduplicates_within_the_file(): void
+    public function test_reapplying_the_same_file_changes_nothing(): void
     {
+        Mail::fake();
         $admin = $this->admin();
-        $first = $this->player('82');
-        $second = $this->player('83');
-        $third = $this->player('84');
-        $fourth = $this->player('85');
-
-        $path = $this->outsideFile('.xlsx', '');
-        $this->writeXlsx($path, [
-            ['vellar_id', 'E-mail'],
-            ['82', 'alpha82@example.com'],
-            ['83', 'alpha82@example.com'],
-            ['84', 'first84@example.com'],
-            ['84', 'second84@example.com'],
-            ['85', 'repeat85@example.com'],
-            ['85', 'repeat85@example.com'],
-        ]);
+        $player = $this->player('82');
+        $path = $this->outsideFile('.csv', "vellar_id,E-mail,collected_by\n82,  Alpha82@Example.com  , Manager A\n");
 
         $this->artisan('players:import-emails', [
             'file' => $path,
             '--admin-id' => $admin->id,
             '--apply' => true,
-        ])->expectsOutputToContain('Duplicate in file: 5')
-            ->expectsOutputToContain('Updated: 1')
-            ->expectsOutputToContain('Row 2: duplicate in file')
-            ->expectsOutputToContain('Row 3: duplicate in file')
-            ->expectsOutputToContain('Row 4: duplicate in file')
-            ->expectsOutputToContain('Row 5: duplicate in file')
-            ->expectsOutputToContain('Row 7: duplicate in file')
-            ->doesntExpectOutputToContain('repeat85@example.com')
+        ])->expectsOutputToContain('Rows applied: 1')
             ->assertSuccessful();
 
-        $this->assertNull($first->fresh()->contact_email);
-        $this->assertNull($second->fresh()->contact_email);
-        $this->assertNull($third->fresh()->contact_email);
-        $this->assertSame('repeat85@example.com', $fourth->fresh()->contact_email);
-        $this->assertSame('vellar85@vellarleague.com', $fourth->fresh()->email);
+        $this->assertSame('alpha82@example.com', $player->fresh()->contact_email);
+        $this->assertSame(1, PlayerEmailAudit::query()->count());
 
-        $audit = PlayerEmailAudit::query()->sole();
-        $this->assertSame($fourth->id, $audit->player_id);
-        $this->assertSame($admin->id, $audit->admin_id);
-        $this->assertSame(hash_file('sha256', $path), $audit->source_sha256);
-        $this->assertSame(EmailMask::mask('repeat85@example.com'), $audit->new_email_masked);
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->expectsOutputToContain('Rows to apply: 0')
+            ->expectsOutputToContain('Rows unchanged: 1')
+            ->expectsOutputToContain('Rows applied: 0')
+            ->assertSuccessful();
+
+        $this->assertSame('alpha82@example.com', $player->fresh()->contact_email);
+        $this->assertSame(1, PlayerEmailAudit::query()->count());
+        Mail::assertNothingSent();
     }
 
-    public function test_non_admin_and_missing_admin_id_are_refused(): void
+    public function test_replace_existing_is_skipped_unless_requested(): void
     {
+        Mail::fake();
+        $admin = $this->admin();
+        $player = $this->player('82', ['contact_email' => 'old82@example.com']);
+        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,new82@example.com\n");
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->expectsOutputToContain('Would replace an existing recovery email: 1')
+            ->expectsOutputToContain('Rows applied: 0')
+            ->assertSuccessful();
+
+        $this->assertSame('old82@example.com', $player->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+            '--replace-existing' => true,
+        ])->expectsOutputToContain('Rows applied: 1')
+            ->assertSuccessful();
+
+        $this->assertSame('new82@example.com', $player->fresh()->contact_email);
+        $this->assertSame(EmailMask::mask('old82@example.com'), PlayerEmailAudit::query()->sole()->old_email_masked);
+        $this->assertSame(EmailMask::mask('new82@example.com'), PlayerEmailAudit::query()->sole()->new_email_masked);
+        Mail::assertNothingSent();
+    }
+
+    public function test_apply_refuses_a_non_admin_and_a_workbook(): void
+    {
+        Mail::fake();
         $player = $this->player('82');
         $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+        $workbook = $this->outsideFile('.xlsx', 'not a workbook');
 
         $this->artisan('players:import-emails', [
             'file' => $path,
             '--admin-id' => $player->id,
+            '--apply' => true,
         ])->expectsOutputToContain('--admin-id must be an admin account.')
             ->assertFailed();
 
         $this->artisan('players:import-emails', [
             'file' => $path,
+            '--apply' => true,
         ])->expectsOutputToContain('--admin-id is required.')
+            ->assertFailed();
+
+        $this->artisan('players:import-emails', [
+            'file' => $workbook,
+            '--apply' => true,
+            '--admin-id' => $this->admin()->id,
+        ])->expectsOutputToContain('must be a CSV file')
             ->assertFailed();
 
         $this->assertNull($player->fresh()->contact_email);
         $this->assertSame(0, PlayerEmailAudit::query()->count());
+        Mail::assertNothingSent();
     }
 
     public function test_import_file_inside_the_repository_is_refused(): void
@@ -199,14 +227,12 @@ class PlayerEmailImportTest extends TestCase
         $this->assertSame(0, PlayerEmailAudit::query()->count());
     }
 
-    public function test_retire_command_retires_imported_players_only(): void
+    public function test_only_with_route_retires_imported_players_and_leaves_the_rest(): void
     {
         $admin = $this->admin();
-        $first = $this->player('82');
-        $second = $this->player('83');
-        $unique = $this->player('84', ['password' => 'already-unique']);
-
-        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n83,beta83@example.com\n");
+        $imported = $this->player('82');
+        $left = $this->player('83');
+        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
 
         $this->artisan('players:import-emails', [
             'file' => $path,
@@ -215,16 +241,17 @@ class PlayerEmailImportTest extends TestCase
         ])->assertSuccessful();
 
         config(['nuvra.retire_shared_passwords' => true]);
-        $this->artisan('players:retire-default-passwords', ['--force' => true])
-            ->expectsOutputToContain('Default password and a usable recovery email: 2')
+        $this->artisan('players:retire-default-passwords', [
+            '--force' => true,
+            '--only-with-route' => true,
+        ])->expectsOutputToContain('Retired: 1')
+            ->expectsOutputToContain('Left on the shared password: 1')
             ->assertSuccessful();
 
-        $this->assertTrue($first->fresh()->password_reset_required);
-        $this->assertFalse(Hash::check($this->sharedPassword(), $first->fresh()->password));
-        $this->assertTrue($second->fresh()->password_reset_required);
-        $this->assertFalse(Hash::check($this->sharedPassword(), $second->fresh()->password));
-        $this->assertTrue(Hash::check('already-unique', $unique->fresh()->password));
-        $this->assertFalse($unique->fresh()->password_reset_required);
+        $this->assertTrue($imported->fresh()->password_reset_required);
+        $this->assertFalse(Hash::check($this->sharedPassword(), $imported->fresh()->password));
+        $this->assertTrue(Hash::check($this->sharedPassword(), $left->fresh()->password));
+        $this->assertFalse($left->fresh()->password_reset_required);
     }
 
     public function test_placeholder_domain_is_still_not_a_delivery_route(): void
@@ -241,10 +268,127 @@ class PlayerEmailImportTest extends TestCase
 
         $this->assertTrue(Hash::check($this->sharedPassword(), $player->fresh()->password));
         $this->assertFalse($player->fresh()->password_reset_required);
+    }
 
-        $this->artisan('players:contact-audit')
-            ->expectsOutputToContain('Players with a usable recovery email: 0')
+    public function test_profile_refuses_contact_email_while_the_shared_password_or_reset_flag_is_set(): void
+    {
+        Mail::fake();
+        $shared = $this->player('82');
+        $reset = $this->player('83', [
+            'password' => 'unique-pass-1',
+            'password_reset_required' => true,
+            'contact_email' => 'kept83@example.com',
+        ]);
+
+        $this->actingAs($shared, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken Over',
+            'contact_email' => 'attacker82@example.com',
+            'current_password' => $this->sharedPassword(),
+        ])->assertStatus(422);
+
+        $this->actingAs($reset, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken Over',
+            'contact_email' => 'attacker83@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertStatus(401);
+
+        $this->assertNull($shared->fresh()->contact_email);
+        $this->assertSame('Player 82', $shared->fresh()->name);
+        $this->assertSame('kept83@example.com', $reset->fresh()->contact_email);
+        $this->assertSame('vellar82@vellarleague.com', $shared->fresh()->email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_profile_change_requires_the_current_password_and_notifies_the_old_inbox(): void
+    {
+        Mail::fake();
+        $player = $this->player('82', [
+            'password' => 'unique-pass-1',
+            'contact_email' => 'kept82@example.com',
+        ]);
+        $empty = $this->player('83', ['password' => 'unique-pass-1']);
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Still Named',
+            'contact_email' => 'next82@example.com',
+        ])->assertStatus(422);
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Still Named',
+            'contact_email' => 'next82@example.com',
+            'current_password' => 'wrong-pass',
+        ])->assertStatus(422);
+
+        $this->assertSame('kept82@example.com', $player->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+        Mail::assertNothingSent();
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Renamed',
+            'contact_email' => '  Next82@Example.com ',
+            'current_password' => 'unique-pass-1',
+        ])->assertOk();
+
+        $player->refresh();
+        $this->assertSame('Renamed', $player->name);
+        $this->assertSame('next82@example.com', $player->contact_email);
+        $this->assertSame('vellar82@vellarleague.com', $player->email);
+
+        $audit = PlayerEmailAudit::query()->sole();
+        $this->assertSame('profile', $audit->source);
+        $this->assertNull($audit->admin_id);
+        $this->assertSame(EmailMask::mask('kept82@example.com'), $audit->old_email_masked);
+        $this->assertSame(EmailMask::mask('next82@example.com'), $audit->new_email_masked);
+        $this->assertStringNotContainsString('next82', $audit->new_email_masked);
+
+        Mail::assertSent(RecoveryEmailChanged::class, function (RecoveryEmailChanged $mail) {
+            return $mail->hasTo('kept82@example.com');
+        });
+
+        $this->actingAs($empty, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Player 83',
+            'contact_email' => 'first83@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertOk();
+
+        $this->assertSame('first83@example.com', $empty->fresh()->contact_email);
+        Mail::assertSent(RecoveryEmailChanged::class, 1);
+    }
+
+    public function test_clear_unimported_emails_counts_only_and_apply_clears_them(): void
+    {
+        $admin = $this->admin();
+        $imported = $this->player('82');
+        $stray = $this->player('83', ['contact_email' => 'stray83@example.com']);
+        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->assertSuccessful();
+
+        $this->artisan('players:clear-unimported-emails')
+            ->expectsOutputToContain('Recovery emails not set by the import: 1')
+            ->expectsOutputToContain('Dry run only. No accounts were changed.')
+            ->doesntExpectOutputToContain('stray83@example.com')
             ->assertSuccessful();
+
+        $this->assertSame('stray83@example.com', $stray->fresh()->contact_email);
+        $this->assertSame('alpha82@example.com', $imported->fresh()->contact_email);
+
+        $this->artisan('players:clear-unimported-emails', [
+            '--apply' => true,
+            '--admin-id' => $admin->id,
+        ])->expectsOutputToContain('Cleared: 1')
+            ->doesntExpectOutputToContain('stray83@example.com')
+            ->assertSuccessful();
+
+        $this->assertNull($stray->fresh()->contact_email);
+        $this->assertSame('alpha82@example.com', $imported->fresh()->contact_email);
+        $this->assertSame('clear', PlayerEmailAudit::query()->where('player_id', $stray->id)->first()->source);
+        $this->assertSame(EmailMask::mask('stray83@example.com'), PlayerEmailAudit::query()->where('player_id', $stray->id)->first()->old_email_masked);
     }
 
     private function outsideFile(string $suffix, string $contents): string
@@ -252,92 +396,9 @@ class PlayerEmailImportTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'nuvra');
         $target = $path.$suffix;
         rename($path, $target);
-
-        if ($contents !== '') {
-            file_put_contents($target, $contents);
-        }
+        file_put_contents($target, $contents);
 
         return $target;
-    }
-
-    /**
-     * @param  list<list<string>>  $rows
-     */
-    private function writeXlsx(string $path, array $rows): void
-    {
-        $shared = [];
-        $sheetRows = '';
-        $number = 1;
-
-        foreach ($rows as $row) {
-            $cells = '';
-            $column = 0;
-
-            foreach ($row as $value) {
-                $letter = chr(ord('A') + $column);
-
-                if ($number > 1 && $column === 0 && ctype_digit($value)) {
-                    $cells .= '<c r="'.$letter.$number.'"><v>'.$value.'</v></c>';
-                } else {
-                    $index = count($shared);
-                    $shared[] = $value;
-                    $cells .= '<c r="'.$letter.$number.'" t="s"><v>'.$index.'</v></c>';
-                }
-
-                $column++;
-            }
-
-            $sheetRows .= '<row r="'.$number.'">'.$cells.'</row>';
-            $number++;
-        }
-
-        $sharedXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'.count($shared).'" uniqueCount="'.count($shared).'">';
-
-        foreach ($shared as $value) {
-            $sharedXml .= '<si><t>'.htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8').'</t></si>';
-        }
-
-        $sharedXml .= '</sst>';
-
-        $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
-            .$sheetRows
-            .'</sheetData></worksheet>';
-
-        $workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            .'<sheets><sheet name="Players" sheetId="1" r:id="rId1"/></sheets></workbook>';
-
-        $rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-            .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
-            .'</Relationships>';
-
-        $types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-            .'<Default Extension="xml" ContentType="application/xml"/>'
-            .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-            .'<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
-            .'</Types>';
-
-        $rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
-            .'</Relationships>';
-
-        $zip = new ZipArchive;
-        $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-        $zip->addFromString('[Content_Types].xml', $types);
-        $zip->addFromString('_rels/.rels', $rootRels);
-        $zip->addFromString('xl/workbook.xml', $workbook);
-        $zip->addFromString('xl/_rels/workbook.xml.rels', $rels);
-        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
-        $zip->addFromString('xl/sharedStrings.xml', $sharedXml);
-        $zip->close();
     }
 
     private function player(string $number, array $overrides = []): User

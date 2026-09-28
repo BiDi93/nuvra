@@ -15,7 +15,8 @@ class RetireDefaultPlayerPasswords extends Command
 {
     protected $signature = 'players:retire-default-passwords
         {--force : Replace shared default passwords. Without this flag the command only prints counts.}
-        {--allow-undeliverable : Required when any matched player cannot receive email or SMS. Those players will need an admin activation code.}';
+        {--allow-undeliverable : Required when any matched player cannot receive email or SMS. Those players will need an admin activation code.}
+        {--only-with-route : Retire only players who have a real recovery email. Leave everyone else on the shared password.}';
 
     protected $description = 'Invalidate the shared default player password. Does not email or text anyone. Dry-run unless --force is passed.';
 
@@ -44,6 +45,7 @@ class RetireDefaultPlayerPasswords extends Command
         $withPhoneOnly = 0;
         $withNeither = 0;
         $matchedIds = [];
+        $withRouteIds = [];
 
         User::query()
             ->where('role', 'player')
@@ -58,6 +60,7 @@ class RetireDefaultPlayerPasswords extends Command
                 &$withPhoneOnly,
                 &$withNeither,
                 &$matchedIds,
+                &$withRouteIds,
             ) {
                 foreach ($players as $player) {
                     $scanned++;
@@ -73,6 +76,7 @@ class RetireDefaultPlayerPasswords extends Command
 
                     if (PlayerContact::canReceiveEmail($player)) {
                         $withEmail++;
+                        $withRouteIds[] = $player->id;
                     } elseif (PlayerContact::canReceiveSms($player) && $smsReady) {
                         $withPhoneOnly++;
                     } else {
@@ -89,6 +93,13 @@ class RetireDefaultPlayerPasswords extends Command
         $this->line('Default password and no delivery channel: '.$withNeither);
         $this->line('SMS driver: '.($smsReady ? 'enabled' : 'not configured'));
 
+        $onlyWithRoute = (bool) $this->option('only-with-route');
+
+        if ($onlyWithRoute && ! $apply) {
+            $this->line('Would retire: '.count($withRouteIds));
+            $this->line('Would leave on the shared password: '.($onDefault - count($withRouteIds)));
+        }
+
         if (! $apply) {
             $this->info('Dry run only. No passwords were changed and no messages were sent.');
             $this->line('Turn on NUVRA_RETIRE_SHARED_PASSWORDS only after one test account has reset, then re-run with --force.');
@@ -104,7 +115,7 @@ class RetireDefaultPlayerPasswords extends Command
             return self::FAILURE;
         }
 
-        if ($withNeither > 0 && ! $this->option('allow-undeliverable')) {
+        if ($withNeither > 0 && ! $this->option('allow-undeliverable') && ! $onlyWithRoute) {
             $this->error('Refused to change passwords. '.$withNeither.' player(s) on the shared default have no way to receive a reset message.');
             $this->line('Issue activation codes with players:activation-code, or configure SMS, then re-run with --force --allow-undeliverable.');
             $this->line('No passwords were changed.');
@@ -113,12 +124,17 @@ class RetireDefaultPlayerPasswords extends Command
         }
 
         $updated = 0;
+        $idsToUpdate = $onlyWithRoute ? $withRouteIds : $matchedIds;
 
-        foreach (array_chunk($matchedIds, 100) as $ids) {
+        foreach (array_chunk($idsToUpdate, 100) as $ids) {
             $players = User::query()->whereIn('id', $ids)->get();
 
             foreach ($players as $player) {
                 if ($player->role !== 'player' || ! Hash::check($shared, $player->password)) {
+                    continue;
+                }
+
+                if ($onlyWithRoute && ! PlayerContact::canReceiveEmail($player)) {
                     continue;
                 }
 
@@ -136,6 +152,11 @@ class RetireDefaultPlayerPasswords extends Command
         }
 
         $this->info('Updated '.$updated.' player account(s). No email or SMS was sent.');
+
+        if ($onlyWithRoute) {
+            $this->line('Retired: '.$updated);
+            $this->line('Left on the shared password: '.($onDefault - $updated));
+        }
         $this->line('Players on the shared default can no longer sign in with it. They need a verification link, an SMS code, or an admin activation code.');
 
         return self::SUCCESS;

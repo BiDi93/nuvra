@@ -11,22 +11,29 @@ use App\Support\PlayerLocator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 class ImportPlayerEmails extends Command
 {
     protected $signature = 'players:import-emails
-        {file : CSV or XLSX outside the repository, with a Vellar ID column and an email column}
+        {file : CSV outside the repository. Columns: Vellar ID, email, and an optional collected-by column.}
         {--apply : Write the valid rows. Without this flag the command only reports counts.}
-        {--admin-id= : Required user id of the admin running the import}';
+        {--admin-id= : Required with --apply. User id of the admin running the import.}
+        {--replace-existing : Replace a recovery email that is already set to a different address.}';
 
-    protected $description = 'Import verified recovery emails for players. Dry-run unless --apply is passed. Does not print email addresses.';
+    protected $description = 'Import verified recovery emails for players. Dry-run unless --apply is passed. Does not send email.';
 
     public function handle(): int
     {
-        $admin = $this->admin();
+        $apply = (bool) $this->option('apply');
+        $admin = null;
 
-        if (! $admin) {
-            return self::FAILURE;
+        if ($apply) {
+            $admin = $this->admin();
+
+            if (! $admin) {
+                return self::FAILURE;
+            }
         }
 
         $path = $this->importPath((string) $this->argument('file'));
@@ -51,15 +58,20 @@ class ImportPlayerEmails extends Command
             return self::FAILURE;
         }
 
-        $plan = $this->classify($rows);
-        $apply = (bool) $this->option('apply');
+        $plan = $this->classify($rows, (bool) $this->option('replace-existing'));
         $written = 0;
 
         if ($apply && $plan['ready'] !== []) {
-            $written = $this->write($plan['ready'], $admin->id, $hash);
+            try {
+                $written = $this->write($plan['ready'], $admin->id, $hash);
+            } catch (Throwable $exception) {
+                $this->error('The import was rolled back. No accounts were changed.');
+
+                return self::FAILURE;
+            }
         }
 
-        $this->report($plan['counts'], $plan['problems'], count($plan['ready']), $written, $apply);
+        $this->report($plan, $hash, $written, $apply);
 
         return self::SUCCESS;
     }
@@ -106,168 +118,185 @@ class ImportPlayerEmails extends Command
     }
 
     /**
-     * @param  list<array{row: int, vellar_id: string, email: string}>  $rows
-     * @return array{counts: array<string, int>, problems: list<array{row: int, reason: string}>, ready: list<array{player_id: int, email: string}>}
+     * @param  list<array{row: int, vellar_id: string, email: string, collected_by: string}>  $rows
+     * @return array{
+     *     counts: array<string, int>,
+     *     lines: list<array{row: int, reason: string, mask: string}>,
+     *     ready: list<array{player_id: int, email: string, collected_by: ?string, current: string}>,
+     *     with_route: int,
+     *     without_route: int
+     * }
      */
-    private function classify(array $rows): array
+    private function classify(array $rows, bool $replaceExisting): array
     {
         $counts = [
-            'invalid email' => 0,
-            'placeholder email' => 0,
-            'unknown Vellar ID' => 0,
-            'not a player' => 0,
-            'duplicate in file' => 0,
-            'email already held' => 0,
+            'read' => count($rows),
             'unchanged' => 0,
+            'invalid' => 0,
+            'missing' => 0,
+            'different' => 0,
+            'shared' => 0,
+            'replace' => 0,
         ];
+        $lines = [];
+        $open = [];
 
-        $prepared = [];
-
-        foreach ($rows as $row) {
-            $vellar = trim($row['vellar_id']);
+        foreach ($rows as $index => $row) {
             $email = strtolower(trim($row['email']));
-            $prepared[] = [
+            $idKey = preg_replace('/\D/', '', $row['vellar_id']) ?? '';
+            $mask = EmailMask::mask($email);
+            $record = [
                 'row' => $row['row'],
-                'vellar' => $vellar,
                 'email' => $email,
-                'id_key' => $this->idKey($vellar),
+                'id_key' => $idKey,
+                'mask' => $mask,
+                'collected_by' => $this->collectedBy($row['collected_by']),
             ];
+
+            if (! $this->validEmail($email) || $this->placeholder($email)) {
+                $counts['invalid']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'invalid email or placeholder', 'mask' => $mask];
+
+                continue;
+            }
+
+            $player = $this->findAccount($row['vellar_id']);
+
+            if (! $player || $player->role !== 'player') {
+                $counts['missing']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'Vellar ID not found or not a player', 'mask' => $mask];
+
+                continue;
+            }
+
+            $record['player_id'] = $player->id;
+            $record['current'] = strtolower(trim((string) $player->contact_email));
+            $open[$index] = $record;
         }
 
-        $usable = [];
-        $early = [];
+        $seen = [];
 
-        foreach ($prepared as $index => $row) {
-            if (! $this->validEmail($row['email'])) {
-                $early[$index] = 'invalid email';
+        foreach ($open as $index => $row) {
+            $key = $row['id_key'].'|'.$row['email'];
 
-                continue;
-            }
-
-            if ($this->placeholder($row['email'])) {
-                $early[$index] = 'placeholder email';
+            if (isset($seen[$key])) {
+                $counts['unchanged']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'unchanged', 'mask' => $row['mask']];
+                unset($open[$index]);
 
                 continue;
             }
 
-            if ($row['id_key'] === '') {
-                $early[$index] = 'unknown Vellar ID';
-
-                continue;
-            }
-
-            $usable[$index] = $row;
+            $seen[$key] = true;
         }
 
-        $conflict = $this->conflicts($usable);
-        $seenIds = [];
-        $problems = [];
+        $emailsById = [];
+
+        foreach ($open as $row) {
+            $emailsById[$row['id_key']][$row['email']] = true;
+        }
+
+        foreach ($open as $index => $row) {
+            if (count($emailsById[$row['id_key']]) > 1) {
+                $counts['different']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'same ID with different emails', 'mask' => $row['mask']];
+                unset($open[$index]);
+            }
+        }
+
+        $idsByEmail = [];
+
+        foreach ($open as $row) {
+            $idsByEmail[$row['email']][$row['id_key']] = true;
+        }
+
+        foreach ($open as $index => $row) {
+            if (count($idsByEmail[$row['email']]) > 1) {
+                $counts['shared']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'email maps to more than one player', 'mask' => $row['mask']];
+                unset($open[$index]);
+            }
+        }
+
         $ready = [];
 
-        foreach ($prepared as $index => $row) {
-            if (isset($early[$index])) {
-                $reason = $early[$index];
-            } elseif (isset($conflict[$index]) || isset($seenIds[$row['id_key']])) {
-                $reason = 'duplicate in file';
-            } else {
-                $seenIds[$row['id_key']] = true;
-                $reason = $this->accountReason($row, $ready);
-            }
+        foreach ($open as $row) {
+            if ($this->emailHeldBySomeoneElse($row['email'], $row['player_id'])) {
+                $counts['shared']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'email maps to more than one player', 'mask' => $row['mask']];
 
-            if ($reason === null) {
                 continue;
             }
 
-            $counts[$reason]++;
-            $problems[] = ['row' => $row['row'], 'reason' => $reason];
+            if ($row['current'] === $row['email']) {
+                $counts['unchanged']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'unchanged', 'mask' => $row['mask']];
+
+                continue;
+            }
+
+            if ($row['current'] !== '' && ! $replaceExisting) {
+                $counts['replace']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'would replace an existing recovery email', 'mask' => $row['mask']];
+
+                continue;
+            }
+
+            $ready[] = [
+                'player_id' => $row['player_id'],
+                'email' => $row['email'],
+                'collected_by' => $row['collected_by'],
+                'current' => $row['current'],
+                'row' => $row['row'],
+                'mask' => $row['mask'],
+            ];
+            $lines[] = ['row' => $row['row'], 'reason' => 'would apply', 'mask' => $row['mask']];
         }
+
+        usort($lines, fn (array $left, array $right) => $left['row'] <=> $right['row']);
+
+        [$withRoute, $withoutRoute] = $this->routeProjection($ready);
 
         return [
             'counts' => $counts,
-            'problems' => $problems,
+            'lines' => $lines,
             'ready' => $ready,
+            'with_route' => $withRoute,
+            'without_route' => $withoutRoute,
         ];
     }
 
     /**
-     * @param  array<int, array{row: int, vellar: string, email: string, id_key: string}>  $usable
-     * @return array<int, true>
-     */
-    private function conflicts(array $usable): array
-    {
-        $byId = [];
-        $byEmail = [];
-
-        foreach ($usable as $index => $row) {
-            $byId[$row['id_key']][] = $index;
-            $byEmail[$row['email']][] = $index;
-        }
-
-        $conflict = [];
-
-        foreach ($byId as $indexes) {
-            $emails = [];
-
-            foreach ($indexes as $index) {
-                $emails[$usable[$index]['email']] = true;
-            }
-
-            if (count($indexes) > 1 && count($emails) > 1) {
-                foreach ($indexes as $index) {
-                    $conflict[$index] = true;
-                }
-            }
-        }
-
-        foreach ($byEmail as $indexes) {
-            $ids = [];
-
-            foreach ($indexes as $index) {
-                $ids[$usable[$index]['id_key']] = true;
-            }
-
-            if (count($ids) > 1) {
-                foreach ($indexes as $index) {
-                    $conflict[$index] = true;
-                }
-            }
-        }
-
-        return $conflict;
-    }
-
-    /**
-     * @param  array{row: int, vellar: string, email: string, id_key: string}  $row
      * @param  list<array{player_id: int, email: string}>  $ready
+     * @return array{0: int, 1: int}
      */
-    private function accountReason(array $row, array &$ready): ?string
+    private function routeProjection(array $ready): array
     {
-        $player = $this->findAccount($row['vellar']);
+        $projected = [];
 
-        if (! $player) {
-            return 'unknown Vellar ID';
+        User::query()
+            ->where('role', 'player')
+            ->orderBy('id')
+            ->each(function (User $player) use (&$projected) {
+                $projected[$player->id] = strtolower(trim((string) $player->contact_email));
+            });
+
+        foreach ($ready as $row) {
+            $projected[$row['player_id']] = $row['email'];
         }
 
-        if ($player->role !== 'player') {
-            return 'not a player';
+        $withRoute = 0;
+        $withoutRoute = 0;
+
+        foreach ($projected as $email) {
+            if (PlayerContact::usableEmail($email) !== null) {
+                $withRoute++;
+            } else {
+                $withoutRoute++;
+            }
         }
 
-        $current = strtolower(trim((string) $player->contact_email));
-
-        if ($current === $row['email']) {
-            return 'unchanged';
-        }
-
-        if ($this->emailHeldBySomeoneElse($row['email'], $player->id)) {
-            return 'email already held';
-        }
-
-        $ready[] = [
-            'player_id' => $player->id,
-            'email' => $row['email'],
-        ];
-
-        return null;
+        return [$withRoute, $withoutRoute];
     }
 
     private function findAccount(string $vellarId): ?User
@@ -318,39 +347,59 @@ class ImportPlayerEmails extends Command
         return in_array($local, ['noreply', 'no-reply', 'noemail', 'placeholder', 'none', 'null'], true);
     }
 
-    private function idKey(string $vellar): string
+    private function collectedBy(string $value): ?string
     {
-        return preg_replace('/\D/', '', $vellar) ?? '';
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return mb_substr($value, 0, 120);
     }
 
     /**
-     * @param  list<array{player_id: int, email: string}>  $ready
+     * @param  list<array{player_id: int, email: string, collected_by: ?string, current: string, row: int, mask: string}>  $ready
      */
     private function write(array $ready, int $adminId, string $hash): int
     {
-        return DB::transaction(function () use ($ready, $adminId, $hash) {
+        $replaceExisting = (bool) $this->option('replace-existing');
+
+        return DB::transaction(function () use ($ready, $adminId, $hash, $replaceExisting) {
             $written = 0;
+            $assigned = [];
 
             foreach ($ready as $row) {
                 $player = User::query()->whereKey($row['player_id'])->lockForUpdate()->first();
 
                 if (! $player || $player->role !== 'player') {
+                    throw new RuntimeException('The import was rolled back.');
+                }
+
+                $email = strtolower(trim($row['email']));
+                $current = strtolower(trim((string) $player->contact_email));
+
+                if ($current === $email) {
                     continue;
                 }
 
-                $email = $row['email'];
-                $current = strtolower(trim((string) $player->contact_email));
+                if ($current !== '' && ! $replaceExisting) {
+                    throw new RuntimeException('The import was rolled back.');
+                }
 
-                if ($current === $email || $this->emailHeldBySomeoneElse($email, $player->id)) {
-                    continue;
+                if ($this->emailHeldBySomeoneElse($email, $player->id) || isset($assigned[$email])) {
+                    throw new RuntimeException('The import was rolled back.');
                 }
 
                 $old = $player->contact_email;
                 $player->forceFill(['contact_email' => $email])->save();
+                $assigned[$email] = $player->id;
 
                 PlayerEmailAudit::create([
                     'player_id' => $player->id,
                     'admin_id' => $adminId,
+                    'source' => 'import',
+                    'collected_by' => $row['collected_by'],
                     'old_email_masked' => EmailMask::mask($old),
                     'new_email_masked' => EmailMask::mask($email),
                     'source_sha256' => $hash,
@@ -365,23 +414,40 @@ class ImportPlayerEmails extends Command
     }
 
     /**
-     * @param  array<string, int>  $counts
-     * @param  list<array{row: int, reason: string}>  $problems
+     * @param  array{
+     *     counts: array<string, int>,
+     *     lines: list<array{row: int, reason: string, mask: string}>,
+     *     ready: list<array{player_id: int, email: string, collected_by: ?string, current: string, row: int, mask: string}>,
+     *     with_route: int,
+     *     without_route: int
+     * }  $plan
      */
-    private function report(array $counts, array $problems, int $ready, int $written, bool $apply): void
+    private function report(array $plan, string $hash, int $written, bool $apply): void
     {
-        foreach ($counts as $label => $count) {
-            $this->line(ucfirst($label).': '.$count);
+        $counts = $plan['counts'];
+
+        $this->line('File SHA-256: '.$hash);
+        $this->line('Rows read: '.$counts['read']);
+        $this->line('Rows to apply: '.count($plan['ready']));
+        $this->line('Rows unchanged: '.$counts['unchanged']);
+        $this->line('Invalid email or placeholder: '.$counts['invalid']);
+        $this->line('Vellar ID not found or not a player: '.$counts['missing']);
+        $this->line('Same ID with different emails: '.$counts['different']);
+        $this->line('Email maps to more than one player: '.$counts['shared']);
+        $this->line('Would replace an existing recovery email: '.$counts['replace']);
+        $this->line('Players with a route afterwards: '.$plan['with_route']);
+        $this->line('Players with no route afterwards: '.$plan['without_route']);
+
+        if ($apply) {
+            $this->line('Rows applied: '.$written);
         }
 
-        $this->line($apply ? 'Updated: '.$written : 'Would update: '.$ready);
-
-        foreach ($problems as $problem) {
-            $this->line('Row '.$problem['row'].': '.$problem['reason']);
+        foreach ($plan['lines'] as $line) {
+            $this->line('Row '.$line['row'].': '.$line['reason'].' '.$line['mask']);
         }
 
         if ($apply) {
-            $this->info('Updated '.$written.' player account(s).');
+            $this->info('Updated '.$written.' player account(s). No email was sent.');
         } else {
             $this->info('Dry run only. No accounts were changed.');
         }

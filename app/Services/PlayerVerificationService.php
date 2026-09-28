@@ -11,6 +11,7 @@ use App\Support\AttemptLimiter;
 use App\Support\PlayerContact;
 use App\Support\PlayerLocator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -181,9 +182,10 @@ class PlayerVerificationService
         $this->attempts->hit('reset_destination', $destination, null);
 
         $url = rtrim((string) config('app.url'), '/').'/reset-password?token='.$token;
+        $playerId = $user->id;
 
         $sent = false;
-        app()->terminating(function () use (&$sent, $email, $url, $minutes) {
+        app()->terminating(function () use (&$sent, $email, $url, $minutes, $playerId) {
             if ($sent) {
                 return;
             }
@@ -191,8 +193,9 @@ class PlayerVerificationService
 
             try {
                 Mail::to($email)->send(new PlayerPasswordResetLink($url, $minutes));
+                Log::info('Player password reset email sent.', ['player_id' => $playerId]);
             } catch (\Throwable $e) {
-                report($e);
+                Log::error('Player password reset email failed.', ['player_id' => $playerId]);
             }
         });
     }
