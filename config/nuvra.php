@@ -17,9 +17,10 @@ return [
     'shared_player_password' => 'password',
 
     /*
-    | Passwords written by seeders. Admin accounts on any of these must
-    | change them at the next login. This list is not behind the player
-    | retirement flag.
+    | Passwords written by seeders. When NUVRA_FORCE_ADMIN_PASSWORD_CHANGE
+    | is true, an admin still on one of these must replace it at the next
+    | login. The flag defaults to false, so a UAT deploy does not interrupt
+    | the current admin. It is not the player retirement flag.
     */
     'weak_passwords' => [
         'password',
@@ -28,6 +29,8 @@ return [
     ],
 
     'retire_shared_passwords' => filter_var(env('NUVRA_RETIRE_SHARED_PASSWORDS', false), FILTER_VALIDATE_BOOLEAN),
+
+    'force_admin_password_change' => filter_var(env('NUVRA_FORCE_ADMIN_PASSWORD_CHANGE', false), FILTER_VALIDATE_BOOLEAN),
 
     /*
     |--------------------------------------------------------------------------

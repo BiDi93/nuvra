@@ -48,11 +48,16 @@ class ForceVerifiedReset
     }
 
     /**
-     * An admin on a known default must set a new password before any other
-     * action. This does not wait for the player retirement flag.
+     * When NUVRA_FORCE_ADMIN_PASSWORD_CHANGE is on, an admin on a known
+     * default must set a new password before any other action. The flag
+     * defaults to off and is separate from player retirement.
      */
     private function guardAdmin(Request $request, Closure $next, $user): Response
     {
+        if (! config('nuvra.force_admin_password_change')) {
+            return $next($request);
+        }
+
         $mustChange = (bool) $user->password_reset_required;
 
         if (! $mustChange && $user->sharedPasswordState() !== false) {

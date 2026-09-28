@@ -118,7 +118,7 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => AuthMessages::LOGIN_FAILED], 401);
         }
 
-        if ($user->role === 'admin' && WeakPassword::isKnown((string) $request->password)) {
+        if (config('nuvra.force_admin_password_change') && $user->role === 'admin' && WeakPassword::isKnown((string) $request->password)) {
             $user->forceFill([
                 'password_reset_required' => true,
                 'password_is_shared' => true,

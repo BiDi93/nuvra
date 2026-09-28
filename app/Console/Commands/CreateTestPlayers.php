@@ -11,39 +11,28 @@ use Illuminate\Support\Facades\DB;
 class CreateTestPlayers extends Command
 {
     protected $signature = 'nuvra:create-test-players
-        {contacts* : Two or three email and phone pairs, for example qa1@example.com 60111111111 qa2@example.com 60122222222}';
+        {contacts* : One to three contacts. An email starts a player. A phone after that email is optional. Example: you@example.com}';
 
-    protected $description = 'Create two or three flagged test players. Does not run on deploy and sends nothing.';
+    protected $description = 'Create one to three flagged test players from the contacts you pass. Does not run on deploy and sends nothing.';
 
     public function handle(): int
     {
         $contacts = $this->argument('contacts');
+        $parsed = $this->parseContacts(is_array($contacts) ? $contacts : []);
 
-        if (! is_array($contacts) || count($contacts) < 4 || count($contacts) > 6 || count($contacts) % 2 !== 0) {
-            $this->error('Pass two or three pairs: nuvra:create-test-players qa1@example.com 60111111111 qa2@example.com 60122222222');
-
+        if ($parsed === null) {
             return self::FAILURE;
         }
 
-        $pairs = array_chunk($contacts, 2);
         $rows = [];
 
-        foreach ($pairs as $index => [$email, $phone]) {
-            $usableEmail = PlayerContact::usableEmail($email);
-            $usablePhone = PlayerContact::usablePhone($phone);
-
-            if (! $usableEmail || ! $usablePhone) {
-                $this->error('Pair '.($index + 1).' needs a real email and a phone of 8 to 15 digits.');
-
-                return self::FAILURE;
-            }
-
+        foreach ($parsed as $index => $contact) {
             $number = 900001 + $index;
             $login = 'vellar'.$number.'@vellarleague.com';
-            $existing = User::where('email', $login)->orWhere('contact_email', $usableEmail)->first();
+            $existing = User::where('email', $login)->orWhere('contact_email', $contact['email'])->first();
 
             if ($existing && ! $existing->is_test_account) {
-                $this->error('Pair '.($index + 1).' collides with an account that is not a test player. Nothing was created.');
+                $this->error('Contact '.($index + 1).' collides with an account that is not a test player. Nothing was created.');
 
                 return self::FAILURE;
             }
@@ -52,8 +41,8 @@ class CreateTestPlayers extends Command
                 'existing' => $existing,
                 'number' => $number,
                 'login' => $login,
-                'email' => $usableEmail,
-                'phone' => $usablePhone,
+                'email' => $contact['email'],
+                'phone' => $contact['phone'],
             ];
         }
 
@@ -82,5 +71,72 @@ class CreateTestPlayers extends Command
         $this->line('Remove them later with: php artisan nuvra:delete-test-players');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  list<string>  $contacts
+     * @return list<array{email: string, phone: ?string}>|null
+     */
+    private function parseContacts(array $contacts): ?array
+    {
+        if (count($contacts) < 1) {
+            $this->error('Pass one to three contacts. An email starts a player. A phone after it is optional. Example: nuvra:create-test-players you@example.com');
+
+            return null;
+        }
+
+        $players = [];
+
+        foreach ($contacts as $token) {
+            $token = trim((string) $token);
+
+            if (str_contains($token, '@')) {
+                if (count($players) >= 3) {
+                    $this->error('Create at most three test players at a time.');
+
+                    return null;
+                }
+
+                $email = PlayerContact::usableEmail($token);
+
+                if (! $email) {
+                    $this->error('Each player needs an email that can receive mail. A @vellarleague.com address is a login key, not a recovery email.');
+
+                    return null;
+                }
+
+                $players[] = ['email' => $email, 'phone' => null];
+
+                continue;
+            }
+
+            $current = array_key_last($players);
+
+            if ($current === null || $players[$current]['phone'] !== null) {
+                $this->error('A phone number has to follow an email. Example: nuvra:create-test-players you@example.com');
+
+                return null;
+            }
+
+            $phone = PlayerContact::usablePhone($token);
+
+            if (! $phone) {
+                $this->error('A phone, when you pass one, must be 8 to 15 digits. Leave it off for an email-only player.');
+
+                return null;
+            }
+
+            $players[$current]['phone'] = $phone;
+        }
+
+        $emails = array_column($players, 'email');
+
+        if (count($emails) !== count(array_unique($emails))) {
+            $this->error('Each test player needs a different email. Nothing was created.');
+
+            return null;
+        }
+
+        return $players;
     }
 }

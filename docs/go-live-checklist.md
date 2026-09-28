@@ -15,7 +15,7 @@ On UAT, three player controls still have to be verified before an invitation:
 2. The shared default player password has been retired. That switch stays off until one test account has finished a real reset, then the owner turns it on and runs the command below.
 3. Sign-in and reset use temporary escalating backoff, per ID and per IP, instead of a hard lockout.
 
-Admin accounts do not wait for item 2. An admin whose password is still `password`, `password123`, or `Nuvra2026!` is stopped at the next login and must set a new password before they can open player records. That step does not send email or SMS.
+Admin sign-in uses the same backoff and the same failure message as a player. Forcing an admin off a known weak password is a separate switch, `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE`, and it is off by default. Leave it off on UAT unless you choose to try it there. Turning it on and changing the admin password is required before production promotion, not before the UAT deploy.
 
 # Part 1 — UAT go-live
 
@@ -30,6 +30,7 @@ On the server `.env` for that environment, set:
 | `SMS_DRIVER` | `none` until a provider is approved. Then `http`. |
 | `SMS_HTTP_URL`, `SMS_HTTP_TOKEN` | Required together with `SMS_DRIVER=http`. The app POSTs JSON `{"to","message"}` and sends the token as a bearer token when it is set. |
 | `NUVRA_RETIRE_SHARED_PASSWORDS` | Leave `false` until step 3 below. Then `true`. |
+| `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE` | Leave `false` on UAT. The current admin keeps signing in. Set `true` only when you want the forced admin password change, which is required for production promotion. |
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
@@ -54,11 +55,13 @@ php artisan migrate --force
 
 Run these yourself. None of them run on deploy.
 
-Create two or three test players with addresses the team controls. This does not email or text anyone. The accounts are named `NUVRA TEST PLAYER` and use Vellar IDs 900001, 900002, and 900003.
+Create one flagged test player for the reset test. Pass the contact on the command. Do not put a real address in the repo. An email alone is enough; that player has no phone. A phone of 8 to 15 digits may follow the email only when you are testing SMS. This does not email or text anyone. The account is named `NUVRA TEST PLAYER` and uses Vellar ID 900001. You can pass up to three contacts in one command.
 
 ```bash
-php artisan nuvra:create-test-players qa1@example.com 60123456789 qa2@example.com 60198765432
+php artisan nuvra:create-test-players you@example.com
 ```
+
+Replace `you@example.com` with an inbox the team controls. QA runs the end-to-end reset only on this flagged player, not on an existing UAT player.
 
 While `NUVRA_RETIRE_SHARED_PASSWORDS` is still false, sign in as Vellar `900001` with the shared default and complete one real reset end to end (the recovery email or an admin code, a new password, and the old session rejected). Only after that reset succeeds:
 
@@ -93,9 +96,9 @@ After the flag is on, and codes or tested SMS exist for the players you are abou
 php artisan players:retire-default-passwords --force --allow-undeliverable
 ```
 
-This replaces remaining shared player passwords with a random value, sets `password_reset_required`, deletes those players' tokens, and rotates remember-me tokens. It sends nothing. It skips players who already chose their own password. It refuses to write, unless `--allow-undeliverable` is present, when any matched player has neither a recovery email nor SMS. Admins are not included. Change the admin password separately, on the server, to a unique value. Do not put that password in git.
+This replaces remaining shared player passwords with a random value, sets `password_reset_required`, deletes those players' tokens, and rotates remember-me tokens. It sends nothing. It skips players who already chose their own password. It refuses to write, unless `--allow-undeliverable` is present, when any matched player has neither a recovery email nor SMS. Admins are not included.
 
-When QA is finished, delete only the flagged test accounts:
+When QA is finished, delete only the flagged test accounts. The command selects `is_test_account` and does not delete any other user:
 
 ```bash
 php artisan nuvra:delete-test-players
@@ -113,17 +116,24 @@ Replace `you@example.com` with your own address. Confirm the message arrives. A 
 
 Leave SMS off (`SMS_DRIVER=none` or unset) until the provider is approved. After `SMS_DRIVER=http`, `SMS_HTTP_URL`, and `SMS_HTTP_TOKEN` are set and config is reloaded, send one reset to a phone you control (a test account, not a real player's number) from `/community` and confirm the provider delivered a 6-digit code. The app does not log the phone number or the message.
 
-## 5. Verification before any invitation
+## 5. QA on UAT
 
-On the deployed environment, with a throwaway account or a single code you issued:
+QA uses a few existing UAT player accounts for login, backoff, and IDOR only. Do not run a password reset on those accounts.
 
-- Sign-in with an unknown ID and with a wrong password returns the same message. A reset request does too, whether or not the ID or the contact exists.
-- A second try too soon returns a wait that gets longer, then a try after that wait is accepted again. It does not lock the account for the whole window.
-- With `NUVRA_RETIRE_SHARED_PASSWORDS=true`, the shared password `password` does not open a session, and an old session for that account is rejected.
-- An activation code sets a new password once, and a second use of that code fails.
-- A recovery-email link, when mail is configured, opens `/reset-password?token=...` and works once.
+- Sign-in with an unknown ID and with a wrong password returns the same message.
+- A second try too soon returns HTTP 429 and `Retry-After`. The wait starts at 1 second and doubles (2s, 4s, …) up to 60 seconds. When that many seconds have passed, the next try is accepted. It does not lock the account for 15 minutes.
+- The failure count is remembered for 15 minutes. Another failure inside that 15 minutes continues the doubling. After 15 minutes with no further failure for that ID and for that IP, the count is gone and the next failure starts again at 1 second. A successful sign-in clears the wait for that ID. It does not clear the wait for the IP, so the IP still follows `Retry-After`. There is no admin command to clear it. QA waits for `Retry-After` (at most 60 seconds).
 - A signed-in player cannot read another player's phone, address, or recovery email on `GET /api/community/members/{id}`.
 - `GET /api/community/analytics` is admin-only.
+
+The end-to-end reset is only the one flagged email-only test player from step 3 (`you@example.com` replaced with an inbox the team controls). On that account, after `NUVRA_RETIRE_SHARED_PASSWORDS=true`:
+
+- The shared password `password` does not open a session, and an old session for that account is rejected.
+- An activation code sets a new password once, and a second use of that code fails.
+- A recovery-email link, when mail is configured, opens `/reset-password?token=...` and works once.
+- A reset request returns the same message whether or not the ID or the contact exists.
+
+Then run `php artisan nuvra:delete-test-players`. That deletes only flagged test players.
 
 ## 6. UAT basic-auth gate
 
@@ -147,11 +157,13 @@ Turn the gate **off**:
 
 Leave both variables unset on production unless you have decided to gate production the same way.
 
-## 7. Admin password on UAT
+## 7. Admin password
 
-The UAT admin is seeded as `admin@vellarleague.com` with the shared password `password` (`database/seeders/TournamentMasterbaseSeeder.php`, called from `DatabaseSeeder`). Sign in with that email on `/community`. The response is a password-change step, not access to the player list. Set a password of at least 12 characters with upper and lower case letters and a number. The old session stops working. This happens even while `NUVRA_RETIRE_SHARED_PASSWORDS` is still false.
+`NUVRA_FORCE_ADMIN_PASSWORD_CHANGE` is false unless you set it. With it false, the UAT admin keeps signing in with the current password, including the shared default. Backoff and the generic failure message stay on either way. A wrong admin password, and an email that is not an account, both return the same failure message and the same escalating wait.
 
-A wrong admin password, and an email that is not an account, both return the same failure message and the same escalating wait.
+On UAT, leave the flag false. Trying the forced change here is optional. To try it: set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, sign in on `/community`, and set a password of at least 12 characters with upper and lower case letters and a number. That step does not send email or SMS. Set the flag back to false if you want the old password to work again.
+
+For production promotion this flag must be true, and every admin must have changed off `password`, `password123`, and `Nuvra2026!`. See Part 2.
 
 ## 8. How admin accounts are created
 
@@ -163,7 +175,7 @@ The UAT snapshot read earlier has one admin, `admin@vellarleague.com`, and that 
 
 ## 9. Admin second factor
 
-A TOTP second factor is not in this change. Laravel Sanctum is the only auth package here, and a correct TOTP setup also needs an encrypted secret, an enrollment confirmation, clock skew, replay protection, and a recovery path so the only admin is not locked out. That is a production launch prerequisite, not a UAT blocker. Ship it before players are invited to production, behind its own switch, after the admin password in section 7 has been changed.
+A TOTP second factor is not in this change. Laravel Sanctum is the only auth package here, and a correct TOTP setup also needs an encrypted secret, an enrollment confirmation, clock skew, replay protection, and a recovery path so the only admin is not locked out. That is not small enough to add behind a flag in this pull request. It remains a production launch prerequisite, after the admin password change in Part 2.
 
 # Part 2 — Production promotion
 
@@ -173,9 +185,9 @@ Deploying does not retire passwords or send messages.
 
 ## Required before the promotion is treated as live
 
-1. **Verified reset is on, and a test account has proved it.** On production, leave `NUVRA_RETIRE_SHARED_PASSWORDS` false until one test account finishes a real reset (recovery email, SMS, or an admin activation code). Then set the flag to `true`, reload config, and confirm the shared password `password` no longer opens a session for that test account. Delete the test players when that proof is done (`php artisan nuvra:delete-test-players`).
-2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both weak-password counts must be 0. The player retire command does not change admin passwords. Each admin still on a known weak password must sign in and set a new one (section 7).
-3. **Admin passwords have been changed.** The same check reports `Admin accounts on a known weak password: 0`.
+1. **Verified reset is on, and one flagged email-only test account has proved it.** On production, create that player with `php artisan nuvra:create-test-players you@example.com` (replace `you@example.com` with an inbox the team controls; do not pass a phone). Leave `NUVRA_RETIRE_SHARED_PASSWORDS` false until that account finishes a real reset. Then set the flag to `true`, reload config, and confirm the shared password `password` no longer opens a session for that test account. Delete it with `php artisan nuvra:delete-test-players`, which removes only flagged test players.
+2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both weak-password counts must be 0. The player retire command does not change admin passwords.
+3. **Admin forced password change is on, and admin passwords have been changed.** Set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, and have each admin sign in and set a new password. This does not send email or SMS. The audit then reports `Admin accounts on a known weak password: 0`. On UAT this step is optional. On production it is required.
 4. **Production secrets have been rotated** so none of them are values that appear in git history. See the scan below. Do this before the promotion deploy if the current production values are the leaked ones, and again if a deploy would copy an old secret back.
 5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing.
 

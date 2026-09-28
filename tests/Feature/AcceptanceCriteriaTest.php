@@ -180,13 +180,13 @@ class AcceptanceCriteriaTest extends TestCase
         $real = $this->player('82');
 
         $this->artisan('nuvra:create-test-players', [
-            'contacts' => ['qa1@example.com', '60123456789', 'qa2@example.com', '60198765432'],
+            'contacts' => ['you@example.com'],
         ])->assertSuccessful();
 
         $tests = User::query()->where('is_test_account', true)->orderBy('id')->get();
-        $this->assertCount(2, $tests);
-        $this->assertSame('qa1@example.com', $tests[0]->contact_email);
-        $this->assertSame('60123456789', $tests[0]->phone);
+        $this->assertCount(1, $tests);
+        $this->assertSame('you@example.com', $tests[0]->contact_email);
+        $this->assertNull($tests[0]->phone);
         $this->assertSame('NUVRA TEST PLAYER 900001', $tests[0]->name);
         $this->assertTrue(Hash::check('password', $tests[0]->password));
         Mail::assertNothingSent();
@@ -203,9 +203,36 @@ class AcceptanceCriteriaTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_admin_on_a_weak_password_can_still_sign_in_while_the_force_flag_is_off(): void
+    {
+        config([
+            'nuvra.retire_shared_passwords' => false,
+            'nuvra.force_admin_password_change' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'email' => 'admin@example.com',
+            'role' => 'admin',
+            'status' => 'active',
+            'password' => 'password',
+        ]);
+
+        $response = $this->postJson('/api/community/login', [
+            'vellar_id' => 'admin@example.com',
+            'password' => 'password',
+        ])->assertOk();
+
+        $this->assertArrayNotHasKey('password_change_required', $response->json());
+        $this->withToken($response->json('token'))->getJson('/api/community/analytics')->assertOk();
+        $this->assertFalse($admin->fresh()->password_reset_required);
+    }
+
     public function test_admin_on_a_weak_password_must_change_it_before_anything_else(): void
     {
-        config(['nuvra.retire_shared_passwords' => false]);
+        config([
+            'nuvra.retire_shared_passwords' => false,
+            'nuvra.force_admin_password_change' => true,
+        ]);
 
         $admin = User::factory()->create([
             'email' => 'admin@example.com',
