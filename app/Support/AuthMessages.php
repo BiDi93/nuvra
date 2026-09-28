@@ -31,6 +31,8 @@ class AuthMessages
 
     public const ADMIN_PASSWORD_CHANGE = 'Choose a new password before continuing.';
 
+    public const PASSWORD_CHECKS_UNCONFIGURED = 'Password checks are not configured.';
+
     public const STATUS_PRIVATE = 'If this registration is still pending, an admin has not approved it yet.';
 
     public const FORGOT_GENERIC = 'If an account with that email can receive mail, a reset link has been sent.';

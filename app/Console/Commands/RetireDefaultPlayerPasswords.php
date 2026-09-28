@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Contracts\SmsSender;
 use App\Models\User;
+use App\Support\PasswordConfiguration;
 use App\Support\PlayerContact;
 use App\Support\SharedPassword;
 use Illuminate\Console\Command;
@@ -23,9 +24,14 @@ class RetireDefaultPlayerPasswords extends Command
         $shared = SharedPassword::configuredValue();
 
         if ($shared === null) {
-            $this->info('NUVRA_SHARED_DEFAULT_PASSWORD is unset, so the shared-password check is off. Nothing was changed and no messages were sent.');
+            PasswordConfiguration::report();
+            $this->error('NUVRA_SHARED_DEFAULT_PASSWORD is unset. The command cannot tell which accounts use the shared password, so it will not run. Nothing was changed and no messages were sent.');
 
-            return self::SUCCESS;
+            if (SharedPassword::retirementEnabled()) {
+                $this->line('NUVRA_RETIRE_SHARED_PASSWORDS is true, so this setup is invalid. Set the password variable in the server .env, then run php artisan config:cache.');
+            }
+
+            return self::FAILURE;
         }
 
         $smsReady = $sms->enabled();

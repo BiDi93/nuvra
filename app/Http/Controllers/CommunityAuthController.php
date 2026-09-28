@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\NotSharedDefaultPassword;
 use App\Rules\PlayerPassword;
 use App\Rules\StrongPassword;
 use App\Support\AttemptLimiter;
 use App\Support\AttemptResponse;
 use App\Support\AuthMessages;
+use App\Support\PasswordConfiguration;
 use App\Support\PlayerLocator;
 use App\Support\SharedPassword;
 use App\Support\WeakPassword;
@@ -24,7 +26,7 @@ class CommunityAuthController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'position' => 'nullable|string|max:100',
-            'password' => ['required', 'string', 'confirmed', new PlayerPassword],
+            'password' => ['required', 'string', 'confirmed', new PlayerPassword, new NotSharedDefaultPassword],
         ]);
 
         // Auto-increment Vellar ID: get highest number + 1
@@ -101,6 +103,19 @@ class CommunityAuthController extends Controller
         $hash = $user?->password ?? '$2y$12$0JVSj34kuHi7I8AV0oUaiOyzOqJPIGbVFHHTJZcfAHiiOlAH5CbVy';
         $passwordMatches = Hash::check($request->password, $hash);
         $isPlayer = $user && $user->role === 'player';
+
+        if ($passwordMatches && $isPlayer && PasswordConfiguration::retirementIsInvalid()) {
+            PasswordConfiguration::report();
+
+            return response()->json(['message' => AuthMessages::PASSWORD_CHECKS_UNCONFIGURED], 503);
+        }
+
+        if ($passwordMatches && $user && $user->role === 'admin' && PasswordConfiguration::adminForceIsInvalid()) {
+            PasswordConfiguration::report();
+
+            return response()->json(['message' => AuthMessages::PASSWORD_CHECKS_UNCONFIGURED], 503);
+        }
+
         $submittedShared = SharedPassword::same((string) $request->password);
 
         if ($isPlayer && $passwordMatches) {
@@ -191,7 +206,7 @@ class CommunityAuthController extends Controller
 
         $request->validate([
             'current_password' => 'required|string',
-            'password' => ['required', 'string', 'confirmed', new StrongPassword],
+            'password' => ['required', 'string', 'confirmed', new StrongPassword, new NotSharedDefaultPassword],
         ]);
 
         $attempts = app(AttemptLimiter::class);

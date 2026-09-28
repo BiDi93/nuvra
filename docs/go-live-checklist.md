@@ -40,8 +40,8 @@ On the server `.env` for that environment, set:
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
 | `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
 | `NUVRA_MASTERBASE_PATH` | Absolute path of the player workbook, outside this repository. Leave it unset on the servers. Seeders fail if it is empty, missing, or inside the repo. Deploy does not read it. |
-| `NUVRA_SHARED_DEFAULT_PASSWORD` | Value the shared-password check compares against. Leave unset to turn that check off. Seeders that must store it refuse to run until it is set. Do not commit a value. This deploy does not change the live admin password. |
-| `NUVRA_WEAK_PASSWORDS` | Optional comma-separated list for the admin forced-change check. Leave unset to turn that check off. Do not commit values. |
+| `NUVRA_SHARED_DEFAULT_PASSWORD` | Required before `NUVRA_RETIRE_SHARED_PASSWORDS=true` and before the Part 2 counts. Set it in the server `.env`, then run `php artisan config:cache`. If the flag is on while this is unset, the setup is invalid. Seeders that must store it refuse to run until it is set. Do not commit a value. This deploy does not change the live admin password. |
+| `NUVRA_WEAK_PASSWORDS` | Required before `NUVRA_RETIRE_SHARED_PASSWORDS=true` and before the Part 2 counts. Set it in the server `.env`, then run `php artisan config:cache`. If the flag is on while this is unset, the setup is invalid. The forced admin password change also treats a missing list as invalid. Do not commit values. |
 | `NUVRA_TRUSTED_PROXIES` | Leave unset. The default is Cloudflare's published ranges. `*` is ignored. If UAT reaches Cloudflare through a Tunnel or a local proxy, requests arrive from `127.0.0.1`. In that case set `NUVRA_TRUSTED_PROXIES=127.0.0.1`. That is only safe when the origin is closed to everything else. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
@@ -67,6 +67,14 @@ php artisan migrate --force
 ## 3. Manual artisan commands
 
 Run these yourself. None of them run on deploy.
+
+Set both password variables in the UAT `.env` before you turn the retirement flag on. Then rebuild the cached config. Do not commit the values. `nuvra:create-test-players` also refuses to write until `NUVRA_SHARED_DEFAULT_PASSWORD` is set.
+
+```bash
+php artisan config:cache
+```
+
+If `NUVRA_RETIRE_SHARED_PASSWORDS=true` while `NUVRA_SHARED_DEFAULT_PASSWORD` is unset, the setup is invalid. The retire command exits with an error and changes nothing. Sign-in does not treat that as "no shared password". The same applies to `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE` when `NUVRA_WEAK_PASSWORDS` is unset.
 
 Create one flagged test player for the reset test. Pass the contact on the command. Do not put a real address in the repo. An email alone is enough; that player has no phone. A phone of 8 to 15 digits may follow the email only when you are testing SMS. This does not email or text anyone. The account is named `NUVRA TEST PLAYER` and uses Vellar ID 900001. You can pass up to three contacts in one command.
 
@@ -97,7 +105,7 @@ php artisan players:activation-code 123 --admin-id=1
 
 Replace `123` with that player's Vellar number. `--admin-id` is required. Confirm the person against the phone number on file, or have their team manager vouch for them, before you issue a code. Never issue one to someone who only knows the Vellar ID. See `docs/admin-activation-runbook.md`. The same action is `POST /api/community/admin/players/{id}/activation-code` for an admin session. The `{id}` is the user id, not the Vellar number. The command and the API send nothing. The code expires in 15 minutes.
 
-Dry run, which changes nothing and works while the flag is off:
+Dry run, which changes nothing. It requires `NUVRA_SHARED_DEFAULT_PASSWORD`. If that variable is unset, the command exits with an error whether or not you pass `--force`.
 
 ```bash
 php artisan players:retire-default-passwords
@@ -194,7 +202,7 @@ For production promotion this flag must be true, and every admin must have chang
 
 ## 9. Admin second factor
 
-An admin TOTP or second factor is not required by the owner (decision 2026-09-29). It is not in this change, and it does not block production promotion.
+An admin TOTP or second factor is not required by the owner (decision 2026-09-29). It is not in this change, and it does not block production promotion. The admin password must be long and unique, because it is now the only thing protecting player data.
 
 # Part 2 — Production promotion
 
@@ -221,7 +229,7 @@ Do these in order. This pull request does not rewrite git history and does not e
 ## Required before the promotion is treated as live
 
 1. **Verified reset is on, and one flagged email-only test account has proved it.** On production, create that player with `php artisan nuvra:create-test-players you@example.com` (replace `you@example.com` with an inbox the team controls; do not pass a phone). Set `NUVRA_SHARED_DEFAULT_PASSWORD` on the server before that command. Leave `NUVRA_RETIRE_SHARED_PASSWORDS` false until that account finishes a real reset. Then set the flag to `true`, reload config, and confirm the shared default no longer opens a session for that test account. Delete it with `php artisan nuvra:delete-test-players`, which removes only flagged test players.
-2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both weak-password counts must be 0. The player retire command does not change admin passwords.
+2. **No shared or default password remains on a player or an admin.** Run the count-only check below. Both counts only count if `NUVRA_SHARED_DEFAULT_PASSWORD` and `NUVRA_WEAK_PASSWORDS` were set when they ran. Both weak-password counts must be 0. The player retire command does not change admin passwords.
 3. **Admin forced password change is on, and admin passwords have been changed.** Set `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE=true`, reload config, and have each admin sign in and set a new password. This does not send email or SMS. The audit then reports `Admin accounts on a known weak password: 0`. On UAT this step is optional. On production it is required.
 4. **Production secrets have been rotated** so none of them are values that appear in git history. See the scan below. Do this before the promotion deploy if the current production values are the leaked ones, and again if a deploy would copy an old secret back.
 5. **UAT gate status is a recorded decision.** On production, leave `UAT_BASIC_AUTH_USER` and `UAT_BASIC_AUTH_PASS` empty unless the owner has decided production should sit behind the same gate. Write down which choice was made. On UAT, record whether the gate stays on after testing. `QA_TOOLS_ENABLED` must be false before promotion. Production forces the QA screen off even if the variable is left true.
@@ -240,12 +248,16 @@ On the production server. This prints integers only. It does not print names, em
 php artisan players:contact-audit
 ```
 
-Promotion stays blocked while either of these lines is above zero:
+Both the shared-default counts and the known-weak counts only count if `NUVRA_SHARED_DEFAULT_PASSWORD` and `NUVRA_WEAK_PASSWORDS` were set when the command ran. If either variable was unset, that line says `not checked` and the command exits non-zero. That run does not count.
 
+Promotion stays blocked while either of these lines is above zero, or while any of them says `not checked`:
+
+- `Players still on the shared default password`
+- `Admin accounts still on the shared default password`
 - `Players on a known weak password`
 - `Admin accounts on a known weak password`
 
-The known-weak check uses `NUVRA_WEAK_PASSWORDS` on the server. Leave that variable unset and the check stays off. Do not commit the values.
+Set both variables in the server `.env`, then run `php artisan config:cache`, before you treat a zero as real. Do not commit the values.
 
 ## Secrets the history scan found
 
@@ -305,4 +317,4 @@ Then count how many stored hashes still match the shared default or the weak lis
 php artisan players:contact-audit
 ```
 
-A player count above zero on the shared-default line means those accounts still open with it. Run the retire command on production before inviting anyone. If `NUVRA_SHARED_DEFAULT_PASSWORD` is unset, that line says the check is off and no account is changed.
+A player count above zero on the shared-default line means those accounts still open with it. Run the retire command on production before inviting anyone. If either password variable is unset, the matching line says `not checked` and the command exits non-zero. No account is changed.

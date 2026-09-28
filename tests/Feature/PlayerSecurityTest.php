@@ -13,6 +13,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -689,8 +690,14 @@ class PlayerSecurityTest extends TestCase
         config(['nuvra.shared_player_password' => null]);
 
         $this->assertFalse(\App\Support\SharedPassword::same('unique-pass-1'));
-        $this->artisan('players:retire-default-passwords', ['--force' => true])->assertSuccessful();
+        $this->artisan('players:retire-default-passwords')
+            ->expectsOutputToContain('NUVRA_SHARED_DEFAULT_PASSWORD is unset')
+            ->assertFailed();
+        $this->artisan('players:retire-default-passwords', ['--force' => true])
+            ->expectsOutputToContain('NUVRA_SHARED_DEFAULT_PASSWORD is unset')
+            ->assertFailed();
         $this->assertSame($before, $player->fresh()->password);
+        $this->assertFalse($player->fresh()->password_reset_required);
 
         $count = \App\Models\User::query()->count();
 
@@ -702,6 +709,113 @@ class PlayerSecurityTest extends TestCase
         }
 
         $this->assertSame($count, \App\Models\User::query()->count());
+    }
+
+    public function test_invalid_password_configuration_fails_closed(): void
+    {
+        $logged = [];
+        Log::listen(function ($event) use (&$logged) {
+            $logged[] = $event->level.':'.$event->message;
+        });
+
+        $player = $this->player('82', ['password' => 'unique-pass-1']);
+        $admin = $this->admin();
+        $before = $player->password;
+
+        $this->artisan('players:contact-audit')
+            ->expectsOutputToContain('Players on a known weak password:')
+            ->doesntExpectOutputToContain('not checked')
+            ->assertSuccessful();
+
+        config([
+            'nuvra.shared_player_password' => null,
+            'nuvra.retire_shared_passwords' => true,
+            'nuvra.weak_passwords' => [],
+            'nuvra.weak_passwords_set' => false,
+            'nuvra.force_admin_password_change' => true,
+        ]);
+
+        $this->artisan('players:retire-default-passwords')
+            ->expectsOutputToContain('setup is invalid')
+            ->assertFailed();
+        $this->artisan('players:retire-default-passwords', ['--force' => true])->assertFailed();
+        $this->assertSame($before, $player->fresh()->password);
+        $this->assertNull($player->fresh()->sharedPasswordState());
+
+        $login = $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'unique-pass-1',
+        ])->assertStatus(503);
+        $this->assertSame(AuthMessages::PASSWORD_CHECKS_UNCONFIGURED, $login->json('message'));
+        $this->assertArrayNotHasKey('token', $login->json());
+        $this->assertNull($player->fresh()->sharedPasswordState());
+
+        $adminLogin = $this->postJson('/api/community/login', [
+            'vellar_id' => $admin->email,
+            'password' => 'admin-unique-pass',
+        ])->assertStatus(503);
+        $this->assertArrayNotHasKey('token', $adminLogin->json());
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'wrong-password',
+        ])->assertStatus(401);
+
+        $token = $player->createToken('session')->plainTextToken;
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/community/me')
+            ->assertStatus(503)
+            ->assertJsonPath('message', AuthMessages::PASSWORD_CHECKS_UNCONFIGURED);
+
+        $adminToken = $admin->createToken('session')->plainTextToken;
+        $this->app['auth']->forgetGuards();
+        $this->withHeader('Authorization', 'Bearer '.$adminToken)
+            ->getJson('/api/community/analytics')
+            ->assertStatus(503);
+
+        $this->artisan('players:contact-audit')
+            ->expectsOutputToContain('Players still on the shared default password: not checked')
+            ->expectsOutputToContain('Players on a known weak password: not checked')
+            ->expectsOutputToContain('Admin accounts on a known weak password: not checked')
+            ->assertFailed();
+
+        $this->assertTrue(collect($logged)->contains(fn ($line) => str_contains($line, 'error:') && str_contains($line, 'NUVRA_SHARED_DEFAULT_PASSWORD')));
+        $this->assertTrue(collect($logged)->contains(fn ($line) => str_contains($line, 'error:') && str_contains($line, 'NUVRA_WEAK_PASSWORDS')));
+    }
+
+    public function test_password_rules_reject_the_configured_shared_default(): void
+    {
+        config([
+            'nuvra.force_admin_password_change' => true,
+            'nuvra.shared_player_password' => 'Correct-Horse-9',
+        ]);
+
+        $this->postJson('/api/community/register', [
+            'name' => 'New Player',
+            'password' => 'Correct-Horse-9',
+            'password_confirmation' => 'Correct-Horse-9',
+        ])->assertStatus(422);
+
+        $admin = User::factory()->create([
+            'email' => 'admin@example.com',
+            'role' => 'admin',
+            'status' => 'active',
+            'password' => $this->weakPassword(),
+        ]);
+
+        $forced = $this->postJson('/api/community/login', [
+            'vellar_id' => 'admin@example.com',
+            'password' => $this->weakPassword(),
+        ])->assertOk();
+
+        $this->withToken($forced->json('token'))
+            ->postJson('/api/community/admin/password', [
+                'current_password' => $this->weakPassword(),
+                'password' => 'Correct-Horse-9',
+                'password_confirmation' => 'Correct-Horse-9',
+            ])->assertStatus(422);
+
+        $this->assertTrue(Hash::check($this->weakPassword(), $admin->fresh()->password));
     }
 
     private function player(string $number, array $overrides = []): User

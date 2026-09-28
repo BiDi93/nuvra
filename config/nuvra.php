@@ -8,24 +8,29 @@ return [
     |--------------------------------------------------------------------------
     |
     | Historical imports stored one shared password for every player. The
-    | value comes only from NUVRA_SHARED_DEFAULT_PASSWORD. When that
-    | variable is unset, recognition is off and nothing is changed.
-    | Deploying this config does not change any account. Retirement stays
-    | off until the owner sets NUVRA_RETIRE_SHARED_PASSWORDS=true after a
-    | test reset. There is no hardcoded fallback.
+    | value comes only from NUVRA_SHARED_DEFAULT_PASSWORD. There is no
+    | hardcoded fallback. Set it in the server .env and run config:cache
+    | before NUVRA_RETIRE_SHARED_PASSWORDS=true and before the Part 2
+    | counts. If that flag is on while this is unset, the setup is invalid:
+    | login and the retire command refuse to run. Deploying this config
+    | does not change any account.
     |
     */
 
     'shared_player_password' => env('NUVRA_SHARED_DEFAULT_PASSWORD'),
 
     /*
-    | Comma-separated list in NUVRA_WEAK_PASSWORDS. When
-    | NUVRA_FORCE_ADMIN_PASSWORD_CHANGE is true, an admin still on one of
-    | these must replace it at the next login. An empty list turns the
-    | check off. The flag defaults to false, so a UAT deploy does not
-    | interrupt the current admin. It is not the player retirement flag.
-    | There is no hardcoded fallback.
+    | Comma-separated list in NUVRA_WEAK_PASSWORDS. There is no hardcoded
+    | fallback. weak_passwords_set is recorded here, while env() is
+    | available, so a cached config can tell "unset" from an empty list.
+    | Set the variable before the Part 2 counts. When
+    | NUVRA_FORCE_ADMIN_PASSWORD_CHANGE is true and this is unset, the
+    | setup is invalid and the admin is not given a normal session. The
+    | flag defaults to false, so a UAT deploy does not interrupt the
+    | current admin. It is not the player retirement flag.
     */
+    'weak_passwords_set' => filled(env('NUVRA_WEAK_PASSWORDS')),
+
     'weak_passwords' => array_values(array_filter(array_map(
         trim(...),
         explode(',', (string) env('NUVRA_WEAK_PASSWORDS', ''))

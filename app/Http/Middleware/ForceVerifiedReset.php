@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Support\AuthMessages;
+use App\Support\PasswordConfiguration;
 use App\Support\SharedPassword;
 use App\Support\WeakPassword;
 use Closure;
@@ -24,11 +25,23 @@ class ForceVerifiedReset
         }
 
         if ($user->role === 'admin') {
+            if (PasswordConfiguration::adminForceIsInvalid()) {
+                PasswordConfiguration::report();
+
+                return response()->json(['message' => AuthMessages::PASSWORD_CHECKS_UNCONFIGURED], 503);
+            }
+
             return $this->guardAdmin($request, $next, $user);
         }
 
         if ($user->role !== 'player') {
             return $next($request);
+        }
+
+        if (PasswordConfiguration::retirementIsInvalid()) {
+            PasswordConfiguration::report();
+
+            return response()->json(['message' => AuthMessages::PASSWORD_CHECKS_UNCONFIGURED], 503);
         }
 
         $retired = $user->password_reset_required

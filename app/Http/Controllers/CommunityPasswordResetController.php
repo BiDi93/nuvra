@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\NotSharedDefaultPassword;
 use App\Rules\PlayerPassword;
 use App\Services\PlayerVerificationService;
 use App\Support\AttemptLimiter;
@@ -43,7 +44,7 @@ class CommunityPasswordResetController extends Controller
             'token' => 'nullable|string|max:200',
             'vellar_id' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:50',
-            'password' => ['required', 'string', 'confirmed', new PlayerPassword],
+            'password' => ['required', 'string', 'confirmed', new PlayerPassword, new NotSharedDefaultPassword],
         ]);
 
         if (filled($request->token)) {

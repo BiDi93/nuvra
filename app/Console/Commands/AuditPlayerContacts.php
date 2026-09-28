@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Contracts\SmsSender;
 use App\Models\User;
+use App\Support\PasswordConfiguration;
 use App\Support\PlayerContact;
 use App\Support\SharedPassword;
 use App\Support\WeakPassword;
@@ -19,6 +20,8 @@ class AuditPlayerContacts extends Command
     public function handle(SmsSender $sms): int
     {
         $shared = SharedPassword::configuredValue();
+        $weakSet = PasswordConfiguration::weakListIsSet();
+        PasswordConfiguration::report();
 
         $players = 0;
         $placeholderEmails = 0;
@@ -37,6 +40,7 @@ class AuditPlayerContacts extends Command
             ->orderBy('id')
             ->chunkById(100, function ($rows) use (
                 $shared,
+                $weakSet,
                 &$players,
                 &$placeholderEmails,
                 &$usableContactEmails,
@@ -89,7 +93,7 @@ class AuditPlayerContacts extends Command
                         $onDefault++;
                     }
 
-                    if (WeakPassword::matchesStored($player)) {
+                    if ($weakSet && WeakPassword::matchesStored($player)) {
                         $onWeak++;
                     }
                 }
@@ -99,12 +103,12 @@ class AuditPlayerContacts extends Command
         $adminsOnWeak = 0;
         $admins = 0;
 
-        User::query()->where('role', 'admin')->orderBy('id')->each(function (User $admin) use ($shared, &$admins, &$adminsOnDefault, &$adminsOnWeak) {
+        User::query()->where('role', 'admin')->orderBy('id')->each(function (User $admin) use ($shared, $weakSet, &$admins, &$adminsOnDefault, &$adminsOnWeak) {
             $admins++;
             if ($shared !== null && Hash::check($shared, $admin->password)) {
                 $adminsOnDefault++;
             }
-            if (WeakPassword::matchesStored($admin)) {
+            if ($weakSet && WeakPassword::matchesStored($admin)) {
                 $adminsOnWeak++;
             }
         });
@@ -121,13 +125,23 @@ class AuditPlayerContacts extends Command
         $this->line($shared === null
             ? 'Players still on the shared default password: not checked (NUVRA_SHARED_DEFAULT_PASSWORD unset)'
             : 'Players still on the shared default password: '.$onDefault);
-        $this->line('Players on a known weak password: '.$onWeak);
+        $this->line($weakSet
+            ? 'Players on a known weak password: '.$onWeak
+            : 'Players on a known weak password: not checked (NUVRA_WEAK_PASSWORDS unset)');
         $this->line('Admin accounts: '.$admins);
         $this->line($shared === null
             ? 'Admin accounts still on the shared default password: not checked (NUVRA_SHARED_DEFAULT_PASSWORD unset)'
             : 'Admin accounts still on the shared default password: '.$adminsOnDefault);
-        $this->line('Admin accounts on a known weak password: '.$adminsOnWeak);
+        $this->line($weakSet
+            ? 'Admin accounts on a known weak password: '.$adminsOnWeak
+            : 'Admin accounts on a known weak password: not checked (NUVRA_WEAK_PASSWORDS unset)');
         $this->line('SMS driver: '.($sms->enabled() ? 'enabled' : 'not configured'));
+
+        if ($shared === null || ! $weakSet) {
+            $this->error('Password checks are incomplete. Set NUVRA_SHARED_DEFAULT_PASSWORD and NUVRA_WEAK_PASSWORDS in the server .env, then run php artisan config:cache. This run does not count.');
+
+            return self::FAILURE;
+        }
 
         return self::SUCCESS;
     }

@@ -15,8 +15,9 @@ class SharedPassword
     }
 
     /**
-     * Null when NUVRA_SHARED_DEFAULT_PASSWORD is unset. Callers that only
-     * compare must treat that as "check off" and must not throw.
+     * Null when NUVRA_SHARED_DEFAULT_PASSWORD is unset. A null value is not
+     * a match. When retirement is enabled, callers must treat that pair as
+     * invalid configuration and must not continue as if nothing matched.
      */
     public static function configuredValue(): ?string
     {

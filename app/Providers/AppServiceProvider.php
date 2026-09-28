@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\SmsSender;
+use App\Support\PasswordConfiguration;
 use App\Models\FootballMatch;
 use App\Models\Tournament;
 use App\Models\User;
@@ -31,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        PasswordConfiguration::report();
+
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(FootballMatch::class, FootballMatchPolicy::class);
         Gate::policy(Tournament::class, TournamentPolicy::class);

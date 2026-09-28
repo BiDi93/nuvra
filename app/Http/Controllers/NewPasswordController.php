@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\NotSharedDefaultPassword;
 use App\Rules\PlayerPassword;
 use App\Support\AttemptLimiter;
 use App\Support\AttemptResponse;
@@ -62,7 +63,7 @@ class NewPasswordController extends Controller
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => ['required', 'string', 'confirmed', new PlayerPassword],
+            'password' => ['required', 'string', 'confirmed', new PlayerPassword, new NotSharedDefaultPassword],
         ]);
 
         $attempts = app(AttemptLimiter::class);
