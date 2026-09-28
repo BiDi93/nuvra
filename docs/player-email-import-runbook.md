@@ -17,7 +17,7 @@ php artisan players:clear-untrusted-contact-emails --force
 
 ## Collect the CSV
 
-Team managers collect emails offline. Before a row goes in the file, confirm the person against something already known. Use the phone number on file, or have their team manager vouch for them. Never accept an address from someone who only knows the Vellar ID. This is the same identity check as `docs/admin-activation-runbook.md`.
+Team managers collect emails offline. The manager takes the email from the player face to face and puts their own name in Collected by. If an email arrives by message instead, it must come from the player's phone number, and the admin checks that number against the one on file before adding the row. The admin removes any row with an empty Collected by before running `--apply`. Never accept an address from someone who only knows the Vellar ID.
 
 The file is CSV. Save the spreadsheet as CSV. It needs a Vellar ID column and an email column. An optional collected-by column (the manager's name or ID) is stored on each audit row. Header names can vary in case and spacing (`Vellar ID`, `vellar_id`, `E-mail`, `Collected by`).
 
@@ -29,7 +29,7 @@ On the server, put the file outside the web root, outside this repository, and r
 chmod 600 /absolute/path/outside/the/web/root/players.csv
 ```
 
-The command refuses a path inside the repo. `player-email-imports/`, `*.csv`, and `*.xlsx` are gitignored so a copy left in the tree is not committed. Do not commit the file.
+The command accepts mode `600` or `400`. Any other mode is refused unless you pass `--allow-readable`, which warns and continues. The command also refuses a path inside the repo. `player-email-imports/`, `*.csv`, and `*.xlsx` are gitignored so a copy left in the tree is not committed. Do not commit the file.
 
 ## Import
 
@@ -39,7 +39,7 @@ A dry run does not need `--admin-id` and writes nothing, including no audit rows
 php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv
 ```
 
-Review the problem rows. Rows where one Vellar ID has different emails are skipped. Rows where one email maps to more than one player are skipped, because that inbox could reset each of those accounts. A row that would replace a different existing recovery email is skipped unless you pass `--replace-existing`. Valid rows are written in one transaction, so a clash cannot leave the import half-written.
+Review the problem rows. The dry run reports `Rows with no Collected by`, with the row numbers. Remove those rows before `--apply`. A row repeated inside the file is reported as `duplicate row in file`. Rows where one Vellar ID has different emails are skipped. Rows where one email maps to more than one player are skipped, because that inbox could reset each of those accounts. A row that would replace a different existing recovery email is skipped unless you pass `--replace-existing`. A row whose email already matches the current recovery email is unchanged and is not written again. Valid rows are written in one transaction, so a clash cannot leave the import half-written. If the transaction rolls back, the command prints the row number and a fixed reason. It does not print the database error. After `--apply`, each written row is marked `applied`.
 
 ```bash
 php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv --admin-id=1 --apply
@@ -49,7 +49,9 @@ Replace the path and `--admin-id`. Each applied change is stored in `player_emai
 
 Running the same file again changes 0 rows.
 
-Then check the counts and retire the shared password for the players who now have a real recovery email. `--only-with-route` retires those players and leaves everyone else on the shared password. It does not refuse the run because other players have no route. It still refuses when `NUVRA_SHARED_DEFAULT_PASSWORD` is unset.
+Before each `--only-with-route` batch, managers tell that batch: your old password will stop working, use Forgot password. If a deadline is set, include it.
+
+Then check the counts and retire the shared password for the players who now have a real recovery email. `--only-with-route` retires those players and leaves everyone else on the shared password. It does not refuse the run because other players have no route. It still refuses when `NUVRA_SHARED_DEFAULT_PASSWORD` is unset. Keep `NUVRA_RETIRE_SHARED_PASSWORDS` off during these batches. This mode does not require that flag. Retired players get a new random password and `password_reset_required`, so they must set a new password even while the flag is off. Players left on the shared password can still sign in with it. Turn the flag on only for the final retirement, when nobody who matters is still on the shared password.
 
 ```bash
 php artisan players:contact-audit
@@ -59,7 +61,7 @@ php artisan players:retire-default-passwords --force --only-with-route
 
 The retire command changes nothing until you pass `--force`. A `@vellarleague.com` address, including the login key, is not a delivery route.
 
-Delete the import file after `--apply`.
+After the admin confirms the apply, managers delete their own copies of the file and the messages they sent through the private channel. Delete the server copy as well.
 
 ```bash
 rm /absolute/path/outside/the/web/root/players.csv

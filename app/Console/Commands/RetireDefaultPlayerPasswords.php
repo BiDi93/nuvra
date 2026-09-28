@@ -102,12 +102,17 @@ class RetireDefaultPlayerPasswords extends Command
 
         if (! $apply) {
             $this->info('Dry run only. No passwords were changed and no messages were sent.');
-            $this->line('Turn on NUVRA_RETIRE_SHARED_PASSWORDS only after one test account has reset, then re-run with --force.');
+
+            if ($onlyWithRoute) {
+                $this->line('A batch with --force --only-with-route does not require NUVRA_RETIRE_SHARED_PASSWORDS. Leave that flag off until the final retirement.');
+            } else {
+                $this->line('Turn on NUVRA_RETIRE_SHARED_PASSWORDS only after one test account has reset, then re-run with --force.');
+            }
 
             return self::SUCCESS;
         }
 
-        if (! SharedPassword::retirementEnabled()) {
+        if (! $onlyWithRoute && ! SharedPassword::retirementEnabled()) {
             $this->error('Refused. NUVRA_RETIRE_SHARED_PASSWORDS is off.');
             $this->line('Finish a reset on one test account, set NUVRA_RETIRE_SHARED_PASSWORDS=true, reload config, then re-run.');
             $this->line('No passwords were changed and no messages were sent.');
@@ -156,8 +161,10 @@ class RetireDefaultPlayerPasswords extends Command
         if ($onlyWithRoute) {
             $this->line('Retired: '.$updated);
             $this->line('Left on the shared password: '.($onDefault - $updated));
+            $this->line('Retired players must set a new password. Players left on the shared password can still sign in with it. Leave NUVRA_RETIRE_SHARED_PASSWORDS off until the final retirement.');
+        } else {
+            $this->line('Players on the shared default can no longer sign in with it. They need a verification link, an SMS code, or an admin activation code.');
         }
-        $this->line('Players on the shared default can no longer sign in with it. They need a verification link, an SMS code, or an admin activation code.');
 
         return self::SUCCESS;
     }

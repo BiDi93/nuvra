@@ -5,10 +5,14 @@ namespace Tests\Feature;
 use App\Models\ContactEmailChange;
 use App\Models\PlayerEmailAudit;
 use App\Models\User;
+use App\Support\AuthMessages;
+use App\Support\ContactEmailChange as ContactEmailGuard;
 use App\Support\EmailMask;
 use App\Support\PlayerContact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -88,7 +92,8 @@ class PlayerEmailImportTest extends TestCase
             '--admin-id' => $admin->id,
             '--apply' => true,
         ])->expectsOutputToContain('Rows applied: 1')
-            ->expectsOutputToContain('Row 2: would apply '.$mask)
+            ->expectsOutputToContain('Row 2: applied '.$mask)
+            ->doesntExpectOutputToContain('Row 2: would apply '.$mask)
             ->doesntExpectOutputToContain('alpha82@example.com')
             ->assertSuccessful();
 
@@ -325,6 +330,177 @@ class PlayerEmailImportTest extends TestCase
         $this->assertNull($stray->fresh()->contact_email);
     }
 
+    public function test_only_with_route_batch_keeps_the_retirement_flag_off(): void
+    {
+        config(['nuvra.retire_shared_passwords' => false]);
+        $admin = $this->admin();
+        $retired = $this->player('82');
+        $left = $this->player('83');
+        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->assertSuccessful();
+
+        $this->artisan('players:retire-default-passwords', [
+            '--force' => true,
+            '--only-with-route' => true,
+        ])->expectsOutputToContain('Retired: 1')
+            ->expectsOutputToContain('Left on the shared password: 1')
+            ->assertSuccessful();
+
+        $this->assertFalse((bool) config('nuvra.retire_shared_passwords'));
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '83',
+            'password' => $this->sharedPassword(),
+        ])->assertOk()->assertJsonStructure(['token']);
+
+        $retired->refresh();
+        $this->assertTrue($retired->password_reset_required);
+        $this->assertTrue(ContactEmailGuard::locked($retired));
+        $this->assertFalse(Hash::check($this->sharedPassword(), $retired->password));
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => $this->sharedPassword(),
+        ])->assertStatus(401)
+            ->assertJson(['message' => AuthMessages::LOGIN_FAILED])
+            ->assertJsonMissing(['token']);
+    }
+
+    public function test_a_repeated_row_is_labelled_duplicate_in_file(): void
+    {
+        $this->player('82');
+        $path = $this->outsideFile('.csv', implode("\n", [
+            'Vellar ID,Email,Collected by',
+            '82,alpha82@example.com,Manager A',
+            '82,alpha82@example.com,Manager A',
+        ]));
+        $mask = EmailMask::mask('alpha82@example.com');
+
+        $this->artisan('players:import-emails', ['file' => $path])
+            ->expectsOutputToContain('Duplicate row in file: 1')
+            ->expectsOutputToContain('Rows to apply: 1')
+            ->expectsOutputToContain('Row 2: would apply '.$mask)
+            ->expectsOutputToContain('Row 3: duplicate row in file '.$mask)
+            ->doesntExpectOutputToContain('Row 3: unchanged')
+            ->doesntExpectOutputToContain('alpha82@example.com')
+            ->assertSuccessful();
+    }
+
+    public function test_dry_run_reports_rows_with_no_collected_by(): void
+    {
+        $this->player('82');
+        $this->player('84');
+        $path = $this->outsideFile('.csv', implode("\n", [
+            'Vellar ID,Email,Collected by',
+            '82,alpha82@example.com,',
+            '84,not-an-email,Manager A',
+        ]));
+
+        $this->artisan('players:import-emails', ['file' => $path])
+            ->expectsOutputToContain('Rows with no Collected by: 1')
+            ->expectsOutputToContain('Row 2: no collected by')
+            ->doesntExpectOutputToContain('alpha82@example.com')
+            ->assertSuccessful();
+
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+    }
+
+    public function test_a_clash_inside_the_transaction_writes_nothing(): void
+    {
+        $admin = $this->admin();
+        $target = $this->player('82');
+        $other = $this->player('83');
+        $address = 'clash82@example.com';
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,{$address},Manager A\n");
+
+        User::saving(function (User $user) use ($other, $address, $target) {
+            if ($user->is($target) && strtolower((string) $user->contact_email) === $address) {
+                User::query()->whereKey($other->id)->update(['contact_email' => $address]);
+            }
+        });
+
+        $logged = '';
+        Log::listen(function (MessageLogged $event) use (&$logged) {
+            $logged .= ' '.$event->message.' '.json_encode($event->context);
+        });
+
+        try {
+            $this->artisan('players:import-emails', [
+                'file' => $path,
+                '--admin-id' => $admin->id,
+                '--apply' => true,
+            ])->expectsOutputToContain('Row 2: email already held by another account')
+                ->expectsOutputToContain('The import was rolled back. No accounts were changed.')
+                ->doesntExpectOutputToContain($address)
+                ->doesntExpectOutputToContain('SQLSTATE')
+                ->assertFailed();
+        } finally {
+            User::getEventDispatcher()->forget('eloquent.saving: '.User::class);
+        }
+
+        $this->assertNull($target->fresh()->contact_email);
+        $this->assertNull($other->fresh()->contact_email);
+        $this->assertSame(0, PlayerEmailAudit::query()->count());
+        $this->assertStringNotContainsString($address, $logged);
+    }
+
+    public function test_import_does_not_log_the_raw_address(): void
+    {
+        $admin = $this->admin();
+        $this->player('82');
+        $address = 'logged82@example.com';
+        $path = $this->outsideFile('.csv', "Vellar ID,Email,Collected by\n82,{$address},Manager A\n");
+
+        $logged = '';
+        Log::listen(function (MessageLogged $event) use (&$logged) {
+            $logged .= ' '.$event->message.' '.json_encode($event->context);
+        });
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->doesntExpectOutputToContain($address)
+            ->assertSuccessful();
+
+        $this->assertStringNotContainsString($address, $logged);
+        $this->assertStringNotContainsString('logged82', $logged);
+    }
+
+    public function test_a_group_readable_file_is_refused_unless_allowed(): void
+    {
+        $admin = $this->admin();
+        $player = $this->player('82');
+        $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
+        chmod($path, 0644);
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->expectsOutputToContain('The import file must be mode 600 or 400. Nothing was changed.')
+            ->assertFailed();
+
+        $this->assertNull($player->fresh()->contact_email);
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+            '--allow-readable' => true,
+        ])->expectsOutputToContain('The import file is readable by the group or by others.')
+            ->expectsOutputToContain('Rows applied: 1')
+            ->doesntExpectOutputToContain('alpha82@example.com')
+            ->assertSuccessful();
+
+        $this->assertSame('alpha82@example.com', $player->fresh()->contact_email);
+    }
+
     public function test_import_is_not_capped_at_five_addresses(): void
     {
         $admin = $this->admin();
@@ -357,6 +533,7 @@ class PlayerEmailImportTest extends TestCase
         $target = $path.$suffix;
         rename($path, $target);
         file_put_contents($target, $contents);
+        chmod($target, 0600);
 
         return $target;
     }

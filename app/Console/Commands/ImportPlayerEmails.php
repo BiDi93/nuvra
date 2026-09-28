@@ -9,6 +9,7 @@ use App\Support\PlayerContact;
 use App\Support\PlayerEmailSheet;
 use App\Support\PlayerLocator;
 use Illuminate\Console\Command;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
@@ -19,7 +20,8 @@ class ImportPlayerEmails extends Command
         {file : CSV outside the repository. Columns: Vellar ID, email, and an optional collected-by column.}
         {--apply : Write the valid rows. Without this flag the command only reports counts.}
         {--admin-id= : Required with --apply. User id of the admin running the import.}
-        {--replace-existing : Replace a recovery email that is already set to a different address.}';
+        {--replace-existing : Replace a recovery email that is already set to a different address.}
+        {--allow-readable : Continue when the file is readable by the group or by others.}';
 
     protected $description = 'Import verified recovery emails for players. Dry-run unless --apply is passed. Does not send email.';
 
@@ -64,7 +66,12 @@ class ImportPlayerEmails extends Command
         if ($apply && $plan['ready'] !== []) {
             try {
                 $written = $this->write($plan['ready'], $admin->id, $hash);
-            } catch (Throwable $exception) {
+            } catch (PlayerEmailImportConflict $conflict) {
+                $this->error('Row '.$conflict->row.': '.$conflict->reason);
+                $this->error('The import was rolled back. No accounts were changed.');
+
+                return self::FAILURE;
+            } catch (Throwable) {
                 $this->error('The import was rolled back. No accounts were changed.');
 
                 return self::FAILURE;
@@ -114,6 +121,18 @@ class ImportPlayerEmails extends Command
             return null;
         }
 
+        $mode = fileperms($real) & 0777;
+
+        if (! in_array($mode, [0600, 0400], true)) {
+            if (! $this->option('allow-readable')) {
+                $this->error('The import file must be mode 600 or 400. Nothing was changed.');
+
+                return null;
+            }
+
+            $this->warn('The import file is readable by the group or by others.');
+        }
+
         return $real;
     }
 
@@ -137,6 +156,8 @@ class ImportPlayerEmails extends Command
             'different' => 0,
             'shared' => 0,
             'replace' => 0,
+            'duplicate' => 0,
+            'no_collector' => 0,
         ];
         $lines = [];
         $open = [];
@@ -174,14 +195,23 @@ class ImportPlayerEmails extends Command
             $open[$index] = $record;
         }
 
+        foreach ($rows as $row) {
+            if ($this->collectedBy($row['collected_by']) !== null) {
+                continue;
+            }
+
+            $counts['no_collector']++;
+            $lines[] = ['row' => $row['row'], 'reason' => 'no collected by', 'mask' => ''];
+        }
+
         $seen = [];
 
         foreach ($open as $index => $row) {
             $key = $row['id_key'].'|'.$row['email'];
 
             if (isset($seen[$key])) {
-                $counts['unchanged']++;
-                $lines[] = ['row' => $row['row'], 'reason' => 'unchanged', 'mask' => $row['mask']];
+                $counts['duplicate']++;
+                $lines[] = ['row' => $row['row'], 'reason' => 'duplicate row in file', 'mask' => $row['mask']];
                 unset($open[$index]);
 
                 continue;
@@ -379,27 +409,24 @@ class ImportPlayerEmails extends Command
                 $email = strtolower(trim($row['email']));
                 $current = strtolower(trim((string) $player->contact_email));
 
-                if ($current === $email) {
-                    if ($player->contact_email_source !== 'admin') {
-                        $player->forceFill(['contact_email_source' => 'admin'])->save();
-                    }
-
-                    continue;
-                }
-
-                if ($current !== '' && ! $replaceExisting) {
-                    throw new RuntimeException('The import was rolled back.');
+                if ($current !== '' && $current !== $email && ! $replaceExisting) {
+                    throw new PlayerEmailImportConflict($row['row'], 'would replace an existing recovery email');
                 }
 
                 if ($this->emailHeldBySomeoneElse($email, $player->id) || isset($assigned[$email])) {
-                    throw new RuntimeException('The import was rolled back.');
+                    throw new PlayerEmailImportConflict($row['row'], 'email already held by another account');
                 }
 
                 $old = $player->contact_email;
-                $player->forceFill([
-                    'contact_email' => $email,
-                    'contact_email_source' => 'admin',
-                ])->save();
+
+                try {
+                    $player->forceFill([
+                        'contact_email' => $email,
+                        'contact_email_source' => 'admin',
+                    ])->save();
+                } catch (QueryException) {
+                    throw new PlayerEmailImportConflict($row['row'], 'email already held by another account');
+                }
                 $assigned[$email] = $player->id;
 
                 PlayerEmailAudit::create([
@@ -436,6 +463,8 @@ class ImportPlayerEmails extends Command
         $this->line('Rows read: '.$counts['read']);
         $this->line('Rows to apply: '.count($plan['ready']));
         $this->line('Rows unchanged: '.$counts['unchanged']);
+        $this->line('Duplicate row in file: '.$counts['duplicate']);
+        $this->line('Rows with no Collected by: '.$counts['no_collector']);
         $this->line('Invalid email or placeholder: '.$counts['invalid']);
         $this->line('Vellar ID not found or not a player: '.$counts['missing']);
         $this->line('Same ID with different emails: '.$counts['different']);
@@ -449,7 +478,14 @@ class ImportPlayerEmails extends Command
         }
 
         foreach ($plan['lines'] as $line) {
-            $this->line('Row '.$line['row'].': '.$line['reason'].' '.$line['mask']);
+            $reason = $line['reason'];
+
+            if ($apply && $reason === 'would apply') {
+                $reason = 'applied';
+            }
+
+            $suffix = $line['mask'] === '' ? '' : ' '.$line['mask'];
+            $this->line('Row '.$line['row'].': '.$reason.$suffix);
         }
 
         if ($apply) {
@@ -457,5 +493,13 @@ class ImportPlayerEmails extends Command
         } else {
             $this->info('Dry run only. No accounts were changed.');
         }
+    }
+}
+
+class PlayerEmailImportConflict extends RuntimeException
+{
+    public function __construct(public int $row, public string $reason)
+    {
+        parent::__construct('import conflict');
     }
 }

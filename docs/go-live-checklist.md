@@ -176,7 +176,7 @@ To retire only the players who now have a real recovery email, and leave everyon
 php artisan players:retire-default-passwords --force --only-with-route
 ```
 
-That mode does not refuse the run because other players have no route. It still refuses when `NUVRA_SHARED_DEFAULT_PASSWORD` is unset.
+That mode does not refuse the run because other players have no route. It still refuses when `NUVRA_SHARED_DEFAULT_PASSWORD` is unset. It does not require `NUVRA_RETIRE_SHARED_PASSWORDS`. Keep that flag off during these batches, and turn it on only for the final retirement, when nobody who matters is still on the shared password. Before each batch, managers tell that batch their old password will stop working and to use Forgot password, plus the deadline if one is set.
 
 For each player who needs access before they have a recovery email or SMS, an admin who has verified them offline issues one code. The admin sees the code, never the password. The API records which admin issued it, for which player, and when.
 
@@ -198,7 +198,7 @@ After the flag is on, and codes or tested SMS exist for the players you are abou
 php artisan players:retire-default-passwords --force --allow-undeliverable
 ```
 
-This replaces remaining shared player passwords with a random value, sets `password_reset_required`, deletes those players' tokens, and rotates remember-me tokens. It sends nothing. It skips players who already chose their own password. It refuses to write, unless `--allow-undeliverable` is present, when any matched player has neither a recovery email nor SMS. `--only-with-route` is the other choice: it retires only players with a real recovery email and leaves the rest on the shared password, so missing routes do not refuse the run. Admins are not included.
+This replaces remaining shared player passwords with a random value, sets `password_reset_required`, deletes those players' tokens, and rotates remember-me tokens. It sends nothing. It skips players who already chose their own password. It refuses to write, unless `--allow-undeliverable` is present, when any matched player has neither a recovery email nor SMS. `--only-with-route` is the other choice: it retires only players with a real recovery email and leaves the rest on the shared password, so missing routes do not refuse the run. Keep `NUVRA_RETIRE_SHARED_PASSWORDS` off for that batch, and turn it on only for this final retirement. Admins are not included.
 
 When QA is finished, delete only the flagged test accounts. The command selects `is_test_account` and does not delete any other user:
 
