@@ -80,6 +80,7 @@ class NewPasswordController extends Controller
                     'password' => $password,
                     'password_reset_required' => false,
                     'password_is_shared' => false,
+                    'password_is_shared_verified' => null,
                     'remember_token' => Str::random(60),
                 ])->save();
 

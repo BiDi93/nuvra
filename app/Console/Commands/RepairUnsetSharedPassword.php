@@ -13,9 +13,9 @@ class RepairUnsetSharedPassword extends Command
 {
     protected $signature = 'players:repair-unset-shared-password
         {--force : Apply the reset. Without this flag the command only prints counts.}
-        {--before= : Keep recovery-email changes recorded after this time. Omit it to treat every recorded change as part of the unset window.}';
+        {--before= : Required UTC time, Y-m-d H:i:s. Recovery-email changes recorded after this time are kept. The command refuses to run if this is omitted.}';
 
-    protected $description = 'Reset stale shared-password flags and clear recovery emails saved while NUVRA_SHARED_DEFAULT_PASSWORD was unset. Prints counts only unless --force is passed.';
+    protected $description = 'Reset stale shared-password flags and clear player-set recovery emails saved while NUVRA_SHARED_DEFAULT_PASSWORD was unset. --before is a required UTC time. Prints counts only unless --force is passed.';
 
     public function handle(): int
     {
@@ -30,8 +30,6 @@ class RepairUnsetSharedPassword extends Command
         $before = $this->windowEnd();
 
         if ($before === false) {
-            $this->error('The --before time is not a valid date. Nothing was changed.');
-
             return self::FAILURE;
         }
 
@@ -68,14 +66,10 @@ class RepairUnsetSharedPassword extends Command
         $this->line('Shared-password flags to reset: '.count($resetIds));
         $this->line('Recovery emails to clear: '.count($clearIds));
 
-        if ($before === null) {
-            $this->line('Every recorded recovery-email change is in the unset window.');
-        } else {
-            $this->line('Recovery-email changes after '.$before->format('Y-m-d H:i:s').' are kept.');
-        }
+        $this->line('Recovery-email changes after '.$before->utc()->format('Y-m-d H:i:s').' UTC are kept.');
 
         if (! $this->option('force')) {
-            $this->info('Counts only. No accounts were changed. Re-run with --force to apply. Setting NUVRA_SHARED_DEFAULT_PASSWORD before deploy makes this command unnecessary.');
+            $this->info('Counts only. No accounts were changed. Re-run with --force to apply. Run this only if a head before 69690da was deployed while NUVRA_SHARED_DEFAULT_PASSWORD was unset.');
 
             return self::SUCCESS;
         }
@@ -122,19 +116,23 @@ class RepairUnsetSharedPassword extends Command
     }
 
     /**
-     * @return Carbon|null|false Null means the whole table. False means the option was invalid.
+     * Required UTC cutoff. False means the option was missing or not a date.
      */
-    private function windowEnd(): Carbon|null|false
+    private function windowEnd(): Carbon|false
     {
         $raw = $this->option('before');
 
         if (! is_string($raw) || trim($raw) === '') {
-            return null;
+            $this->error('--before is required. Pass a UTC time as Y-m-d H:i:s. Nothing was changed.');
+
+            return false;
         }
 
         try {
-            return Carbon::parse($raw);
+            return Carbon::parse(trim($raw), 'UTC')->utc();
         } catch (\Throwable) {
+            $this->error('--before must be a UTC time as Y-m-d H:i:s. Nothing was changed.');
+
             return false;
         }
     }
@@ -153,15 +151,14 @@ class RepairUnsetSharedPassword extends Command
     /**
      * @return list<int>
      */
-    private function emailsToClear(?Carbon $before): array
+    private function emailsToClear(Carbon $before): array
     {
-        $audit = ContactEmailChange::query()->select('player_id')->distinct();
-
-        if ($before !== null) {
-            $audit->where('created_at', '<=', $before->format('Y-m-d H:i:s'));
-        }
-
-        $playerIds = $audit->pluck('player_id')->all();
+        $playerIds = ContactEmailChange::query()
+            ->select('player_id')
+            ->distinct()
+            ->where('created_at', '<=', $before->utc()->format('Y-m-d H:i:s'))
+            ->pluck('player_id')
+            ->all();
 
         if ($playerIds === []) {
             return [];
@@ -170,6 +167,7 @@ class RepairUnsetSharedPassword extends Command
         return User::query()
             ->where('role', 'player')
             ->whereIn('id', $playerIds)
+            ->where('contact_email_source', 'player')
             ->whereNotNull('contact_email')
             ->where('contact_email', '!=', '')
             ->orderBy('id')

@@ -126,6 +126,7 @@ class RetireDefaultPlayerPasswords extends Command
                     'password' => Str::random(64),
                     'password_reset_required' => true,
                     'password_is_shared' => false,
+                    'password_is_shared_verified' => null,
                     'remember_token' => Str::random(60),
                 ])->save();
 

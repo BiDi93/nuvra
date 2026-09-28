@@ -29,7 +29,7 @@ Admin sign-in uses the same backoff and the same failure message as a player. Fo
 
 Set `NUVRA_SHARED_DEFAULT_PASSWORD` in the UAT `.env`, then run `php artisan config:cache`. Do this before the deploy, not only before turning retirement on. Do not commit the value. The deploy caches config again, so the variable has to already be in that `.env`.
 
-Straight after the deploy, and before anyone signs in, run:
+Someone with server access then runs, before the deploy:
 
 ```bash
 php artisan players:contact-audit
@@ -37,31 +37,27 @@ php artisan players:contact-audit
 
 Read the line `Players still on the shared default password`. Expect roughly 472. If that count is 0, or the line says `not checked`, the value is wrong or not loaded. Stop and fix it before continuing. The command prints counts only.
 
-## If this pull request ran without the shared-password variable
+Straight after the deploy, and before anyone signs in, run the same command again and expect the same count.
 
-Setting `NUVRA_SHARED_DEFAULT_PASSWORD` before the deploy makes this step unnecessary. Skip it when that was done.
+## If an earlier head was deployed without the shared-password variable
 
-Use it only if this pull request was deployed, or the app was run, while that variable was unset. A sign-in in that window could store `password_is_shared` as false, and a recovery email saved then could have come through that gap. Set the variable, run `php artisan config:cache`, then run this before anyone signs in:
+`players:repair-unset-shared-password` is only needed if an earlier head of #23, before `69690da`, was ever deployed to UAT. Otherwise do not run it.
 
-```bash
-php artisan players:repair-unset-shared-password
-php artisan players:repair-unset-shared-password --force
-php artisan players:contact-audit
-```
-
-The first command prints counts and changes nothing. `--force` then does three things:
-
-- It sets `password_is_shared` back to empty for every player who has not set their own password since deploy, so the next check runs again.
-- It clears `contact_email` for every player with a recovery-email change recorded in that unset window. The manager import sets those again later.
-- It prints `Players still on the shared default password`. That count must not be 0. If it is 0, the value is wrong. The command changes nothing in that case. Stop and fix the value before continuing.
-
-The commands print counts only. They do not print addresses. Running the repair again is safe: flags that are already empty stay empty, and emails that are already empty stay empty.
-
-If players have already signed in after the variable was set, pass the time you set it. Later recovery-email changes are kept:
+That earlier head could store `password_is_shared` as false while the variable was unset, and a recovery email saved then could have come through that gap. Set the variable, run `php artisan config:cache`, and confirm the audit count above is not 0. `--before` is required. It is a UTC time (`Y-m-d H:i:s`). The app timezone and the audit timestamps are UTC. Pass the UTC time the variable was set. The command refuses to run without it. Later recovery-email changes are kept.
 
 ```bash
 php artisan players:repair-unset-shared-password --before="2026-09-28 18:00:00"
+php artisan players:repair-unset-shared-password --before="2026-09-28 18:00:00" --force
+php artisan players:contact-audit
 ```
+
+The example time is UTC. The first command prints counts and changes nothing. `--force` then does three things:
+
+- It sets `password_is_shared` back to empty for every player who has not set their own password, so the next check runs again.
+- It clears `contact_email` only where `contact_email_source` is `player` and the change was recorded at or before that UTC time. It leaves `source=admin` and emails with no source alone. The manager import sets player addresses again later.
+- It prints `Players still on the shared default password`. That count must not be 0. If it is 0, the value is wrong. The command changes nothing in that case. Stop and fix the value before continuing.
+
+The commands print counts only. They do not print addresses. Running the repair again is safe: flags that are already empty stay empty, and emails that are already empty stay empty.
 
 ## 1. Environment variables
 
@@ -106,7 +102,7 @@ php artisan migrate --force
 
 Run these yourself. None of them run on deploy.
 
-If this pull request ever ran without `NUVRA_SHARED_DEFAULT_PASSWORD`, run the recovery step at the start of Part 1 before the email cleanup below. Setting the variable before deploy makes that step unnecessary.
+`players:repair-unset-shared-password` is only needed if an earlier head of #23, before `69690da`, was ever deployed to UAT. Otherwise do not run it. See the start of Part 1.
 
 Before the first email import, and after this deploy, list and clear recovery emails that have no source. Those are values set before this deploy. The profile form used to accept `contact_email` from a signed-in player. That path is closed. Show counts only. Do not print addresses.
 
