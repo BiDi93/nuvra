@@ -836,6 +836,145 @@ class PlayerSecurityTest extends TestCase
         $this->assertTrue(\App\Support\SharedPassword::checkIsVerified($onShared));
     }
 
+    public function test_repair_command_refuses_to_run_when_the_shared_password_variable_is_unset(): void
+    {
+        $shared = $this->sharedPassword();
+        $player = $this->player('82', ['contact_email' => 'bypass.window@example.com']);
+        $player->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => null,
+            'contact_email_source' => 'player',
+        ])->save();
+        $this->recoveryEmailChange($player, '2026-01-01 00:00:00');
+
+        config(['nuvra.shared_player_password' => null]);
+
+        try {
+            $this->artisan('players:repair-unset-shared-password', ['--force' => true])
+                ->expectsOutputToContain('NUVRA_SHARED_DEFAULT_PASSWORD is unset')
+                ->doesntExpectOutputToContain('@')
+                ->doesntExpectOutputToContain($shared)
+                ->assertFailed();
+        } finally {
+            config(['nuvra.shared_player_password' => $shared]);
+        }
+
+        $player->refresh();
+        $this->assertFalse($player->sharedPasswordState());
+        $this->assertSame('bypass.window@example.com', $player->contact_email);
+        $this->assertSame('player', $player->contact_email_source);
+    }
+
+    public function test_repair_command_stops_when_no_player_still_uses_the_shared_password(): void
+    {
+        $player = $this->player('82', [
+            'password' => 'unique-pass-1',
+            'contact_email' => 'own.password@example.com',
+        ]);
+        $player->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => true,
+            'contact_email_source' => 'player',
+        ])->save();
+        $this->recoveryEmailChange($player, '2026-01-01 00:00:00');
+
+        $this->artisan('players:repair-unset-shared-password', ['--force' => true])
+            ->expectsOutputToContain('Players still on the shared default password: 0')
+            ->expectsOutputToContain('Nothing was changed.')
+            ->doesntExpectOutputToContain('@')
+            ->assertFailed();
+
+        $player->refresh();
+        $this->assertFalse($player->sharedPasswordState());
+        $this->assertTrue(\App\Support\SharedPassword::checkIsVerified($player));
+        $this->assertSame('own.password@example.com', $player->contact_email);
+    }
+
+    public function test_repair_command_resets_stale_flags_and_clears_only_the_unset_window(): void
+    {
+        $shared = $this->sharedPassword();
+
+        $stale = $this->player('82', ['contact_email' => 'stale.flag@example.com']);
+        $stale->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => null,
+            'contact_email_source' => 'player',
+        ])->save();
+        $this->recoveryEmailChange($stale, '2026-01-01 00:00:00');
+
+        $later = $this->player('83', [
+            'password' => 'unique-pass-1',
+            'contact_email' => 'after.window@example.com',
+        ]);
+        $later->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => true,
+            'contact_email_source' => 'player',
+        ])->save();
+        $this->recoveryEmailChange($later, '2026-01-03 00:00:00');
+
+        $inWindow = $this->player('84', [
+            'password' => 'unique-pass-2',
+            'contact_email' => 'inside.window@example.com',
+        ]);
+        $inWindow->forceFill([
+            'password_is_shared' => false,
+            'password_is_shared_verified' => true,
+            'contact_email_source' => 'player',
+        ])->save();
+        $this->recoveryEmailChange($inWindow, '2026-01-01 12:00:00');
+
+        $admin = $this->admin();
+        $admin->forceFill([
+            'password' => $shared,
+            'password_is_shared' => false,
+            'password_is_shared_verified' => null,
+        ])->save();
+
+        $options = ['--before' => '2026-01-02 00:00:00'];
+
+        $this->artisan('players:repair-unset-shared-password', $options)
+            ->expectsOutputToContain('Players still on the shared default password: 1')
+            ->expectsOutputToContain('Shared-password flags to reset: 1')
+            ->expectsOutputToContain('Recovery emails to clear: 2')
+            ->expectsOutputToContain('No accounts were changed.')
+            ->doesntExpectOutputToContain('@')
+            ->doesntExpectOutputToContain($shared)
+            ->assertSuccessful();
+
+        $this->assertFalse($stale->fresh()->sharedPasswordState());
+        $this->assertSame('stale.flag@example.com', $stale->fresh()->contact_email);
+
+        $this->artisan('players:repair-unset-shared-password', $options + ['--force' => true])
+            ->expectsOutputToContain('Reset 1 shared-password flag(s).')
+            ->expectsOutputToContain('Cleared 2 recovery email(s).')
+            ->doesntExpectOutputToContain('@')
+            ->doesntExpectOutputToContain($shared)
+            ->assertSuccessful();
+
+        $stale->refresh();
+        $this->assertNull($stale->sharedPasswordState());
+        $this->assertFalse(\App\Support\SharedPassword::checkIsVerified($stale));
+        $this->assertNull($stale->contact_email);
+        $this->assertNull($stale->contact_email_source);
+
+        $later->refresh();
+        $this->assertFalse($later->sharedPasswordState());
+        $this->assertTrue(\App\Support\SharedPassword::checkIsVerified($later));
+        $this->assertSame('after.window@example.com', $later->contact_email);
+        $this->assertSame('player', $later->contact_email_source);
+
+        $inWindow->refresh();
+        $this->assertFalse($inWindow->sharedPasswordState());
+        $this->assertTrue(\App\Support\SharedPassword::checkIsVerified($inWindow));
+        $this->assertNull($inWindow->contact_email);
+        $this->assertNull($inWindow->contact_email_source);
+
+        $admin->refresh();
+        $this->assertFalse($admin->sharedPasswordState());
+        $this->assertTrue(Hash::check($shared, $admin->password));
+    }
+
     public function test_contact_email_changes_are_capped_at_five_a_day(): void
     {
         Cache::flush();
@@ -1254,6 +1393,17 @@ class PlayerSecurityTest extends TestCase
             ])->assertStatus(422);
 
         $this->assertTrue(Hash::check($this->weakPassword(), $admin->fresh()->password));
+    }
+
+    private function recoveryEmailChange(User $player, string $at): void
+    {
+        $change = ContactEmailChange::query()->create([
+            'player_id' => $player->id,
+            'old_email_masked' => '(none)',
+            'new_email_masked' => 'a***@example.com',
+            'ip_address' => '127.0.0.1',
+        ]);
+        $change->forceFill(['created_at' => $at])->save();
     }
 
     private function player(string $number, array $overrides = []): User

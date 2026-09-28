@@ -37,6 +37,32 @@ php artisan players:contact-audit
 
 Read the line `Players still on the shared default password`. Expect roughly 472. If that count is 0, or the line says `not checked`, the value is wrong or not loaded. Stop and fix it before continuing. The command prints counts only.
 
+## If this pull request ran without the shared-password variable
+
+Setting `NUVRA_SHARED_DEFAULT_PASSWORD` before the deploy makes this step unnecessary. Skip it when that was done.
+
+Use it only if this pull request was deployed, or the app was run, while that variable was unset. A sign-in in that window could store `password_is_shared` as false, and a recovery email saved then could have come through that gap. Set the variable, run `php artisan config:cache`, then run this before anyone signs in:
+
+```bash
+php artisan players:repair-unset-shared-password
+php artisan players:repair-unset-shared-password --force
+php artisan players:contact-audit
+```
+
+The first command prints counts and changes nothing. `--force` then does three things:
+
+- It sets `password_is_shared` back to empty for every player who has not set their own password since deploy, so the next check runs again.
+- It clears `contact_email` for every player with a recovery-email change recorded in that unset window. The manager import sets those again later.
+- It prints `Players still on the shared default password`. That count must not be 0. If it is 0, the value is wrong. The command changes nothing in that case. Stop and fix the value before continuing.
+
+The commands print counts only. They do not print addresses. Running the repair again is safe: flags that are already empty stay empty, and emails that are already empty stay empty.
+
+If players have already signed in after the variable was set, pass the time you set it. Later recovery-email changes are kept:
+
+```bash
+php artisan players:repair-unset-shared-password --before="2026-09-28 18:00:00"
+```
+
 ## 1. Environment variables
 
 On the server `.env` for that environment, set:
@@ -79,6 +105,8 @@ php artisan migrate --force
 ## 3. Manual artisan commands
 
 Run these yourself. None of them run on deploy.
+
+If this pull request ever ran without `NUVRA_SHARED_DEFAULT_PASSWORD`, run the recovery step at the start of Part 1 before the email cleanup below. Setting the variable before deploy makes that step unnecessary.
 
 Before the first email import, and after this deploy, list and clear recovery emails that have no source. Those are values set before this deploy. The profile form used to accept `contact_email` from a signed-in player. That path is closed. Show counts only. Do not print addresses.
 
