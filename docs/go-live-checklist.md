@@ -161,6 +161,15 @@ php artisan players:contact-audit
 
 Prints counts only (recovery email, missing phone, invalid phone, shared-password use). It can take a few minutes.
 
+Import verified recovery emails before you retire passwords. Players sign in with a Vellar ID. The import writes the recovery address and does not change that login. A `@vellarleague.com` address is not a delivery route. The file stays outside the repository. Dry run first. `--admin-id` is required and must be an admin. The command prints counts and problem row numbers. It does not print email addresses.
+
+```bash
+php artisan players:import-emails /absolute/path/players.csv --admin-id=1
+php artisan players:import-emails /absolute/path/players.csv --admin-id=1 --apply
+```
+
+Replace the path and `--admin-id`. Then delete the file. See `docs/player-email-import-runbook.md`.
+
 For each player who needs access before they have a recovery email or SMS, an admin who has verified them offline issues one code. The admin sees the code, never the password. The API records which admin issued it, for which player, and when.
 
 ```bash
@@ -189,7 +198,13 @@ When QA is finished, delete only the flagged test accounts. The command selects 
 php artisan nuvra:delete-test-players
 ```
 
-## 4. Mail and SMS, including a test send
+## 4. Mail on UAT, before any player is retired
+
+Do these on the UAT server. Do not retire a player until the last one has succeeded.
+
+1. **Mail sending is set up.** In the UAT `.env`, set `MAIL_MAILER` to the real mailer (not `log`), and set the mail credentials and the sender: `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME`. Then run `php artisan config:cache`. If config was already cached, editing `.env` does nothing until that command runs.
+2. **The sender domain passes SPF and DKIM.** Check the DNS records for the domain of `MAIL_FROM_ADDRESS` before a reset is sent. A message that fails those checks can be dropped before it reaches the inbox.
+3. **A test reset link reaches a real inbox before any player is retired.** Use the owner's own inbox on a flagged test player. Create that player with `php artisan nuvra:create-test-players` and the inbox the owner controls. Do not write that address in this document or in the repository. QA runs the reset after deploy, on that flagged player only. Confirm the link arrives and opens. Only then turn on `NUVRA_RETIRE_SHARED_PASSWORDS` and retire passwords.
 
 Set the mail variables, then apply config (see step 1) and send one message to an inbox you control:
 
