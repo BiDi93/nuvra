@@ -380,6 +380,10 @@ class ImportPlayerEmails extends Command
                 $current = strtolower(trim((string) $player->contact_email));
 
                 if ($current === $email) {
+                    if ($player->contact_email_source !== 'admin') {
+                        $player->forceFill(['contact_email_source' => 'admin'])->save();
+                    }
+
                     continue;
                 }
 
@@ -392,7 +396,10 @@ class ImportPlayerEmails extends Command
                 }
 
                 $old = $player->contact_email;
-                $player->forceFill(['contact_email' => $email])->save();
+                $player->forceFill([
+                    'contact_email' => $email,
+                    'contact_email_source' => 'admin',
+                ])->save();
                 $assigned[$email] = $player->id;
 
                 PlayerEmailAudit::create([

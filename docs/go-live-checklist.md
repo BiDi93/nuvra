@@ -130,7 +130,7 @@ SELECT
 FROM users;
 ```
 
-`--force` clears only `set_before_this_deploy`. It keeps `source=admin` and `source=player`. Running it again between import rounds is safe. An admin import, which is a separate change, must set `contact_email_source` to `admin`. Flagged test players created by `nuvra:create-test-players` are already marked that way.
+`--force` clears only `set_before_this_deploy`. It keeps `source=admin` and `source=player`. Running it again between import rounds is safe. `players:import-emails --apply` sets `contact_email_source` to `admin`. Flagged test players created by `nuvra:create-test-players` are already marked that way.
 
 Set both password variables in the UAT `.env` before you turn the retirement flag on. Then rebuild the cached config. Do not commit the values. `nuvra:create-test-players` also refuses to write until `NUVRA_SHARED_DEFAULT_PASSWORD` is set.
 
@@ -161,7 +161,7 @@ php artisan players:contact-audit
 
 Prints counts only (recovery email, missing phone, invalid phone, shared-password use). It can take a few minutes.
 
-Import verified recovery emails before you retire passwords. Players sign in with a Vellar ID. The import writes `contact_email` and does not change `email`. A `@vellarleague.com` address is not a delivery route. The file is CSV, sent through a private channel, and kept outside the web root. Dry run first. `--admin-id` is required for `--apply` and must be an admin. The command prints counts, row numbers, and masked addresses. See `docs/player-email-import-runbook.md`.
+Import verified recovery emails before you retire passwords. Run `players:clear-untrusted-contact-emails` first, as above. Players sign in with a Vellar ID. The import writes `contact_email`, sets `contact_email_source` to `admin`, and does not change `email`. A `@vellarleague.com` address is not a delivery route. The file is CSV, sent through a private channel, and kept outside the web root. Dry run first. `--admin-id` is required for `--apply` and must be an admin. The command prints counts, row numbers, and masked addresses. See `docs/player-email-import-runbook.md`.
 
 ```bash
 php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv

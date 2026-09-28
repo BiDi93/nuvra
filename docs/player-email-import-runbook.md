@@ -4,7 +4,16 @@ Players sign in with a Vellar ID. `CommunityAuthController::login` takes `vellar
 
 The import writes the recovery address on `contact_email`. The reset link and `players:contact-audit` already use that field, and they treat `@vellarleague.com` as no route. Do not add another email column.
 
-There is no web upload.
+There is no web upload. Each address the import writes is marked `contact_email_source = admin`, the same mark an admin process uses. `players:clear-untrusted-contact-emails` keeps those rows.
+
+## Before the first import
+
+Clear recovery emails that have no source. Those were set before this deploy. The command prints counts only. `--force` clears only the unsourced rows. It keeps `source=admin` and `source=player`.
+
+```bash
+php artisan players:clear-untrusted-contact-emails
+php artisan players:clear-untrusted-contact-emails --force
+```
 
 ## Collect the CSV
 
@@ -36,7 +45,7 @@ Review the problem rows. Rows where one Vellar ID has different emails are skipp
 php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv --admin-id=1 --apply
 ```
 
-Replace the path and `--admin-id`. Each applied change is stored in `player_email_audits`: the player id, the admin id, the collector, a masked old address, a masked new address, the time, and the file hash. The row does not store the full address or a password.
+Replace the path and `--admin-id`. Each applied change is stored in `player_email_audits`: the player id, the admin id, the collector, a masked old address, a masked new address, the time, and the file hash. The row does not store the full address or a password. The player's `contact_email_source` is set to `admin`, so a later `players:clear-untrusted-contact-emails --force` does not remove it.
 
 Running the same file again changes 0 rows.
 
