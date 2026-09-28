@@ -35,6 +35,8 @@ class AuthMessages
 
     public const CONTACT_EMAIL_LOCKED = 'Set your own password before changing the recovery email.';
 
+    public const CONTACT_EMAIL_REJECTED = 'The recovery email could not be saved.';
+
     public const STATUS_PRIVATE = 'If this registration is still pending, an admin has not approved it yet.';
 
     public const FORGOT_GENERIC = 'If an account with that email can receive mail, a reset link has been sent.';

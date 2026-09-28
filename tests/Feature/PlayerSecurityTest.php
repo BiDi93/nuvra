@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -564,7 +565,7 @@ class PlayerSecurityTest extends TestCase
         $this->assertStringNotContainsString('old.player@example.com', $audit->old_email_masked);
         $this->assertStringNotContainsString('new.player@example.com', $audit->new_email_masked);
 
-        Mail::assertSent(ContactEmailChanged::class, function (ContactEmailChanged $mail) {
+        Mail::assertQueued(ContactEmailChanged::class, function (ContactEmailChanged $mail) {
             $html = $mail->render();
 
             return $mail->hasTo('old.player@example.com')
@@ -595,6 +596,100 @@ class PlayerSecurityTest extends TestCase
         $this->assertSame('real.player@example.com', $player->fresh()->contact_email);
         $this->assertSame(1, ContactEmailChange::query()->count());
         Mail::assertNothingSent();
+        Mail::assertNothingQueued();
+    }
+
+    public function test_taken_and_unknown_recovery_emails_cannot_be_told_apart(): void
+    {
+        $admin = $this->admin();
+        $admin->forceFill(['email' => 'Desk@Example.com'])->save();
+        $adminEmail = 'desk@example.com';
+        $player = $this->player('82', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+        ]);
+        $player->forceFill(['password_is_shared' => false])->save();
+
+        $taken = $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken Over',
+            'contact_email' => $adminEmail,
+            'current_password' => 'wrong-password',
+        ]);
+        $this->travel(2)->seconds();
+        $notTaken = $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken Over',
+            'contact_email' => 'unused.person@example.com',
+            'current_password' => 'wrong-password',
+        ]);
+
+        $taken->assertStatus(422);
+        $this->assertSame($taken->status(), $notTaken->status());
+        $this->assertSame($taken->getContent(), $notTaken->getContent());
+        $this->assertStringNotContainsString('already in use', $taken->getContent());
+        $this->assertStringNotContainsString($adminEmail, $taken->getContent());
+        $this->assertStringNotContainsString('unused.person@example.com', $notTaken->getContent());
+
+        $this->travel(2)->seconds();
+
+        $takenWithPassword = $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken Over',
+            'contact_email' => $adminEmail,
+            'current_password' => 'unique-pass-1',
+        ]);
+        $otherRejection = $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken Over',
+            'contact_email' => 'vellar82@vellarleague.com',
+            'current_password' => 'unique-pass-1',
+        ]);
+
+        $takenWithPassword->assertStatus(422);
+        $this->assertSame($takenWithPassword->status(), $otherRejection->status());
+        $this->assertSame($takenWithPassword->getContent(), $otherRejection->getContent());
+        $this->assertSame(AuthMessages::CONTACT_EMAIL_REJECTED, $takenWithPassword->json('message'));
+        $this->assertStringNotContainsString('already in use', $takenWithPassword->getContent());
+        $this->assertStringNotContainsString($adminEmail, $takenWithPassword->getContent());
+
+        $player->refresh();
+        $this->assertSame('Original', $player->name);
+        $this->assertNull($player->contact_email);
+    }
+
+    public function test_a_failed_recovery_email_notice_does_not_undo_the_change(): void
+    {
+        $logged = [];
+        Log::listen(function ($event) use (&$logged) {
+            $logged[] = $event->level.':'.$event->message;
+        });
+
+        $pending = \Mockery::mock();
+        $pending->shouldReceive('queue')->once()->andThrow(new RuntimeException('smtp failed for old.player@example.com'));
+        Mail::shouldReceive('to')->once()->andReturn($pending);
+
+        $player = $this->player('82', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+            'contact_email' => 'old.player@example.com',
+        ]);
+        $player->forceFill(['password_is_shared' => false])->save();
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Renamed',
+            'contact_email' => 'new.player@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertOk()
+            ->assertJsonPath('user.contact_email', 'new.player@example.com');
+
+        $player->refresh();
+        $this->assertSame('new.player@example.com', $player->contact_email);
+        $this->assertSame('Renamed', $player->name);
+        $this->assertSame(1, ContactEmailChange::query()->count());
+
+        $lines = implode("\n", $logged);
+        $this->assertStringContainsString('The recovery-email change notice could not be sent.', $lines);
+        $this->assertStringNotContainsString('old.player@example.com', $lines);
+        $this->assertStringNotContainsString('new.player@example.com', $lines);
+        $this->assertStringNotContainsString('http', $lines);
+        $this->assertStringNotContainsString('token', strtolower($lines));
     }
 
     public function test_other_profile_fields_update_without_a_recovery_email_change(): void

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\FootballMatch;
 use App\Models\MatchPlayer;
+use App\Support\AuthMessages;
 use App\Support\ContactEmailChange;
 use App\Support\PlayerContact;
 use Illuminate\Http\Request;
@@ -343,18 +344,18 @@ class CommunityGameController extends Controller
 
                 if ($nextEmail !== null) {
                     $contactEmail = PlayerContact::usableEmail($nextEmail);
+                    $taken = $contactEmail !== null && User::query()
+                        ->where('id', '!=', $user->id)
+                        ->where(function ($query) use ($contactEmail) {
+                            $query->whereRaw('lower(email) = ?', [$contactEmail])
+                                ->orWhereRaw('lower(contact_email) = ?', [$contactEmail]);
+                        })
+                        ->exists();
 
-                    if (! $contactEmail) {
+                    if (! $contactEmail || $taken) {
                         return response()->json([
-                            'message' => 'Enter a personal email address. League login addresses cannot be used for password reset.',
+                            'message' => AuthMessages::CONTACT_EMAIL_REJECTED,
                         ], 422);
-                    }
-
-                    $taken = User::where('contact_email', $contactEmail)->where('id', '!=', $user->id)->exists()
-                        || User::where('email', $contactEmail)->where('id', '!=', $user->id)->exists();
-
-                    if ($taken) {
-                        return response()->json(['message' => 'That email address is already in use.'], 422);
                     }
 
                     $nextEmail = $contactEmail;

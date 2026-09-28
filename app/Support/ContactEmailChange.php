@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class ContactEmailChange
@@ -100,7 +101,11 @@ class ContactEmailChange
             return;
         }
 
-        Mail::to($old)->send(new ContactEmailChanged);
+        try {
+            Mail::to($old)->queue(new ContactEmailChanged);
+        } catch (\Throwable) {
+            Log::error('The recovery-email change notice could not be sent.');
+        }
     }
 
     private static function loginIdentifier(User $user): string
