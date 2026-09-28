@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Contracts\SmsSender;
 use App\Mail\PlayerPasswordResetLink;
+use App\Mail\ContactEmailChanged;
+use App\Models\ContactEmailChange;
 use App\Models\FootballMatch;
 use App\Models\PlayerVerificationCode;
 use App\Models\Tournament;
@@ -438,6 +440,7 @@ class PlayerSecurityTest extends TestCase
             'role' => 'admin',
             'email' => 'attacker@example.com',
             'contact_email' => 'safe@example.com',
+            'current_password' => 'unique-pass-1',
         ])->assertOk();
 
         $player->refresh();
@@ -451,7 +454,218 @@ class PlayerSecurityTest extends TestCase
         $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
             'name' => 'Renamed',
             'contact_email' => 'vellar82@vellarleague.com',
+            'current_password' => 'unique-pass-1',
         ])->assertStatus(422);
+    }
+
+    public function test_contact_email_change_is_refused_until_the_player_has_their_own_password(): void
+    {
+        Mail::fake();
+
+        $shared = $this->player('82', ['name' => 'Original']);
+
+        $this->actingAs($shared, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken',
+            'contact_email' => 'attacker@example.com',
+            'current_password' => $this->sharedPassword(),
+        ])->assertForbidden()
+            ->assertJsonPath('message', AuthMessages::CONTACT_EMAIL_LOCKED);
+
+        $shared->refresh();
+        $this->assertSame('Original', $shared->name);
+        $this->assertNull($shared->contact_email);
+        $this->assertSame(0, ContactEmailChange::query()->count());
+        Mail::assertNothingSent();
+
+        $reset = $this->player('83', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+        ]);
+        $reset->forceFill([
+            'password_reset_required' => true,
+            'password_is_shared' => false,
+        ])->save();
+
+        $this->actingAs($reset, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken',
+            'contact_email' => 'attacker@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertUnauthorized();
+
+        $reset->refresh();
+        $this->assertSame('Original', $reset->name);
+        $this->assertNull($reset->contact_email);
+
+        $this->withoutMiddleware(\App\Http\Middleware\ForceVerifiedReset::class);
+
+        $this->actingAs($reset, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Taken',
+            'contact_email' => 'attacker@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertForbidden()
+            ->assertJsonPath('message', AuthMessages::CONTACT_EMAIL_LOCKED);
+
+        $reset->refresh();
+        $this->assertSame('Original', $reset->name);
+        $this->assertNull($reset->contact_email);
+        Mail::assertNothingSent();
+    }
+
+    public function test_contact_email_change_requires_the_current_password_and_notifies_a_real_address(): void
+    {
+        Mail::fake();
+
+        $player = $this->player('82', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+            'contact_email' => 'old.player@example.com',
+        ]);
+        $player->forceFill(['password_is_shared' => false])->save();
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Should Stay',
+            'contact_email' => 'new.player@example.com',
+            'current_password' => 'wrong-password',
+        ])->assertStatus(422);
+
+        $player->refresh();
+        $this->assertSame('Original', $player->name);
+        $this->assertSame('old.player@example.com', $player->contact_email);
+        $this->assertSame(0, ContactEmailChange::query()->count());
+        Mail::assertNothingSent();
+
+        $this->postJson('/api/community/login', [
+            'vellar_id' => '82',
+            'password' => 'unique-pass-1',
+        ])->assertStatus(429);
+
+        $this->travel(2)->seconds();
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Renamed',
+            'phone' => '0123456789',
+            'contact_email' => '  New.Player@Example.com ',
+            'current_password' => 'unique-pass-1',
+        ])->assertOk();
+
+        $player->refresh();
+        $this->assertSame('Renamed', $player->name);
+        $this->assertSame('0123456789', $player->phone);
+        $this->assertSame('new.player@example.com', $player->contact_email);
+        $this->assertSame('player', $player->contact_email_source);
+
+        $audit = ContactEmailChange::query()->first();
+        $this->assertNotNull($audit);
+        $this->assertSame($player->id, $audit->player_id);
+        $this->assertNotNull($audit->created_at);
+        $this->assertNotSame('', (string) $audit->ip_address);
+        $this->assertStringContainsString('*', $audit->old_email_masked);
+        $this->assertStringContainsString('*', $audit->new_email_masked);
+        $this->assertStringNotContainsString('old.player@example.com', $audit->old_email_masked);
+        $this->assertStringNotContainsString('new.player@example.com', $audit->new_email_masked);
+
+        Mail::assertSent(ContactEmailChanged::class, function (ContactEmailChanged $mail) {
+            $html = $mail->render();
+
+            return $mail->hasTo('old.player@example.com')
+                && ! str_contains($html, 'http')
+                && ! str_contains(strtolower($html), 'token');
+        });
+    }
+
+    public function test_contact_email_change_does_not_notify_a_placeholder_address(): void
+    {
+        Mail::fake();
+
+        $player = $this->player('82', [
+            'password' => 'unique-pass-1',
+            'contact_email' => 'vellar82@vellarleague.com',
+        ]);
+        $player->forceFill([
+            'password_is_shared' => false,
+            'contact_email_source' => 'player',
+        ])->save();
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Renamed',
+            'contact_email' => 'real.player@example.com',
+            'current_password' => 'unique-pass-1',
+        ])->assertOk();
+
+        $this->assertSame('real.player@example.com', $player->fresh()->contact_email);
+        $this->assertSame(1, ContactEmailChange::query()->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_other_profile_fields_update_without_a_recovery_email_change(): void
+    {
+        Mail::fake();
+
+        $player = $this->player('82', [
+            'name' => 'Original',
+            'password' => 'unique-pass-1',
+            'contact_email' => 'keep@example.com',
+        ]);
+        $player->forceFill(['password_is_shared' => false])->save();
+
+        $this->actingAs($player, 'sanctum')->putJson('/api/community/profile', [
+            'name' => 'Renamed',
+            'phone' => '0123999888',
+            'position' => 'GK',
+        ])->assertOk();
+
+        $player->refresh();
+        $this->assertSame('Renamed', $player->name);
+        $this->assertSame('0123999888', $player->phone);
+        $this->assertSame('GK', $player->position);
+        $this->assertSame('keep@example.com', $player->contact_email);
+        $this->assertSame(0, ContactEmailChange::query()->count());
+        Mail::assertNothingSent();
+
+        $admin = $this->admin();
+        $this->actingAs($admin, 'sanctum')->putJson("/api/community/admin/players/{$player->id}/stats", [
+            'contact_email' => 'attacker@example.com',
+            'position' => 'ST',
+        ])->assertOk();
+
+        $this->assertSame('keep@example.com', $player->fresh()->contact_email);
+
+        $this->postJson('/api/community/register', [
+            'name' => 'Brand New',
+            'password' => 'brand-new-pass',
+            'password_confirmation' => 'brand-new-pass',
+            'contact_email' => 'attacker@example.com',
+        ])->assertCreated();
+
+        $created = User::query()->where('name', 'Brand New')->first();
+        $this->assertNotNull($created);
+        $this->assertNull($created->contact_email);
+    }
+
+    public function test_clear_untrusted_contact_emails_prints_counts_and_keeps_admin_imports(): void
+    {
+        $playerSet = $this->player('82', ['contact_email' => 'player.set@example.com']);
+        $playerSet->forceFill(['contact_email_source' => 'player'])->save();
+        $unknown = $this->player('83', ['contact_email' => 'unknown.set@example.com']);
+        $adminSet = $this->player('84', ['contact_email' => 'admin.set@example.com']);
+        $adminSet->forceFill(['contact_email_source' => 'admin'])->save();
+
+        $this->artisan('players:clear-untrusted-contact-emails')
+            ->expectsOutputToContain('Not set by an admin process: 2')
+            ->expectsOutputToContain('Set by an admin process: 1')
+            ->doesntExpectOutputToContain('@')
+            ->assertSuccessful();
+
+        $this->assertSame('player.set@example.com', $playerSet->fresh()->contact_email);
+
+        $this->artisan('players:clear-untrusted-contact-emails', ['--force' => true])
+            ->expectsOutputToContain('Cleared 2')
+            ->doesntExpectOutputToContain('@')
+            ->assertSuccessful();
+
+        $this->assertNull($playerSet->fresh()->contact_email);
+        $this->assertNull($unknown->fresh()->contact_email);
+        $this->assertSame('admin.set@example.com', $adminSet->fresh()->contact_email);
     }
 
     public function test_player_cannot_read_or_mark_another_players_notification(): void

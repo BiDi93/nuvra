@@ -50,6 +50,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
         'status_token',
+        'contact_email_source',
     ];
 
     /**

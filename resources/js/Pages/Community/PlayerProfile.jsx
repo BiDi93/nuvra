@@ -20,7 +20,8 @@ export default function PlayerProfile() {
         position: "",
         club_name: "",
         address: "",
-        contact_email: ""
+        contact_email: "",
+        current_password: ""
     });
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState({ error: null, success: null });
@@ -75,6 +76,7 @@ export default function PlayerProfile() {
             club_name: profile.user.club_name || "",
             address: profile.user.address || "",
             contact_email: profile.user.contact_email || "",
+            current_password: "",
         });
         setSaveStatus({ error: null, success: null });
         setShowEditModal(true);
@@ -86,6 +88,9 @@ export default function PlayerProfile() {
         setSaveStatus({ error: null, success: null });
         try {
             const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+            const originalEmail = (profile?.user?.contact_email || "").trim().toLowerCase();
+            const nextEmail = (basicForm.contact_email || "").trim().toLowerCase();
+            const emailChanged = originalEmail !== nextEmail;
             const res = await fetch(`${API}/profile`, {
                 method: "PUT",
                 headers: {
@@ -100,6 +105,7 @@ export default function PlayerProfile() {
                     club_name: basicForm.club_name,
                     address: basicForm.address,
                     contact_email: basicForm.contact_email,
+                    ...(emailChanged ? { current_password: basicForm.current_password } : {}),
                 })
             });
             const resData = await res.json();
@@ -509,6 +515,20 @@ export default function PlayerProfile() {
                                             className="modal-input"
                                         />
                                     </div>
+                                    {(basicForm.contact_email || "").trim().toLowerCase() !== (profile?.user?.contact_email || "").trim().toLowerCase() && (
+                                        <div style={{ gridColumn: "span 2" }}>
+                                            <label style={S.formLabel}>Current password</label>
+                                            <input
+                                                type="password"
+                                                autoComplete="current-password"
+                                                placeholder="Required to change the recovery email"
+                                                value={basicForm.current_password}
+                                                onChange={(e) => setBasicForm({ ...basicForm, current_password: e.target.value })}
+                                                style={S.formInput}
+                                                className="modal-input"
+                                            />
+                                        </div>
+                                    )}
                                     <div>
                                         <label style={S.formLabel}>Address / Area</label>
                                         <input

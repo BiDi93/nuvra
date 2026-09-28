@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\FootballMatch;
 use App\Models\MatchPlayer;
+use App\Support\ContactEmailChange;
+use App\Support\PlayerContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
@@ -313,6 +315,12 @@ class CommunityGameController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if ($request->exists('contact_email')) {
+            $request->merge([
+                'contact_email' => ContactEmailChange::normalize($request->input('contact_email')),
+            ]);
+        }
+
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
             'phone'     => 'nullable|string|max:50',
@@ -323,23 +331,40 @@ class CommunityGameController extends Controller
             'contact_email' => 'nullable|email|max:255',
         ]);
 
-        if (array_key_exists('contact_email', $validated) && filled($validated['contact_email'])) {
-            $contactEmail = \App\Support\PlayerContact::usableEmail($validated['contact_email']);
+        $emailChange = null;
 
-            if (! $contactEmail) {
-                return response()->json([
-                    'message' => 'Enter a personal email address. League login addresses cannot be used for password reset.',
-                ], 422);
+        if (array_key_exists('contact_email', $validated)) {
+            $nextEmail = ContactEmailChange::normalize($validated['contact_email']);
+
+            if (ContactEmailChange::isChanging($user, $nextEmail)) {
+                if ($denied = ContactEmailChange::refuse($request, $user, $nextEmail)) {
+                    return $denied;
+                }
+
+                if ($nextEmail !== null) {
+                    $contactEmail = PlayerContact::usableEmail($nextEmail);
+
+                    if (! $contactEmail) {
+                        return response()->json([
+                            'message' => 'Enter a personal email address. League login addresses cannot be used for password reset.',
+                        ], 422);
+                    }
+
+                    $taken = User::where('contact_email', $contactEmail)->where('id', '!=', $user->id)->exists()
+                        || User::where('email', $contactEmail)->where('id', '!=', $user->id)->exists();
+
+                    if ($taken) {
+                        return response()->json(['message' => 'That email address is already in use.'], 422);
+                    }
+
+                    $nextEmail = $contactEmail;
+                }
+
+                $emailChange = [
+                    'previous' => $user->contact_email,
+                    'next' => $nextEmail,
+                ];
             }
-
-            $taken = User::where('contact_email', $contactEmail)->where('id', '!=', $user->id)->exists()
-                || User::where('email', $contactEmail)->where('id', '!=', $user->id)->exists();
-
-            if ($taken) {
-                return response()->json(['message' => 'That email address is already in use.'], 422);
-            }
-
-            $validated['contact_email'] = $contactEmail;
         }
 
         // Strictly update only basic demographic/profile attributes
@@ -352,12 +377,23 @@ class CommunityGameController extends Controller
             'location'  => $validated['location'] ?? null,
         ];
 
-        if (array_key_exists('contact_email', $validated)) {
-            $attributes['contact_email'] = $validated['contact_email'] ?: null;
+        if ($emailChange !== null) {
+            $attributes['contact_email'] = $emailChange['next'];
         }
 
         $user->fill($attributes);
+
+        if ($emailChange !== null) {
+            $user->forceFill([
+                'contact_email_source' => $emailChange['next'] === null ? null : 'player',
+            ]);
+        }
+
         $user->save();
+
+        if ($emailChange !== null) {
+            ContactEmailChange::record($request, $user, $emailChange['previous'], $emailChange['next']);
+        }
 
         $fresh = $user->fresh();
 

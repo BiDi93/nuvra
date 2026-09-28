@@ -68,6 +68,25 @@ php artisan migrate --force
 
 Run these yourself. None of them run on deploy.
 
+Before the first email import, and after this deploy, list and clear any recovery emails that were not set by an admin process. The profile form used to accept `contact_email` from a signed-in player. That path is closed. Show counts only. Do not print addresses.
+
+```bash
+php artisan players:clear-untrusted-contact-emails
+php artisan players:clear-untrusted-contact-emails --force
+```
+
+The same counts, without printing addresses:
+
+```sql
+SELECT
+  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '') AS with_recovery_email,
+  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source = 'admin') AS set_by_admin,
+  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND (contact_email_source IS NULL OR contact_email_source != 'admin')) AS not_set_by_admin
+FROM users;
+```
+
+`--force` clears only the last of those three. An admin import, which is a separate change, must set `contact_email_source` to `admin` or this command will clear it. Flagged test players created by `nuvra:create-test-players` are already marked that way.
+
 Set both password variables in the UAT `.env` before you turn the retirement flag on. Then rebuild the cached config. Do not commit the values. `nuvra:create-test-players` also refuses to write until `NUVRA_SHARED_DEFAULT_PASSWORD` is set.
 
 ```bash

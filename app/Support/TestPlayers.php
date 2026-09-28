@@ -51,6 +51,7 @@ class TestPlayers
                     'vellar_id' => 'VELLAR '.$row['number'],
                     'phone' => $row['phone'],
                     'contact_email' => $row['email'],
+                    'contact_email_source' => 'admin',
                     'is_test_account' => true,
                     'password_is_shared' => true,
                     'password_reset_required' => true,
