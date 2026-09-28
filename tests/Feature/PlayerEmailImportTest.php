@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ContactEmailChange;
 use App\Models\PlayerEmailAudit;
 use App\Models\User;
 use App\Support\EmailMask;
@@ -268,11 +269,15 @@ class PlayerEmailImportTest extends TestCase
         $this->assertFalse($player->fresh()->password_reset_required);
     }
 
-    public function test_import_marks_addresses_as_admin_so_the_clear_command_keeps_them(): void
+    public function test_import_marks_addresses_as_admin_so_repair_and_cleanup_keep_them(): void
     {
         $admin = $this->admin();
         $imported = $this->player('82');
         $stray = $this->player('83', ['contact_email' => 'stray83@example.com']);
+        $selfSet = $this->player('84', [
+            'contact_email' => 'self84@example.com',
+            'contact_email_source' => 'player',
+        ]);
         $path = $this->outsideFile('.csv', "Vellar ID,Email\n82,alpha82@example.com\n");
 
         $this->artisan('players:import-emails', [
@@ -286,6 +291,29 @@ class PlayerEmailImportTest extends TestCase
         $this->assertSame('admin', $imported->contact_email_source);
         $this->assertSame('vellar82@vellarleague.com', $imported->email);
 
+        foreach ([$imported, $selfSet] as $player) {
+            $change = ContactEmailChange::query()->create([
+                'player_id' => $player->id,
+                'old_email_masked' => '(none)',
+                'new_email_masked' => 'a***@example.com',
+                'ip_address' => '127.0.0.1',
+            ]);
+            $change->forceFill(['created_at' => '2026-01-01 00:00:00'])->save();
+        }
+
+        $this->artisan('players:repair-unset-shared-password', [
+            '--force' => true,
+            '--before' => '2026-09-28 00:00:00',
+        ])->expectsOutputToContain('Recovery emails to clear: 1')
+            ->expectsOutputToContain('Cleared 1 recovery email')
+            ->doesntExpectOutputToContain('alpha82@example.com')
+            ->doesntExpectOutputToContain('self84@example.com')
+            ->assertSuccessful();
+
+        $this->assertSame('alpha82@example.com', $imported->fresh()->contact_email);
+        $this->assertSame('admin', $imported->fresh()->contact_email_source);
+        $this->assertNull($selfSet->fresh()->contact_email);
+
         $this->artisan('players:clear-untrusted-contact-emails', ['--force' => true])
             ->expectsOutputToContain('Cleared 1 recovery email')
             ->doesntExpectOutputToContain('alpha82@example.com')
@@ -295,6 +323,32 @@ class PlayerEmailImportTest extends TestCase
         $this->assertSame('alpha82@example.com', $imported->fresh()->contact_email);
         $this->assertSame('admin', $imported->fresh()->contact_email_source);
         $this->assertNull($stray->fresh()->contact_email);
+    }
+
+    public function test_import_is_not_capped_at_five_addresses(): void
+    {
+        $admin = $this->admin();
+        $lines = ['Vellar ID,Email'];
+
+        for ($number = 1; $number <= 6; $number++) {
+            $this->player((string) $number);
+            $lines[] = $number.',player'.$number.'@example.com';
+        }
+
+        $path = $this->outsideFile('.csv', implode("\n", $lines)."\n");
+
+        $this->artisan('players:import-emails', [
+            'file' => $path,
+            '--admin-id' => $admin->id,
+            '--apply' => true,
+        ])->expectsOutputToContain('Rows applied: 6')
+            ->assertSuccessful();
+
+        for ($number = 1; $number <= 6; $number++) {
+            $player = User::query()->where('vellar_id', 'VELLAR '.$number)->first();
+            $this->assertSame('player'.$number.'@example.com', $player->contact_email);
+            $this->assertSame('admin', $player->contact_email_source);
+        }
     }
 
     private function outsideFile(string $suffix, string $contents): string
