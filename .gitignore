@@ -37,3 +37,6 @@ GEMINI.md
 *.mvp
 scratch/
 
+# Player workbook. Names, phone numbers, and birth dates. Keep it outside the repo.
+MASTERBASE VELLAR ID S1.xlsx
+

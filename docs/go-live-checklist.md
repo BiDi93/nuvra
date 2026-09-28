@@ -5,7 +5,7 @@ This work lands on `uat` first. The owner tests and confirms there. Production (
 - **Part 1** is the UAT go-live. Merge and deploy to UAT, then run the checks there.
 - **Part 2** is the production promotion. Do not open that pull request until every item in Part 2 is true.
 
-Merge https://github.com/BiDi93/nuvra/pull/22 (`cursor/security-cleanup-uat-5200`) into `uat` before this pull request. That pull request already makes analytics admin-only, hides phone and address on public profiles, tightens fixture edits, adds `GET /api/community/public-stats`, and changes the UAT deploy workflow, `.gitignore`, and the masterbase spreadsheet. This pull request does not repeat those edits. Fixture authorization here follows that same rule: admin, match organizer, or tournament organizer.
+Merge https://github.com/BiDi93/nuvra/pull/22 (`cursor/security-cleanup-uat-5200`) into `uat` before this pull request. That pull request already makes analytics admin-only, hides phone and address on public profiles, tightens fixture edits, adds `GET /api/community/public-stats`, and changes the UAT deploy workflow and `.gitignore`. It does not move the masterbase workbook. This pull request removes that workbook from the tree. Fixture authorization here follows that same rule: admin, match organizer, or tournament organizer.
 
 No real player has logged in anywhere yet. Do not invite a player on UAT until Part 1 is done there. Do not invite a player on production until Part 2 is done there.
 
@@ -35,6 +35,7 @@ On the server `.env` for that environment, set:
 | `NUVRA_FORCE_ADMIN_PASSWORD_CHANGE` | Leave `false` on UAT. The current admin keeps signing in. Set `true` only when you want the forced admin password change, which is required for production promotion. |
 | `UAT_BASIC_AUTH_USER`, `UAT_BASIC_AUTH_PASS` | UAT gate. Both must be non-empty or the gate stays off. Leave both empty on production. |
 | `QA_TOOLS_ENABLED` | Off by default. Set `true` only while QA uses the admin test-player screen. Set it back to `false` when that testing is finished. Production ignores it. |
+| `NUVRA_MASTERBASE_PATH` | Absolute path of the player workbook, outside this repository. Leave it unset on the servers. Seeders fail if it is empty, missing, or inside the repo. Deploy does not read it. |
 
 **What the code expects for delivery.** Mail uses Laravel's mailer (`config/mail.php`). If `MAIL_MAILER` is unset, the default is `log`, which writes the message to the log and does not deliver it. The committed `.env.example` sets `MAIL_MAILER=log` and `SMS_DRIVER=none`. PHPUnit sets `MAIL_MAILER=array`, which keeps messages in memory. SMS is sent only when `SMS_DRIVER=http` and `SMS_HTTP_URL` are both set; otherwise the SMS driver sends nothing. The UAT server's `.env` is not in this repo. Until the owner points `MAIL_MAILER` at a real provider, UAT as configured by the example does not deliver reset email, and it does not send SMS.
 
@@ -49,6 +50,8 @@ Use `php artisan config:cache` instead when you want the cached file rebuilt wit
 ## 2. Migrations
 
 After deploy, confirm migrations ran. They only add columns and an empty table. They do not rewrite passwords.
+
+Neither `.github/workflows/uat-deploy.yml` nor `.github/workflows/deploy.yml` runs a seeder. Both run `php artisan migrate --force` and then cache config and views. A deploy does not read `NUVRA_MASTERBASE_PATH` and cannot re-seed the live database. `MASTERBASE VELLAR ID S1.xlsx` stays in git history. That history contains Vellar IDs, names, phone numbers, birth dates, positions, team names, and match statistics. This change does not rewrite those commits. The file is no longer in the working tree. Keep any copy outside the repository.
 
 ```bash
 php artisan migrate --force

@@ -205,6 +205,7 @@ class AcceptanceCriteriaTest extends TestCase
 
     public function test_admin_qa_tools_create_and_delete_only_flagged_players_and_are_off_by_default(): void
     {
+        config(['nuvra.qa_tools' => false]);
         $admin = $this->admin();
         $real = $this->player('82');
 

@@ -2,18 +2,21 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
+use App\Models\FootballMatch;
 use App\Models\Tournament;
 use App\Models\TournamentTeam;
-use App\Models\FootballMatch;
+use App\Models\User;
+use App\Support\MasterbaseWorkbook;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use RuntimeException;
 
 class TournamentMasterbaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $excelPath = MasterbaseWorkbook::path();
+
         $organizer = User::firstOrCreate(
             ['email' => 'admin@vellarleague.com'],
             [
@@ -31,36 +34,36 @@ class TournamentMasterbaseSeeder extends Seeder
                 ['slug' => 'vellar-league-semenyih'],
                 [
                     'organizer_id' => $organizer->id,
-                    'name'         => 'Vellar League Semenyih',
-                    'description'  => 'Official FAS Affiliate Tournament - Semenyih Division',
-                    'format'       => 'league',
-                    'season'       => 'Season 1 (2026)',
-                    'venue'        => 'Semenyih Sports Arena',
-                    'status'       => 'active',
+                    'name' => 'Vellar League Semenyih',
+                    'description' => 'Official FAS Affiliate Tournament - Semenyih Division',
+                    'format' => 'league',
+                    'season' => 'Season 1 (2026)',
+                    'venue' => 'Semenyih Sports Arena',
+                    'status' => 'active',
                 ]
             ),
             'Serdang' => Tournament::updateOrCreate(
                 ['slug' => 'vellar-league-serdang-30an'],
                 [
                     'organizer_id' => $organizer->id,
-                    'name'         => 'Vellar League Serdang 30AN',
-                    'description'  => 'Official FAS Affiliate Tournament - Serdang Veteran 30AN',
-                    'format'       => 'league',
-                    'season'       => 'Season 1 (2026)',
-                    'venue'        => 'Serdang Sports Complex',
-                    'status'       => 'active',
+                    'name' => 'Vellar League Serdang 30AN',
+                    'description' => 'Official FAS Affiliate Tournament - Serdang Veteran 30AN',
+                    'format' => 'league',
+                    'season' => 'Season 1 (2026)',
+                    'venue' => 'Serdang Sports Complex',
+                    'status' => 'active',
                 ]
             ),
             'Bangi' => Tournament::updateOrCreate(
                 ['slug' => 'vellar-league-bangi'],
                 [
                     'organizer_id' => $organizer->id,
-                    'name'         => 'Vellar League Bangi',
-                    'description'  => 'Official FAS Affiliate Tournament - Bangi Division',
-                    'format'       => 'league',
-                    'season'       => 'Season 1 (2026)',
-                    'venue'        => 'Uptown Sports Bangi',
-                    'status'       => 'active',
+                    'name' => 'Vellar League Bangi',
+                    'description' => 'Official FAS Affiliate Tournament - Bangi Division',
+                    'format' => 'league',
+                    'season' => 'Season 1 (2026)',
+                    'venue' => 'Uptown Sports Bangi',
+                    'status' => 'active',
                 ]
             ),
         ];
@@ -71,7 +74,7 @@ class TournamentMasterbaseSeeder extends Seeder
         foreach ($semenyihTeams as $name) {
             $semTeamMap[$name] = TournamentTeam::firstOrCreate([
                 'tournament_id' => $tournaments['Semenyih']->id,
-                'name'          => $name,
+                'name' => $name,
             ]);
         }
 
@@ -80,7 +83,7 @@ class TournamentMasterbaseSeeder extends Seeder
         foreach ($serdangTeams as $name) {
             $serTeamMap[$name] = TournamentTeam::firstOrCreate([
                 'tournament_id' => $tournaments['Serdang']->id,
-                'name'          => $name,
+                'name' => $name,
             ]);
         }
 
@@ -89,7 +92,7 @@ class TournamentMasterbaseSeeder extends Seeder
         foreach ($bangiTeams as $name) {
             $banTeamMap[$name] = TournamentTeam::firstOrCreate([
                 'tournament_id' => $tournaments['Bangi']->id,
-                'name'          => $name,
+                'name' => $name,
             ]);
         }
 
@@ -112,23 +115,23 @@ class TournamentMasterbaseSeeder extends Seeder
         foreach ($semFixtures as $f) {
             FootballMatch::updateOrCreate(
                 [
-                    'tournament_id'   => $tournaments['Semenyih']->id,
-                    'gameweek'        => $f[0],
-                    'home_team_name'  => $f[1],
-                    'away_team_name'  => $f[2],
+                    'tournament_id' => $tournaments['Semenyih']->id,
+                    'gameweek' => $f[0],
+                    'home_team_name' => $f[1],
+                    'away_team_name' => $f[2],
                 ],
                 [
-                    'organizer_id'    => $organizer->id,
-                    'home_team_id'    => $semTeamMap[$f[1]]->id ?? null,
-                    'away_team_id'    => $semTeamMap[$f[2]]->id ?? null,
-                    'team_a_name'     => $f[1],
-                    'team_b_name'     => $f[2],
-                    'home_score'      => $f[3],
-                    'away_score'      => $f[4],
-                    'match_date'      => $f[5],
-                    'match_time'      => $f[6],
-                    'venue'           => $f[7],
-                    'status'          => $f[8],
+                    'organizer_id' => $organizer->id,
+                    'home_team_id' => $semTeamMap[$f[1]]->id ?? null,
+                    'away_team_id' => $semTeamMap[$f[2]]->id ?? null,
+                    'team_a_name' => $f[1],
+                    'team_b_name' => $f[2],
+                    'home_score' => $f[3],
+                    'away_score' => $f[4],
+                    'match_date' => $f[5],
+                    'match_time' => $f[6],
+                    'venue' => $f[7],
+                    'status' => $f[8],
                 ]
             );
         }
@@ -150,23 +153,23 @@ class TournamentMasterbaseSeeder extends Seeder
         foreach ($serFixtures as $f) {
             FootballMatch::updateOrCreate(
                 [
-                    'tournament_id'   => $tournaments['Serdang']->id,
-                    'gameweek'        => $f[0],
-                    'home_team_name'  => $f[1],
-                    'away_team_name'  => $f[2],
+                    'tournament_id' => $tournaments['Serdang']->id,
+                    'gameweek' => $f[0],
+                    'home_team_name' => $f[1],
+                    'away_team_name' => $f[2],
                 ],
                 [
-                    'organizer_id'    => $organizer->id,
-                    'home_team_id'    => $serTeamMap[$f[1]]->id ?? null,
-                    'away_team_id'    => $serTeamMap[$f[2]]->id ?? null,
-                    'team_a_name'     => $f[1],
-                    'team_b_name'     => $f[2],
-                    'home_score'      => $f[3],
-                    'away_score'      => $f[4],
-                    'match_date'      => $f[5],
-                    'match_time'      => $f[6],
-                    'venue'           => $f[7],
-                    'status'          => $f[8],
+                    'organizer_id' => $organizer->id,
+                    'home_team_id' => $serTeamMap[$f[1]]->id ?? null,
+                    'away_team_id' => $serTeamMap[$f[2]]->id ?? null,
+                    'team_a_name' => $f[1],
+                    'team_b_name' => $f[2],
+                    'home_score' => $f[3],
+                    'away_score' => $f[4],
+                    'match_date' => $f[5],
+                    'match_time' => $f[6],
+                    'venue' => $f[7],
+                    'status' => $f[8],
                 ]
             );
         }
@@ -187,91 +190,101 @@ class TournamentMasterbaseSeeder extends Seeder
         foreach ($banFixtures as $f) {
             FootballMatch::updateOrCreate(
                 [
-                    'tournament_id'   => $tournaments['Bangi']->id,
-                    'gameweek'        => $f[0],
-                    'home_team_name'  => $f[1],
-                    'away_team_name'  => $f[2],
+                    'tournament_id' => $tournaments['Bangi']->id,
+                    'gameweek' => $f[0],
+                    'home_team_name' => $f[1],
+                    'away_team_name' => $f[2],
                 ],
                 [
-                    'organizer_id'    => $organizer->id,
-                    'home_team_id'    => $banTeamMap[$f[1]]->id ?? null,
-                    'away_team_id'    => $banTeamMap[$f[2]]->id ?? null,
-                    'team_a_name'     => $f[1],
-                    'team_b_name'     => $f[2],
-                    'home_score'      => $f[3],
-                    'away_score'      => $f[4],
-                    'match_date'      => $f[5],
-                    'match_time'      => $f[6],
-                    'venue'           => $f[7],
-                    'status'          => $f[8],
+                    'organizer_id' => $organizer->id,
+                    'home_team_id' => $banTeamMap[$f[1]]->id ?? null,
+                    'away_team_id' => $banTeamMap[$f[2]]->id ?? null,
+                    'team_a_name' => $f[1],
+                    'team_b_name' => $f[2],
+                    'home_score' => $f[3],
+                    'away_score' => $f[4],
+                    'match_date' => $f[5],
+                    'match_time' => $f[6],
+                    'venue' => $f[7],
+                    'status' => $f[8],
                 ]
             );
         }
 
         // 6. Masterbase Players Import from Excel
-        $excelPath = base_path('MASTERBASE VELLAR ID S1.xlsx');
-        if (file_exists($excelPath) && class_exists('ZipArchive')) {
-            $zip = new \ZipArchive();
-            if ($zip->open($excelPath) === true) {
-                // Shared strings
-                $strings = [];
-                $ssXml = $zip->getFromName('xl/sharedStrings.xml');
-                if ($ssXml) {
-                    $xml = simplexml_load_string($ssXml);
-                    foreach ($xml->si as $si) {
-                        $strings[] = (string)($si->t ?? '');
-                    }
+        if (! class_exists('ZipArchive')) {
+            throw new RuntimeException('The zip extension is required to read the masterbase workbook.');
+        }
+
+        $zip = new \ZipArchive;
+        if ($zip->open($excelPath) !== true) {
+            throw new RuntimeException('The masterbase workbook could not be opened. Check NUVRA_MASTERBASE_PATH.');
+        }
+
+        try {
+            // Shared strings
+            $strings = [];
+            $ssXml = $zip->getFromName('xl/sharedStrings.xml');
+            if ($ssXml) {
+                $xml = simplexml_load_string($ssXml);
+                foreach ($xml->si as $si) {
+                    $strings[] = (string) ($si->t ?? '');
                 }
-
-                // Sheet 1: Masterbase Players
-                $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
-                if ($sheetXml) {
-                    $sXml = simplexml_load_string($sheetXml);
-                    $defaultPwd = Hash::make('password');
-                    $batchUsers = [];
-
-                    foreach ($sXml->sheetData->row as $row) {
-                        $rNum = (int)$row['r'];
-                        if ($rNum <= 1) continue; // skip header
-
-                        $cells = [];
-                        foreach ($row->c as $c) {
-                            $r = (string)$c['r'];
-                            $col = preg_replace('/[0-9]/', '', $r);
-                            $val = (string)$c->v;
-                            if ((string)$c['t'] === 's' && isset($strings[(int)$val])) {
-                                $val = $strings[(int)$val];
-                            }
-                            $cells[$col] = $val;
-                        }
-
-                        $vellarId = trim($cells['A'] ?? '');
-                        $name = trim($cells['B'] ?? '');
-                        $phone = trim($cells['C'] ?? '');
-                        $pos = trim($cells['E'] ?? '');
-                        $team = trim($cells['F'] ?? '');
-
-                        if ($vellarId && $name) {
-                            $cleanVid = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $vellarId));
-                            $email = "{$cleanVid}@vellarleague.com";
-
-                            User::firstOrCreate(
-                                ['email' => $email],
-                                [
-                                    'name'       => $name,
-                                    'password'   => $defaultPwd,
-                                    'role'       => 'player',
-                                    'vellar_id'  => $vellarId,
-                                    'position'   => $pos,
-                                    'phone'      => $phone,
-                                    'club_name'  => $team,
-                                ]
-                            );
-                        }
-                    }
-                }
-                $zip->close();
             }
+
+            // Sheet 1: Masterbase Players
+            $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+            if (! $sheetXml) {
+                throw new RuntimeException('The masterbase workbook has no player sheet.');
+            }
+
+            $sXml = simplexml_load_string($sheetXml);
+            $defaultPwd = Hash::make('password');
+            $batchUsers = [];
+
+            foreach ($sXml->sheetData->row as $row) {
+                $rNum = (int) $row['r'];
+                if ($rNum <= 1) {
+                    continue;
+                } // skip header
+
+                $cells = [];
+                foreach ($row->c as $c) {
+                    $r = (string) $c['r'];
+                    $col = preg_replace('/[0-9]/', '', $r);
+                    $val = (string) $c->v;
+                    if ((string) $c['t'] === 's' && isset($strings[(int) $val])) {
+                        $val = $strings[(int) $val];
+                    }
+                    $cells[$col] = $val;
+                }
+
+                $vellarId = trim($cells['A'] ?? '');
+                $name = trim($cells['B'] ?? '');
+                $phone = trim($cells['C'] ?? '');
+                $pos = trim($cells['E'] ?? '');
+                $team = trim($cells['F'] ?? '');
+
+                if ($vellarId && $name) {
+                    $cleanVid = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $vellarId));
+                    $email = "{$cleanVid}@vellarleague.com";
+
+                    User::firstOrCreate(
+                        ['email' => $email],
+                        [
+                            'name' => $name,
+                            'password' => $defaultPwd,
+                            'role' => 'player',
+                            'vellar_id' => $vellarId,
+                            'position' => $pos,
+                            'phone' => $phone,
+                            'club_name' => $team,
+                        ]
+                    );
+                }
+            }
+        } finally {
+            $zip->close();
         }
     }
 }

@@ -153,26 +153,102 @@ class CommunityTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /**
-     * Test VellarMasterbaseStatsSeeder successfully populates statistics.
-     */
-    public function test_vellar_masterbase_stats_seeder_loads_statistics(): void
+    public function test_masterbase_seeders_read_an_external_fixture_and_fail_when_it_is_missing(): void
     {
-        $this->artisan('db:seed', ['--class' => 'Database\Seeders\VellarMasterbaseStatsSeeder'])
-            ->assertSuccessful();
+        config(['nuvra.masterbase_path' => sys_get_temp_dir().'/nuvra-masterbase-missing.xlsx']);
 
-        $player = User::where('vellar_id', 'VELLAR 112')->first();
-        if ($player) {
-            $this->assertEquals(10, $player->stat_goals);
-            $this->assertGreaterThan(0, $player->stat_matches);
-            $this->assertGreaterThan(0, (float) $player->stat_rating);
+        foreach ([
+            'Database\Seeders\VellarMasterbaseStatsSeeder',
+            'Database\Seeders\TournamentMasterbaseSeeder',
+        ] as $seeder) {
+            try {
+                $this->artisan('db:seed', ['--class' => $seeder]);
+                $this->fail($seeder.' should stop when the workbook is missing.');
+            } catch (\RuntimeException $exception) {
+                $this->assertStringContainsString('NUVRA_MASTERBASE_PATH', $exception->getMessage());
+            }
+        }
 
-            // Verify Recent Games history is populated
-            $profileRes = $this->getJson("/api/community/members/{$player->id}");
-            $profileRes->assertStatus(200);
-            $this->assertNotEmpty($profileRes->json('history'));
-            $this->assertArrayHasKey('title', $profileRes->json('history')[0]);
-            $this->assertArrayHasKey('rating', $profileRes->json('history')[0]);
+        $this->assertSame(2, User::query()->count());
+
+        $inside = storage_path('app/nuvra-masterbase-inside.xlsx');
+        $this->writeMasterbaseFixture($inside);
+        config(['nuvra.masterbase_path' => $inside]);
+
+        try {
+            $this->artisan('db:seed', ['--class' => 'Database\Seeders\VellarMasterbaseStatsSeeder']);
+            $this->fail('A workbook inside the repository must be refused.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('outside the repository', $exception->getMessage());
+        } finally {
+            @unlink($inside);
+        }
+
+        $path = sys_get_temp_dir().'/nuvra-masterbase-fixture.xlsx';
+        $this->writeMasterbaseFixture($path);
+        config(['nuvra.masterbase_path' => $path]);
+
+        User::factory()->create([
+            'name' => 'Fixture Player',
+            'email' => 'vellar9001@vellarleague.com',
+            'vellar_id' => 'VELLAR 9001',
+            'role' => 'player',
+            'status' => 'active',
+            'club_name' => 'FAKE FC',
+            'phone' => null,
+        ]);
+
+        $this->artisan('db:seed', ['--class' => 'Database\Seeders\VellarMasterbaseStatsSeeder'])->assertSuccessful();
+
+        $player = User::where('vellar_id', 'VELLAR 9001')->first();
+        $this->assertNotNull($player);
+        $this->assertSame(3, (int) $player->stat_goals);
+        $this->assertSame(1, (int) $player->stat_assists);
+        $this->assertSame('Fixture Player', $player->name);
+        @unlink($path);
+    }
+
+    private function writeMasterbaseFixture(string $path): void
+    {
+        $shared = <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <si><t>FAKE FC</t></si>
+  <si><t>Fixture Player</t></si>
+  <si><t>VELLAR 9001</t></si>
+</sst>
+XML;
+        $sheet = <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    <row r="2">
+      <c r="A2" t="s"><v>0</v></c>
+      <c r="B2" t="s"><v>1</v></c>
+      <c r="C2" t="s"><v>2</v></c>
+      <c r="D2"><v>3</v></c>
+      <c r="E2"><v>1</v></c>
+      <c r="F2"><v>0</v></c>
+    </row>
+  </sheetData>
+</worksheet>
+XML;
+
+        $zip = new \ZipArchive;
+        $zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('xl/sharedStrings.xml', $shared);
+        $zip->addFromString('xl/worksheets/sheet2.xml', $sheet);
+        $zip->close();
+    }
+
+    public function test_deploy_workflows_migrate_and_do_not_seed(): void
+    {
+        foreach (['.github/workflows/uat-deploy.yml', '.github/workflows/deploy.yml'] as $file) {
+            $contents = file_get_contents(base_path($file));
+            $this->assertIsString($contents);
+            $this->assertStringContainsString('php artisan migrate --force', $contents);
+            $this->assertStringNotContainsString('db:seed', $contents);
+            $this->assertStringNotContainsString('MASTERBASE', $contents);
         }
     }
 

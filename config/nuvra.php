@@ -115,4 +115,17 @@ return [
 
     'qa_tools' => filter_var(env('QA_TOOLS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Masterbase workbook
+    |--------------------------------------------------------------------------
+    |
+    | Player names, phone numbers, and birth dates live in this workbook.
+    | Keep the file outside the repository. Seeders fail if the path is
+    | empty, missing, or inside the repo. Deploy does not run seeders.
+    |
+    */
+
+    'masterbase_path' => env('NUVRA_MASTERBASE_PATH'),
+
 ];
