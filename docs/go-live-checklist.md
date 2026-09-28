@@ -130,7 +130,7 @@ SELECT
 FROM users;
 ```
 
-`--force` clears only `set_before_this_deploy`. It keeps `source=admin` and `source=player`. Running it again between import rounds is safe. An admin import, which is a separate change, must set `contact_email_source` to `admin`. Flagged test players created by `nuvra:create-test-players` are already marked that way.
+`--force` clears only `set_before_this_deploy`. It keeps `source=admin` and `source=player`. Running it again between import rounds is safe. `players:import-emails --apply` sets `contact_email_source` to `admin`. Flagged test players created by `nuvra:create-test-players` are already marked that way.
 
 Set both password variables in the UAT `.env` before you turn the retirement flag on. Then rebuild the cached config. Do not commit the values. `nuvra:create-test-players` also refuses to write until `NUVRA_SHARED_DEFAULT_PASSWORD` is set.
 
@@ -161,6 +161,23 @@ php artisan players:contact-audit
 
 Prints counts only (recovery email, missing phone, invalid phone, shared-password use). It can take a few minutes.
 
+Import verified recovery emails before you retire passwords. Run `players:clear-untrusted-contact-emails` first, as above. Players sign in with a Vellar ID. The import writes `contact_email`, sets `contact_email_source` to `admin`, and does not change `email`. A `@vellarleague.com` address is not a delivery route. The file is CSV, sent through a private channel, and kept outside the web root. Dry run first. `--admin-id` is required for `--apply` and must be an admin. The command prints counts, row numbers, and masked addresses. See `docs/player-email-import-runbook.md`.
+
+```bash
+php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv
+php artisan players:import-emails /absolute/path/outside/the/web/root/players.csv --admin-id=1 --apply
+```
+
+Replace the path and `--admin-id`. Then delete the file.
+
+To retire only the players who now have a real recovery email, and leave everyone else on the shared password:
+
+```bash
+php artisan players:retire-default-passwords --force --only-with-route
+```
+
+That mode does not refuse the run because other players have no route. It still refuses when `NUVRA_SHARED_DEFAULT_PASSWORD` is unset. It does not require `NUVRA_RETIRE_SHARED_PASSWORDS`. Keep that flag off during these batches, and turn it on only for the final retirement, when nobody who matters is still on the shared password. Before each batch, managers tell that batch their old password will stop working and to use Forgot password, plus the deadline if one is set.
+
 For each player who needs access before they have a recovery email or SMS, an admin who has verified them offline issues one code. The admin sees the code, never the password. The API records which admin issued it, for which player, and when.
 
 ```bash
@@ -181,7 +198,7 @@ After the flag is on, and codes or tested SMS exist for the players you are abou
 php artisan players:retire-default-passwords --force --allow-undeliverable
 ```
 
-This replaces remaining shared player passwords with a random value, sets `password_reset_required`, deletes those players' tokens, and rotates remember-me tokens. It sends nothing. It skips players who already chose their own password. It refuses to write, unless `--allow-undeliverable` is present, when any matched player has neither a recovery email nor SMS. Admins are not included.
+This replaces remaining shared player passwords with a random value, sets `password_reset_required`, deletes those players' tokens, and rotates remember-me tokens. It sends nothing. It skips players who already chose their own password. It refuses to write, unless `--allow-undeliverable` is present, when any matched player has neither a recovery email nor SMS. `--only-with-route` is the other choice: it retires only players with a real recovery email and leaves the rest on the shared password, so missing routes do not refuse the run. Keep `NUVRA_RETIRE_SHARED_PASSWORDS` off for that batch, and turn it on only for this final retirement. Admins are not included.
 
 When QA is finished, delete only the flagged test accounts. The command selects `is_test_account` and does not delete any other user:
 
@@ -189,15 +206,24 @@ When QA is finished, delete only the flagged test accounts. The command selects 
 php artisan nuvra:delete-test-players
 ```
 
-## 4. Mail and SMS, including a test send
+## 4. Mail on UAT, before any player is retired
 
-Set the mail variables, then apply config (see step 1) and send one message to an inbox you control:
+Do these on the UAT server. Do not retire a player until the last one has succeeded.
+
+1. **UAT uses a real mail provider.** In the UAT `.env`, set `MAIL_MAILER` to that provider, not `log`. `MAIL_MAILER=log` is not acceptable on UAT. It writes the live reset link into `storage/logs`, and storage is currently mode `777`. Also set the mail credentials and the sender: `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME`.
+2. **`APP_URL=https://uat.nuvrasports.com`.** Reset links must point there, not at localhost.
+3. **Reload config after every `.env` edit.** Run `php artisan config:cache`. If config was already cached, editing `.env` does nothing until that command runs.
+4. **The sender domain passes SPF and DKIM.** Check the DNS records for the domain of `MAIL_FROM_ADDRESS` before a reset is sent.
+5. **A test reset link reaches a real inbox before any player is retired.** Use the owner's own inbox on a flagged test player. Create that player with `php artisan nuvra:create-test-players` and the inbox the owner controls. Do not write that address in this document or in the repository. QA runs the reset after deploy, on that flagged player only. Confirm the link arrives and opens. Only then turn on `NUVRA_RETIRE_SHARED_PASSWORDS` and retire passwords.
+6. **Someone with server access checks the mail log and the app log after that test send.** The send should be recorded. The log must not contain a full address, the reset link, or the token.
+
+Set the mail variables, then apply config (see step 3) and send one message to an inbox you control:
 
 ```bash
 php artisan tinker --execute="Illuminate\Support\Facades\Mail::raw('NUVRA mail test', function (\$m) { \$m->to('you@example.com')->subject('NUVRA mail test'); });"
 ```
 
-Replace `you@example.com` with your own address. Confirm the message arrives. A `log` mailer only writes to `storage/logs`.
+Replace `you@example.com` with your own address. Confirm the message arrives. Do not use the `log` mailer for this check.
 
 Leave SMS off (`SMS_DRIVER=none` or unset) until the provider is approved. After `SMS_DRIVER=http`, `SMS_HTTP_URL`, and `SMS_HTTP_TOKEN` are set and config is reloaded, send one reset to a phone you control (a test account, not a real player's number) from `/community` and confirm the provider delivered a 6-digit code. The app does not log the phone number or the message.
 

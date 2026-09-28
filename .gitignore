@@ -44,6 +44,9 @@ MASTERBASE VELLAR ID S1.xlsx
 *.xlsx
 *.csv
 
+# Verified player email imports. Real addresses. Keep the file outside the repository.
+/player-email-imports/
+
 # SQLite sidecars written next to a database file such as nuvra_db.
 nuvra_db-*
 
