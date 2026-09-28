@@ -100,7 +100,7 @@ class CommunityGameController extends Controller
     }
 
     // Get Public Profile of another player
-    public function memberProfile($id)
+    public function memberProfile(Request $request, $id)
     {
         $user = User::find($id);
         if (!$user) return response()->json(['message' => 'User not found'], 404);
@@ -158,24 +158,36 @@ class CommunityGameController extends Controller
             ]);
         }
 
+        $viewer = $request->user('sanctum');
+        $canSeePrivate = $viewer && (
+            (int) $viewer->id === (int) $user->id || $viewer->role === 'admin'
+        );
+
+        $profile = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'avatar' => $user->avatar,
+            'role' => $user->role,
+            'vellar_id' => $user->vellar_id,
+            'position' => $user->position,
+            'club_name' => $user->club_name,
+            'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
+            'club_logo' => $user->club_logo,
+            'stat_matches' => $user->stat_matches,
+            'stat_goals' => $user->stat_goals,
+            'stat_assists' => $user->stat_assists,
+            'stat_rating' => $user->stat_rating,
+            'stat_clean_sheets' => $user->stat_clean_sheets,
+        ];
+
+        if ($canSeePrivate) {
+            $profile['phone'] = $user->phone;
+            $profile['address'] = $user->address;
+            $profile['contact_email'] = $user->contact_email;
+        }
+
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'avatar' => $user->avatar,
-                'role' => $user->role,
-                'vellar_id' => $user->vellar_id,
-                'position' => $user->position,
-                'club_name' => $user->club_name,
-                'phone' => $user->phone,
-                'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
-                'club_logo' => $user->club_logo,
-                'stat_matches' => $user->stat_matches,
-                'stat_goals' => $user->stat_goals,
-                'stat_assists' => $user->stat_assists,
-                'stat_rating' => $user->stat_rating,
-                'stat_clean_sheets' => $user->stat_clean_sheets,
-            ],
+            'user' => $profile,
             'stats' => [
                 'total_matches' => $totalMatches,
                 'total_goals' => $totalGoals,
@@ -199,6 +211,7 @@ class CommunityGameController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
+                'contact_email' => $user->contact_email,
                 'address' => $user->address,
                 'role' => $user->role,
                 'avatar' => $user->avatar,
@@ -297,17 +310,43 @@ class CommunityGameController extends Controller
             'club_name' => 'nullable|string|max:100',
             'address'   => 'nullable|string|max:255',
             'location'  => 'nullable|string|max:255',
+            'contact_email' => 'nullable|email|max:255',
         ]);
 
+        if (array_key_exists('contact_email', $validated) && filled($validated['contact_email'])) {
+            $contactEmail = \App\Support\PlayerContact::usableEmail($validated['contact_email']);
+
+            if (! $contactEmail) {
+                return response()->json([
+                    'message' => 'Enter a personal email address. League login addresses cannot be used for password reset.',
+                ], 422);
+            }
+
+            $taken = User::where('contact_email', $contactEmail)->where('id', '!=', $user->id)->exists()
+                || User::where('email', $contactEmail)->where('id', '!=', $user->id)->exists();
+
+            if ($taken) {
+                return response()->json(['message' => 'That email address is already in use.'], 422);
+            }
+
+            $validated['contact_email'] = $contactEmail;
+        }
+
         // Strictly update only basic demographic/profile attributes
-        $user->fill([
+        $attributes = [
             'name'      => $validated['name'],
             'phone'     => $validated['phone'] ?? null,
             'position'  => $validated['position'] ?? null,
             'club_name' => $validated['club_name'] ?? null,
             'address'   => $validated['address'] ?? null,
             'location'  => $validated['location'] ?? null,
-        ]);
+        ];
+
+        if (array_key_exists('contact_email', $validated)) {
+            $attributes['contact_email'] = $validated['contact_email'] ?: null;
+        }
+
+        $user->fill($attributes);
         $user->save();
 
         $fresh = $user->fresh();
@@ -319,6 +358,7 @@ class CommunityGameController extends Controller
                 'name'      => $fresh->name,
                 'email'     => $fresh->email,
                 'phone'     => $fresh->phone,
+                'contact_email' => $fresh->contact_email,
                 'address'   => $fresh->address,
                 'location'  => $fresh->location,
                 'role'      => $fresh->role,

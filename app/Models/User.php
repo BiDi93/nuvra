@@ -29,6 +29,7 @@ class User extends Authenticatable
         'club_logo',
         'address',
         'phone',
+        'contact_email',
         'club_name',
         'established_at',
         'location',
@@ -62,6 +63,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'password_reset_required' => 'boolean',
         ];
     }
 

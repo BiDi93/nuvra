@@ -259,7 +259,7 @@ export default function PublicPlayerProfile() {
                     <IconChevronLeft size={14} /> Back to Members
                 </button>
                 <div style={{ display: "flex", gap: 10 }}>
-                    {currentUser && (currentUser.id === user.id || isAdmin) && (
+                    {currentUser && currentUser.id === user.id && (
                         <button
                             style={{
                                 ...S.adminEditBtn,

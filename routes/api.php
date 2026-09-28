@@ -13,6 +13,7 @@ use App\Http\Controllers\TournamentController;
 use App\Http\Controllers\CommunityAnnouncementController;
 use App\Http\Controllers\CommunityAnalyticsController;
 use App\Http\Controllers\CommunityNotificationController;
+use App\Http\Controllers\CommunityPasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,8 @@ Route::prefix('community')->group(function () {
     // ── Auth ──────────────────────────────────────────────────────────────────
     Route::post('/register', [CommunityAuthController::class, 'register']);
     Route::post('/login',    [CommunityAuthController::class, 'login']);
+    Route::post('/password/request', [CommunityPasswordResetController::class, 'requestReset']);
+    Route::post('/password/reset', [CommunityPasswordResetController::class, 'reset']);
 
     // ── Status Check (Public — for WaitingRoom polling) ───────────────────────
     Route::post('/check-status', [CommunityAuthController::class, 'checkStatus']);
@@ -90,6 +93,7 @@ Route::prefix('community')->group(function () {
         Route::get('/admin/pending-players',           [CommunityAuthController::class, 'pendingPlayers']);
         Route::post('/admin/approve-player/{id}',      [CommunityAuthController::class, 'approvePlayer']);
         Route::delete('/admin/reject-player/{id}',     [CommunityAuthController::class, 'rejectPlayer']);
+        Route::post('/admin/players/{id}/activation-code', [CommunityPasswordResetController::class, 'issueActivationCode']);
 
         // ── Admin: Player Statistics Management ──────────────────────────────
         Route::put('/admin/players/{id}/stats',        [CommunityGameController::class, 'updatePlayerStats']);

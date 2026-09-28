@@ -8,8 +8,12 @@ use Carbon\Carbon;
 
 class CommunityAnalyticsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->user()?->role !== 'admin') {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
         $totalGames = DB::table('matches')->count();
 
         $playersRegistered = DB::table('users')

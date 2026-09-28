@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\NotSharedDefaultPassword;
+use App\Support\AttemptLimiter;
+use App\Support\AuthMessages;
+use App\Support\PlayerLocator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +21,7 @@ class CommunityAuthController extends Controller
             'name'                  => 'required|string|max:255',
             'phone'                 => 'nullable|string|max:20',
             'position'              => 'nullable|string|max:100',
-            'password'              => 'required|string|min:6|confirmed',
+            'password'              => ['required', 'string', 'min:6', 'confirmed', new NotSharedDefaultPassword],
         ]);
 
         // Auto-increment Vellar ID: get highest number + 1
@@ -66,27 +70,38 @@ class CommunityAuthController extends Controller
         ]);
 
         $input = trim($request->vellar_id);
+        $identifier = PlayerLocator::identifier($input);
+        $attempts = app(AttemptLimiter::class);
+
+        if ($attempts->blocked('login', $identifier, $request->ip())) {
+            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        }
 
         // If input contains '@', treat as email (for admin/organizer)
-        if (str_contains($input, '@')) {
-            $email = $input;
-        } else {
-            // Build email from vellar_id number
+        if (! str_contains($input, '@')) {
             $vellarNumber = preg_replace('/[^0-9]/', '', $input);
 
             if (empty($vellarNumber)) {
+                $attempts->hit('login', $identifier, $request->ip());
+
                 return response()->json(['message' => 'Invalid Vellar ID. Please enter numbers only (e.g. 82).'], 422);
             }
-
-            $email = 'vellar' . $vellarNumber . '@vellarleague.com';
         }
 
-        // Find user
-        $user = User::where('email', $email)->first();
+        $user = PlayerLocator::find($input);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Incorrect Vellar ID or password.'], 401);
+        // A fixed hash keeps a missing account on the same cost as a real one.
+        $hash = $user?->password ?? '$2y$12$0JVSj34kuHi7I8AV0oUaiOyzOqJPIGbVFHHTJZcfAHiiOlAH5CbVy';
+        $passwordMatches = Hash::check($request->password, $hash);
+        $mustReset = $user && $user->role === 'player' && $user->password_reset_required;
+
+        if (! $user || ! $passwordMatches || $mustReset) {
+            $attempts->hit('login', $identifier, $request->ip());
+
+            return response()->json(['message' => AuthMessages::LOGIN_FAILED], 401);
         }
+
+        $attempts->clearIdentifier('login', $identifier);
 
         // Check account status
         if ($user->status === 'pending') {
@@ -204,6 +219,15 @@ class CommunityAuthController extends Controller
     // Check status endpoint (for WaitingRoom polling)
     public function checkStatus(Request $request)
     {
+        $identifier = PlayerLocator::identifier((string) $request->input('vellar_id', ''));
+        $attempts = app(AttemptLimiter::class);
+
+        if ($attempts->blocked('check_status', $identifier, $request->ip())) {
+            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        }
+
+        $attempts->hit('check_status', $identifier, $request->ip());
+
         $vellarNumber = preg_replace('/[^0-9]/', '', $request->input('vellar_id', ''));
 
         if (empty($vellarNumber)) {

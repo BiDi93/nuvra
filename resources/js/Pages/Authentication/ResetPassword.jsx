@@ -22,6 +22,8 @@ const ResetPassword = () => {
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
 
+    const tokenOnly = Boolean(searchParams.get('token')) && !searchParams.get('email');
+
     const [formData, setFormData] = useState({
         email: searchParams.get('email') || '',
         token: searchParams.get('token') || '',
@@ -54,7 +56,13 @@ const ResetPassword = () => {
         }
 
         try {
-            const res = await axios.post('/api/reset-password', formData);
+            const res = tokenOnly
+                ? await axios.post('/api/community/password/reset', {
+                    token: formData.token,
+                    password: formData.password,
+                    password_confirmation: formData.password_confirmation,
+                })
+                : await axios.post('/api/reset-password', formData);
             setMessage(res.data.message);
             setTimeout(() => navigate('/login'), 3000);
         } catch (err) {
@@ -96,10 +104,15 @@ const ResetPassword = () => {
                     <div style={S.viewWrap}>
                         <div style={S.viewHeader}>
                             <h1 style={S.viewTitle}>Reset Password</h1>
-                            <p style={S.viewSubtitle}>Create a new secure password for your account.</p>
+                            <p style={S.viewSubtitle}>
+                                {tokenOnly
+                                    ? 'This link verifies your account. Choose a new password. It expires and works once.'
+                                    : 'Create a new secure password for your account.'}
+                            </p>
                         </div>
 
                         <form onSubmit={handleReset} style={S.form}>
+                            {!tokenOnly && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <label style={S.fieldLabel}>Email Address</label>
                                 <input
@@ -110,6 +123,7 @@ const ResetPassword = () => {
                                     style={{ ...S.input, opacity: 0.6, cursor: 'not-allowed' }}
                                 />
                             </div>
+                            )}
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <label style={S.fieldLabel}>New Password</label>

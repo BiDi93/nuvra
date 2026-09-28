@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use App\Support\AttemptLimiter;
+use App\Support\AuthMessages;
+use App\Support\PlayerContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
-use App\Models\User;
 
 class NewPasswordController extends Controller
 {
@@ -18,14 +20,26 @@ class NewPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        // Attempt to send the password reset link
-        $status = Password::broker()->sendResetLink(
-            $request->only('email')
-        );
+        $email = strtolower($request->email);
+        $attempts = app(AttemptLimiter::class);
 
-        return $status == Password::RESET_LINK_SENT
-                    ? response()->json(['message' => __($status), 'status' => 'success'])
-                    : response()->json(['message' => __($status), 'status' => 'error'], 400);
+        if ($attempts->blocked('forgot_password', 'email:'.$email, $request->ip())) {
+            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        }
+
+        $attempts->hit('forgot_password', 'email:'.$email, $request->ip());
+
+        $user = User::where('email', $request->email)->first();
+
+        // Placeholder @vellarleague.com addresses are login keys, not inboxes.
+        if ($user && PlayerContact::usableEmail($user->email)) {
+            Password::broker()->sendResetLink(['email' => $user->email]);
+        }
+
+        return response()->json([
+            'message' => AuthMessages::FORGOT_GENERIC,
+            'status' => 'success',
+        ]);
     }
 
     /**
@@ -39,6 +53,13 @@ class NewPasswordController extends Controller
             'password' => 'required|min:8|confirmed',
         ]);
 
+        $attempts = app(AttemptLimiter::class);
+        $identifier = 'email:'.strtolower($request->email);
+
+        if ($attempts->blocked('password_reset', $identifier, $request->ip())) {
+            return response()->json(['message' => AuthMessages::TOO_MANY], 429);
+        }
+
         // Attempt to reset the user's password
         $status = Password::broker()->reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
@@ -51,8 +72,12 @@ class NewPasswordController extends Controller
             }
         );
 
-        return $status == Password::PASSWORD_RESET
-                    ? response()->json(['message' => __($status), 'status' => 'success'])
-                    : response()->json(['message' => __($status), 'status' => 'error'], 400);
+        if ($status != Password::PASSWORD_RESET) {
+            $attempts->hit('password_reset', $identifier, $request->ip());
+
+            return response()->json(['message' => AuthMessages::RESET_FAILED, 'status' => 'error'], 400);
+        }
+
+        return response()->json(['message' => __($status), 'status' => 'success']);
     }
 }

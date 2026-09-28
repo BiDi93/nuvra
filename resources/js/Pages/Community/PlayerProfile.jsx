@@ -19,7 +19,8 @@ export default function PlayerProfile() {
         phone: "",
         position: "",
         club_name: "",
-        address: ""
+        address: "",
+        contact_email: ""
     });
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState({ error: null, success: null });
@@ -73,6 +74,7 @@ export default function PlayerProfile() {
             position: profile.user.position || "",
             club_name: profile.user.club_name || "",
             address: profile.user.address || "",
+            contact_email: profile.user.contact_email || "",
         });
         setSaveStatus({ error: null, success: null });
         setShowEditModal(true);
@@ -97,6 +99,7 @@ export default function PlayerProfile() {
                     position: basicForm.position,
                     club_name: basicForm.club_name,
                     address: basicForm.address,
+                    contact_email: basicForm.contact_email,
                 })
             });
             const resData = await res.json();
@@ -111,6 +114,7 @@ export default function PlayerProfile() {
                         position: basicForm.position,
                         club_name: basicForm.club_name,
                         address: basicForm.address,
+                        contact_email: basicForm.contact_email,
                     }
                 }));
                 // Update cached user in localStorage
@@ -124,6 +128,7 @@ export default function PlayerProfile() {
                         position: basicForm.position,
                         club_name: basicForm.club_name,
                         address: basicForm.address,
+                        contact_email: basicForm.contact_email,
                     }));
                 }
                 setSaveStatus({ error: null, success: "Profile information updated successfully!" });
@@ -332,6 +337,7 @@ export default function PlayerProfile() {
                         <InfoItem label="Position" value={user.position || "Not set"} />
                         <InfoItem label="Club / Team" value={user.club_name || (isOwner ? club?.name : "Free Agent")} />
                         <InfoItem label="Phone" value={user.phone || "Not set"} />
+                        <InfoItem label="Recovery email" value={user.contact_email || "Not set"} />
                         <InfoItem label="Address" value={user.address || "Not set"} />
                         {isOwner && (
                             <>
@@ -488,6 +494,17 @@ export default function PlayerProfile() {
                                             placeholder="e.g. 0123456789"
                                             value={basicForm.phone}
                                             onChange={(e) => setBasicForm({ ...basicForm, phone: e.target.value })}
+                                            style={S.formInput}
+                                            className="modal-input"
+                                        />
+                                    </div>
+                                    <div style={{ gridColumn: "span 2" }}>
+                                        <label style={S.formLabel}>Recovery email</label>
+                                        <input
+                                            type="email"
+                                            placeholder="Personal email for password reset"
+                                            value={basicForm.contact_email}
+                                            onChange={(e) => setBasicForm({ ...basicForm, contact_email: e.target.value })}
                                             style={S.formInput}
                                             className="modal-input"
                                         />

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\SmsSender;
+use App\Services\Sms\HttpSmsSender;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 
@@ -12,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(SmsSender::class, HttpSmsSender::class);
     }
 
     /**

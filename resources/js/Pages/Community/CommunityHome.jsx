@@ -14,7 +14,7 @@ const POSITIONS = [
 
 export default function CommunityHome() {
     const navigate = useNavigate();
-    const [tab, setTab] = useState("login"); // 'login' | 'register' | 'success'
+    const [tab, setTab] = useState("login"); // 'login' | 'register' | 'success' | 'reset'
 
     useEffect(() => {
         const token = localStorage.getItem("community_token");
@@ -27,6 +27,8 @@ export default function CommunityHome() {
 
     const [loginData, setLoginData] = useState({ vellar_id: "", password: "" });
     const [regData, setRegData]     = useState({ name: "", phone: "", position: "", password: "", password_confirmation: "" });
+    const [resetData, setResetData] = useState({ vellar_id: "", code: "", password: "", password_confirmation: "" });
+    const [resetNotice, setResetNotice] = useState("");
 
     // ── LOGIN ──────────────────────────────────────────────────
     const handleLogin = async (e) => {
@@ -79,6 +81,49 @@ export default function CommunityHome() {
             // Show success with Vellar ID
             setSuccessData({ vellar_id: data.vellar_id, vellar_number: data.vellar_number, name: data.name });
             setTab("success");
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRequestReset = async (e) => {
+        e.preventDefault();
+        setError(""); setResetNotice(""); setLoading(true);
+        try {
+            const res = await fetch(`${API}/password/request`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({ vellar_id: resetData.vellar_id }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Could not send a verification message.");
+            setResetNotice(data.message);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmReset = async (e) => {
+        e.preventDefault();
+        if (resetData.password !== resetData.password_confirmation) {
+            setError("Passwords do not match.");
+            return;
+        }
+        setError(""); setResetNotice(""); setLoading(true);
+        try {
+            const res = await fetch(`${API}/password/reset`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify(resetData),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || data.errors?.password?.[0] || "Could not update the password.");
+            setResetNotice(data.message);
+            setTimeout(() => { setTab("login"); setResetNotice(""); }, 1600);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -155,9 +200,54 @@ export default function CommunityHome() {
                                 </button>
                             </form>
 
+                            <p style={styles.browseHint} onClick={() => { setError(""); setResetNotice(""); setTab("reset"); }}>
+                                First time or forgot password? Verify and set a new one →
+                            </p>
                             <p style={styles.browseHint} onClick={() => navigate("/community/feed")}>
                                 Browse tournaments without signing in →
                             </p>
+                        </>
+                    )}
+
+                    {tab === "reset" && (
+                        <>
+                            <div style={styles.tabBar}>
+                                <button className="tab-btn" style={styles.tabBtn} onClick={() => { setTab("login"); setError(""); setResetNotice(""); }}>Sign In</button>
+                                <button className="tab-btn" style={{ ...styles.tabBtn, ...styles.tabActive }}>Set Password</button>
+                            </div>
+                            {error && <div style={styles.errorBox}>⚠ {error}</div>}
+                            {resetNotice && <div style={{ ...styles.errorBox, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>{resetNotice}</div>}
+                            <p style={styles.hint}>We only accept a code sent to the email or phone on your account, or a one-time code from a league admin.</p>
+                            <form onSubmit={handleRequestReset} style={styles.form}>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <label style={styles.label}>Vellar ID</label>
+                                    <div style={{ position: "relative" }}>
+                                        <span style={styles.vellarPrefix}>VELLAR</span>
+                                        <input
+                                            type="text"
+                                            placeholder="82"
+                                            value={resetData.vellar_id}
+                                            onChange={e => { setError(""); setResetData({ ...resetData, vellar_id: e.target.value }); }}
+                                            style={{ ...styles.input, paddingLeft: 76 }}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <button style={{ ...styles.submitBtn, background: "rgba(255,255,255,0.08)", color: "#fff" }} type="submit" disabled={loading}>
+                                    {loading ? "Sending…" : "SEND VERIFICATION"}
+                                </button>
+                            </form>
+                            <form onSubmit={handleConfirmReset} style={{ ...styles.form, marginTop: 18 }}>
+                                <input type="text" placeholder="Verification or activation code" value={resetData.code}
+                                    onChange={e => { setError(""); setResetData({ ...resetData, code: e.target.value }); }} style={styles.input} required />
+                                <input type="password" placeholder="New password (min. 8)" value={resetData.password}
+                                    onChange={e => { setError(""); setResetData({ ...resetData, password: e.target.value }); }} style={styles.input} required />
+                                <input type="password" placeholder="Confirm new password" value={resetData.password_confirmation}
+                                    onChange={e => { setError(""); setResetData({ ...resetData, password_confirmation: e.target.value }); }} style={styles.input} required />
+                                <button style={styles.submitBtn} type="submit" disabled={loading}>
+                                    {loading ? "Saving…" : "SAVE PASSWORD"}
+                                </button>
+                            </form>
                         </>
                     )}
 

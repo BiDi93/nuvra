@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const HERO_IMAGES = [
     "/images/vellar_league/R6SA4597.JPG",
@@ -22,9 +22,10 @@ const POSITIONS = [
 
 const AuthPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [imgIndex, setImgIndex]     = useState(0);
     const [fade, setFade]             = useState(true);
-    const [view, setView]             = useState('login'); // 'login' | 'signup' | 'success'
+    const [view, setView]             = useState(searchParams.get('reset') ? 'reset' : 'login'); // 'login' | 'signup' | 'success' | 'reset'
     const [loading, setLoading]       = useState(false);
     const [error, setError]           = useState('');
     const [successData, setSuccessData] = useState(null); // For post-register success screen
@@ -33,6 +34,10 @@ const AuthPage = () => {
     const [signupForm, setSignupForm] = useState({
         name: '', phone: '', position: '', password: '', password_confirmation: '',
     });
+    const [resetForm, setResetForm] = useState({
+        vellar_id: '', code: '', password: '', password_confirmation: '',
+    });
+    const [resetNotice, setResetNotice] = useState('');
 
     // Hero image slideshow
     useEffect(() => {
@@ -117,7 +122,53 @@ const AuthPage = () => {
     };
 
     const switchToSignup = () => { setError(''); setView('signup'); };
-    const switchToLogin  = () => { setError(''); setView('login'); };
+    const switchToLogin  = () => { setError(''); setResetNotice(''); setView('login'); };
+    const switchToReset  = () => { setError(''); setResetNotice(''); setView('reset'); };
+
+    const handleRequestReset = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setResetNotice('');
+        try {
+            const res = await axios.post('/api/community/password/request', {
+                vellar_id: resetForm.vellar_id,
+            });
+            setResetNotice(res.data.message);
+        } catch (err) {
+            setError(err.response?.data?.message ?? 'Something went wrong. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmReset = async (e) => {
+        e.preventDefault();
+        if (resetForm.password !== resetForm.password_confirmation) {
+            setError('Passwords do not match.');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        setResetNotice('');
+        try {
+            const res = await axios.post('/api/community/password/reset', {
+                vellar_id: resetForm.vellar_id,
+                code: resetForm.code,
+                password: resetForm.password,
+                password_confirmation: resetForm.password_confirmation,
+            });
+            setResetNotice(res.data.message);
+            setTimeout(() => setView('login'), 1600);
+        } catch (err) {
+            const msg = err.response?.data?.message
+                ?? err.response?.data?.errors?.password?.[0]
+                ?? 'Could not update the password.';
+            setError(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div style={S.root}>
@@ -205,6 +256,12 @@ const AuthPage = () => {
                                     {loading ? 'Signing in…' : 'Sign In'}
                                 </button>
                             </form>
+
+                            <p style={{ ...S.switchText, marginTop: 16 }}>
+                                <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToReset}>
+                                    First time or forgot password? Verify and set a new one
+                                </button>
+                            </p>
 
                             <p style={{ ...S.switchText, marginTop: 24 }}>
                                 New player?{' '}
@@ -309,6 +366,84 @@ const AuthPage = () => {
                                     Sign in
                                 </button>
                             </p>
+                        </div>
+                    )}
+
+                    {/* ══════════════════════════════════════
+                        PASSWORD RESET
+                    ══════════════════════════════════════ */}
+                    {view === 'reset' && (
+                        <div style={S.viewWrap}>
+                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
+                            <div style={S.viewHeader}>
+                                <h1 style={S.viewTitle}>Set a password</h1>
+                                <p style={S.viewSubtitle}>We verify the email or phone already on your account, or the one-time code a league admin gave you. Knowing the ID alone is not enough.</p>
+                            </div>
+
+                            <form onSubmit={handleRequestReset} style={S.form}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Vellar ID</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={S.vellarPrefix}>VELLAR</span>
+                                        <input
+                                            className="auth-input"
+                                            type="text"
+                                            placeholder="82"
+                                            value={resetForm.vellar_id}
+                                            onChange={e => { setError(''); setResetForm(f => ({ ...f, vellar_id: e.target.value })); }}
+                                            style={{ ...S.input, paddingLeft: 80 }}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <button type="submit" disabled={loading} style={{ ...S.primaryBtn, background: 'rgba(255,255,255,0.08)', color: '#fff', opacity: loading ? 0.7 : 1 }}>
+                                    {loading ? 'Sending…' : 'Send verification'}
+                                </button>
+                            </form>
+
+                            <form onSubmit={handleConfirmReset} style={{ ...S.form, marginTop: 22 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Verification or activation code</label>
+                                    <input
+                                        className="auth-input"
+                                        type="text"
+                                        placeholder="Code from your message or admin"
+                                        value={resetForm.code}
+                                        onChange={e => { setError(''); setResetForm(f => ({ ...f, code: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>New password</label>
+                                    <input
+                                        className="auth-input"
+                                        type="password"
+                                        placeholder="Min. 8 characters"
+                                        value={resetForm.password}
+                                        onChange={e => { setError(''); setResetForm(f => ({ ...f, password: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Confirm password</label>
+                                    <input
+                                        className="auth-input"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={resetForm.password_confirmation}
+                                        onChange={e => { setError(''); setResetForm(f => ({ ...f, password_confirmation: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+                                {error && <p style={S.errorMsg}>{error}</p>}
+                                {resetNotice && <p style={{ ...S.errorMsg, color: '#00D4EC', background: 'rgba(0,212,236,0.08)', borderColor: 'rgba(0,212,236,0.2)' }}>{resetNotice}</p>}
+                                <button type="submit" disabled={loading} style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', opacity: loading ? 0.7 : 1 }}>
+                                    {loading ? 'Saving…' : 'Save password'}
+                                </button>
+                            </form>
                         </div>
                     )}
 
