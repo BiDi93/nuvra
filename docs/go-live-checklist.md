@@ -29,21 +29,29 @@ Admin sign-in uses the same backoff and the same failure message as a player. Fo
 
 Set `NUVRA_SHARED_DEFAULT_PASSWORD` in the UAT `.env`, then run `php artisan config:cache`. Do this before the deploy, not only before turning retirement on. Do not commit the value. The deploy caches config again, so the variable has to already be in that `.env`.
 
-Someone with server access then runs, before the deploy:
+`players:contact-audit` is added by this pull request, so it is not on the server before the deploy. The gate is straight after the deploy, and before anyone signs in:
 
 ```bash
 php artisan players:contact-audit
 ```
 
-Read the line `Players still on the shared default password`. Expect roughly 472. If that count is 0, or the line says `not checked`, the value is wrong or not loaded. Stop and fix it before continuing. The command prints counts only.
+Read the line `Players still on the shared default password`. Expect roughly 472. A count of 0, or `not checked`, means stop. The command prints counts only.
 
-Straight after the deploy, and before anyone signs in, run the same command again and expect the same count.
+If that gate fails, fix `NUVRA_SHARED_DEFAULT_PASSWORD`, run `php artisan config:cache`, then run the repair. `--before` is the UTC time of that fix. Dry run first, then `--force`:
+
+```bash
+php artisan players:repair-unset-shared-password --before=<UTC time of the fix>
+php artisan players:repair-unset-shared-password --before=<UTC time of the fix> --force
+php artisan players:contact-audit
+```
+
+A missing or mistyped value leaves the recovery-email lock off for players on the default, and any sign-in in that gap can store a checked 'not shared' result. Emails saved in the gap are marked `source=player`, so the repair clears them and resets the flag.
 
 ## If an earlier head was deployed without the shared-password variable
 
-`players:repair-unset-shared-password` is only needed if an earlier head of #23, before `69690da`, was ever deployed to UAT. Otherwise do not run it.
+`players:repair-unset-shared-password` is only needed if an earlier head of #23 before 69690da was deployed to UAT, or the post-deploy contact-audit showed 0 or not checked. Otherwise do not run it.
 
-That earlier head could store `password_is_shared` as false while the variable was unset, and a recovery email saved then could have come through that gap. Set the variable, run `php artisan config:cache`, and confirm the audit count above is not 0. `--before` is required. It is a UTC time (`Y-m-d H:i:s`). The app timezone and the audit timestamps are UTC. Pass the UTC time the variable was set. The command refuses to run without it. Later recovery-email changes are kept.
+That earlier head could store `password_is_shared` as false while the variable was unset, and a recovery email saved then could have come through that gap. Use the same repair when the post-deploy audit shows 0 or `not checked`. `--before` is required. It is a UTC time (`Y-m-d H:i:s`). The app timezone and the audit timestamps are UTC. Pass the UTC time the variable was set, or the UTC time of the fix. The command refuses to run without it. Later recovery-email changes are kept.
 
 ```bash
 php artisan players:repair-unset-shared-password --before="2026-09-28 18:00:00"
@@ -102,7 +110,7 @@ php artisan migrate --force
 
 Run these yourself. None of them run on deploy.
 
-`players:repair-unset-shared-password` is only needed if an earlier head of #23, before `69690da`, was ever deployed to UAT. Otherwise do not run it. See the start of Part 1.
+`players:repair-unset-shared-password` is only needed if an earlier head of #23 before 69690da was deployed to UAT, or the post-deploy contact-audit showed 0 or not checked. Otherwise do not run it. See the start of Part 1.
 
 Before the first email import, and after this deploy, list and clear recovery emails that have no source. Those are values set before this deploy. The profile form used to accept `contact_email` from a signed-in player. That path is closed. Show counts only. Do not print addresses.
 

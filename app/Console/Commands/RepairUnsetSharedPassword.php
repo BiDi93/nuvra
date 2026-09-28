@@ -69,7 +69,7 @@ class RepairUnsetSharedPassword extends Command
         $this->line('Recovery-email changes after '.$before->utc()->format('Y-m-d H:i:s').' UTC are kept.');
 
         if (! $this->option('force')) {
-            $this->info('Counts only. No accounts were changed. Re-run with --force to apply. Run this only if a head before 69690da was deployed while NUVRA_SHARED_DEFAULT_PASSWORD was unset.');
+            $this->info('Counts only. No accounts were changed. Re-run with --force to apply. This is only needed if an earlier head of #23 before 69690da was deployed to UAT, or the post-deploy contact-audit showed 0 or not checked.');
 
             return self::SUCCESS;
         }
