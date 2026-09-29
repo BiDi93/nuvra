@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::post('/login', [CommunityAuthController::class, 'login']);
-Route::post('/register', [CommunityAuthController::class, 'register']);
+Route::post('/register', function () {
+    return redirect('/api/community/register', 308);
+});
 Route::post('/forgot-password', [NewPasswordController::class, 'forgotPassword'])->middleware('guest');
 Route::post('/reset-password', [NewPasswordController::class, 'resetPassword'])->middleware('guest');
 
@@ -39,6 +41,8 @@ Route::prefix('community')->group(function () {
 
     // ── Auth ──────────────────────────────────────────────────────────────────
     Route::post('/register', [CommunityAuthController::class, 'register']);
+    Route::post('/register/resend', [CommunityAuthController::class, 'resendConfirmation']);
+    Route::post('/email/confirm', [CommunityAuthController::class, 'confirmEmail']);
     Route::post('/login', [CommunityAuthController::class, 'login']);
     Route::post('/password/request', [CommunityPasswordResetController::class, 'requestReset']);
     Route::post('/password/reset', [CommunityPasswordResetController::class, 'reset']);
@@ -95,6 +99,7 @@ Route::prefix('community')->group(function () {
         Route::get('/admin/pending-players', [CommunityAuthController::class, 'pendingPlayers']);
         Route::post('/admin/approve-player/{id}', [CommunityAuthController::class, 'approvePlayer']);
         Route::delete('/admin/reject-player/{id}', [CommunityAuthController::class, 'rejectPlayer']);
+        Route::delete('/admin/players/{id}', [CommunityAuthController::class, 'deletePlayer']);
         Route::post('/admin/players/{id}/activation-code', [CommunityPasswordResetController::class, 'issueActivationCode']);
         Route::get('/admin/qa-tools', [QaTestPlayerController::class, 'show']);
         Route::post('/admin/qa-tools/test-players', [QaTestPlayerController::class, 'store']);

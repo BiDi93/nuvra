@@ -31,6 +31,11 @@ class UserPolicy
         return $viewer->role === 'admin' && $player->role === 'player';
     }
 
+    public function deletePlayer(User $viewer, User $player): bool
+    {
+        return $viewer->role === 'admin' && $player->role === 'player';
+    }
+
     public function viewAny(User $viewer): bool
     {
         return $viewer->role === 'admin';

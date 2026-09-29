@@ -40,20 +40,20 @@ const AdminPendingPlayers = () => {
     const handleApprove = async (player) => {
         setActionId(player.id);
         try {
-            await axios.post(`/api/community/admin/approve-player/${player.id}`, {}, {
+            const res = await axios.post(`/api/community/admin/approve-player/${player.id}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setPlayers(prev => prev.filter(p => p.id !== player.id));
-            showToast('success', `${player.name} (${player.vellar_id}) has been approved.`);
-        } catch {
-            showToast('error', 'Failed to approve player. Please try again.');
+            showToast('success', res.data.message);
+        } catch (err) {
+            showToast('error', err.response?.data?.message || 'Failed to approve player. Please try again.');
         } finally {
             setActionId(null);
         }
     };
 
     const handleReject = async (player) => {
-        if (!window.confirm(`Reject and delete registration for ${player.name} (${player.vellar_id})?`)) return;
+        if (!window.confirm(`Reject and delete registration for ${player.name}?`)) return;
         setActionId(player.id);
         try {
             await axios.delete(`/api/community/admin/reject-player/${player.id}`, {
@@ -76,6 +76,8 @@ const AdminPendingPlayers = () => {
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
                 .player-card:hover { border-color: rgba(0,212,236,0.25) !important; transform: translateY(-1px); }
                 .btn-approve:hover { background: #00bcd4 !important; }
+                .btn-approve:disabled { opacity: 0.4; cursor: not-allowed; }
+                .btn-approve:disabled:hover { background: #00D4EC !important; }
                 .btn-reject:hover { background: rgba(239,68,68,0.15) !important; }
             `}</style>
 
@@ -140,7 +142,8 @@ const AdminPendingPlayers = () => {
                             {/* Info */}
                             <div style={S.cardInfo}>
                                 <div style={S.cardName}>{player.name}</div>
-                                <div style={S.cardVellar}>{player.vellar_id}</div>
+                                {player.expired && <div style={S.cardVellar}>This registration has expired</div>}
+                                {!player.expired && !player.email_confirmed && <div style={S.cardVellar}>Email not confirmed yet</div>}
                                 <div style={S.cardMeta}>
                                     {player.position && <span style={S.metaTag}><IconTarget size={11} /> {player.position}</span>}
                                     {player.phone    && <span style={S.metaTag}><IconPhone size={11} /> {player.phone}</span>}
@@ -156,7 +159,7 @@ const AdminPendingPlayers = () => {
                                     className="btn-approve"
                                     style={S.btnApprove}
                                     onClick={() => handleApprove(player)}
-                                    disabled={actionId === player.id}
+                                    disabled={actionId === player.id || player.expired || !player.email_confirmed}
                                 >
                                     {actionId === player.id ? '…' : <><IconCheck size={13} /> Approve</>}
                                 </button>

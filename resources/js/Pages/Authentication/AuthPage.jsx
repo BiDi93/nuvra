@@ -25,15 +25,16 @@ const AuthPage = () => {
     const [searchParams] = useSearchParams();
     const [imgIndex, setImgIndex]     = useState(0);
     const [fade, setFade]             = useState(true);
-    const [view, setView]             = useState(searchParams.get('reset') ? 'reset' : 'login'); // 'login' | 'signup' | 'success' | 'reset'
+    const [view, setView]             = useState(searchParams.get('reset') ? 'reset' : (searchParams.get('signup') ? 'signup' : 'login')); // 'login' | 'signup' | 'success' | 'reset'
     const [loading, setLoading]       = useState(false);
     const [error, setError]           = useState('');
     const [successData, setSuccessData] = useState(null); // For post-register success screen
 
     const [loginForm, setLoginForm] = useState({ vellar_id: '', password: '' });
     const [signupForm, setSignupForm] = useState({
-        name: '', phone: '', position: '', password: '', password_confirmation: '',
+        name: '', email: '', phone: '', position: '', password: '', password_confirmation: '',
     });
+    const [resendNotice, setResendNotice] = useState('');
     const [resetForm, setResetForm] = useState({
         vellar_id: '', code: '', password: '', password_confirmation: '',
     });
@@ -78,7 +79,7 @@ const AuthPage = () => {
             }
 
             if (status === 'pending') {
-                navigate('/waiting-room', { state: { vellar_id: loginForm.vellar_id } });
+                navigate('/waiting-room');
                 return;
             }
 
@@ -86,7 +87,6 @@ const AuthPage = () => {
             localStorage.setItem('auth_token', token); // legacy compat
             localStorage.setItem('player_role', user.role);
             localStorage.setItem('community_user', JSON.stringify(user)); // for CommunityLayout
-            localStorage.setItem('vellar_id', user.vellar_id ?? '');
             localStorage.setItem('player_name', user.name ?? '');
 
             // Navigate to community feed
@@ -143,28 +143,39 @@ const AuthPage = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.post('/api/community/register', {
+            await axios.post('/api/community/register', {
                 name:                  signupForm.name,
+                email:                 signupForm.email,
                 phone:                 signupForm.phone,
                 position:              signupForm.position,
                 password:              signupForm.password,
                 password_confirmation: signupForm.password_confirmation,
             });
 
-            // Show success screen with vellar_id
-            if (res.data.status_token) localStorage.setItem('pending_status_token', res.data.status_token);
-            if (res.data.vellar_number) localStorage.setItem('pending_vellar_id', String(res.data.vellar_number));
-            setSuccessData({
-                vellar_id:     res.data.vellar_id,
-                vellar_number: res.data.vellar_number,
-                name:          res.data.name,
-            });
+            localStorage.removeItem('pending_vellar_id');
+            localStorage.removeItem('pending_status_token');
+            setResendNotice('');
+            setSuccessData({ sent: true });
             setView('success');
         } catch (err) {
             const msg = err.response?.data?.message
                 ?? err.response?.data?.errors
                 ?? 'Registration failed. Please try again.';
             setError(typeof msg === 'object' ? JSON.stringify(msg) : msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResend = async () => {
+        setLoading(true);
+        setError('');
+        setResendNotice('');
+        try {
+            const res = await axios.post('/api/community/register/resend', { email: signupForm.email });
+            setResendNotice(res.data.message);
+        } catch (err) {
+            setError(err.response?.data?.message ?? 'Could not send another confirmation.');
         } finally {
             setLoading(false);
         }
@@ -345,7 +356,7 @@ const AuthPage = () => {
 
                             <div style={S.viewHeader}>
                                 <h1 style={S.viewTitle}>New Player Registration</h1>
-                                <p style={S.viewSubtitle}>Fill in your details. Your Vellar ID will be auto-generated and reviewed by the admin.</p>
+                                <p style={S.viewSubtitle}>Use an email you can open. Confirm that email, then wait for an administrator. The Vellar ID arrives by email after approval and is not shown here.</p>
                             </div>
 
                             <form onSubmit={handleRegister} style={S.form}>
@@ -363,11 +374,24 @@ const AuthPage = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Email</label>
+                                    <input
+                                        className="auth-input"
+                                        type="email"
+                                        placeholder="you@example.com"
+                                        value={signupForm.email}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, email: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     <label style={S.fieldLabel}>Phone Number</label>
                                     <input
                                         className="auth-input"
                                         type="tel"
-                                        placeholder="+6012-3456789"
+                                        placeholder="Optional"
                                         value={signupForm.phone}
                                         onChange={e => { setError(''); setSignupForm(f => ({ ...f, phone: e.target.value })); }}
                                         style={S.input}
@@ -515,26 +539,25 @@ const AuthPage = () => {
                     {/* ══════════════════════════════════════
                         SUCCESS VIEW (Post Sign Up)
                     ══════════════════════════════════════ */}
-                    {view === 'success' && successData && (
+                    {view === 'success' && (
                         <div style={S.viewWrap}>
                             <div style={S.successIcon}>✅</div>
                             <div style={{ ...S.viewHeader, textAlign: 'center' }}>
-                                <h1 style={S.viewTitle}>Registration Successful!</h1>
-                                <p style={S.viewSubtitle}>Your application has been received and is pending admin approval.</p>
+                                <h1 style={S.viewTitle}>Check your email</h1>
+                                <p style={S.viewSubtitle}>If this address can be used, a confirmation message has been sent. Confirm it from that message. The Vellar ID is emailed only after an administrator approves the account. It is not shown here.</p>
                             </div>
 
-                            {/* Vellar ID Card */}
-                            <div style={S.vellarCard}>
-                                <p style={S.vellarCardLabel}>Your Vellar ID</p>
-                                <p style={S.vellarCardId}>{successData.vellar_id}</p>
-                                <p style={S.vellarCardName}>{successData.name}</p>
-                            </div>
+                            {error && <p style={S.errorMsg}>{error}</p>}
+                            {resendNotice && <p style={{ ...S.errorMsg, color: '#00D4EC', background: 'rgba(0,212,236,0.08)', borderColor: 'rgba(0,212,236,0.2)' }}>{resendNotice}</p>}
 
-                            <div style={S.infoBox}>
-                                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, textAlign: 'center' }}>
-                                    💡 Keep your Vellar ID safe. Once approved by the administrator, sign in using <strong style={{ color: '#00D4EC' }}>number {successData.vellar_number}</strong> as your ID and your chosen password.
-                                </p>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={loading}
+                                style={{ ...S.primaryBtn, background: 'rgba(255,255,255,0.08)', color: '#fff', opacity: loading ? 0.7 : 1 }}
+                            >
+                                {loading ? 'Sending…' : 'Resend confirmation'}
+                            </button>
 
                             <button
                                 onClick={switchToLogin}

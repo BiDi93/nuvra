@@ -62,7 +62,7 @@ php artisan players:contact-audit
 The example time is UTC. The first command prints counts and changes nothing. `--force` then does three things:
 
 - It sets `password_is_shared` back to empty for every player who has not set their own password, so the next check runs again.
-- It clears `contact_email` only where `contact_email_source` is `player` and the change was recorded at or before that UTC time. It leaves `source=admin` and emails with no source alone. The manager import sets player addresses again later.
+- It clears `contact_email` only where `contact_email_source` is `player` and the change was recorded at or before that UTC time. It leaves `source=admin`, `source=registration`, and emails with no source alone. The manager import sets player addresses again later.
 - It prints `Players still on the shared default password`. That count must not be 0. If it is 0, the value is wrong. The command changes nothing in that case. Stop and fix the value before continuing.
 
 The commands print counts only. They do not print addresses. Running the repair again is safe: flags that are already empty stay empty, and emails that are already empty stay empty.
@@ -126,11 +126,12 @@ SELECT
   SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '') AS with_recovery_email,
   SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source = 'admin') AS set_by_admin,
   SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source = 'player') AS set_by_player,
+  SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source = 'registration') AS set_by_registration,
   SUM(contact_email IS NOT NULL AND TRIM(contact_email) != '' AND contact_email_source IS NULL) AS set_before_this_deploy
 FROM users;
 ```
 
-`--force` clears only `set_before_this_deploy`. It keeps `source=admin` and `source=player`. Running it again between import rounds is safe. `players:import-emails --apply` sets `contact_email_source` to `admin`. Flagged test players created by `nuvra:create-test-players` are already marked that way.
+`--force` clears only `set_before_this_deploy`. It keeps `source=admin`, `source=player`, and `source=registration`. Running it again between import rounds is safe. `players:import-emails --apply` sets `contact_email_source` to `admin`. A confirmed self-registration sets `contact_email_source` to `registration`. Flagged test players created by `nuvra:create-test-players` are already marked `admin`.
 
 Set both password variables in the UAT `.env` before you turn the retirement flag on. Then rebuild the cached config. Do not commit the values. `nuvra:create-test-players` also refuses to write until `NUVRA_SHARED_DEFAULT_PASSWORD` is set.
 

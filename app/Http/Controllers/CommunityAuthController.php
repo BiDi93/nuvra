@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Rules\NotSharedDefaultPassword;
-use App\Rules\PlayerPassword;
 use App\Rules\StrongPassword;
+use App\Services\PlayerRegistrationService;
 use App\Support\AttemptLimiter;
 use App\Support\AttemptResponse;
 use App\Support\AuthMessages;
@@ -14,60 +14,30 @@ use App\Support\PlayerLocator;
 use App\Support\SharedPassword;
 use App\Support\WeakPassword;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class CommunityAuthController extends Controller
 {
     // ── Register (New Player) ──────────────────────────────────────────────────
-    public function register(Request $request)
+    public function register(Request $request, PlayerRegistrationService $registration)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'position' => 'nullable|string|max:100',
-            'password' => ['required', 'string', 'confirmed', new PlayerPassword, new NotSharedDefaultPassword],
-        ]);
+        return $registration->register($request);
+    }
 
-        // Auto-increment Vellar ID: get highest number + 1
-        $maxNumber = User::whereNotNull('vellar_id')
-            ->get()
-            ->map(fn ($u) => (int) preg_replace('/[^0-9]/', '', $u->vellar_id))
-            ->max() ?? 0;
+    public function resendConfirmation(Request $request, PlayerRegistrationService $registration)
+    {
+        return $registration->resend($request);
+    }
 
-        $nextNumber = $maxNumber + 1;
-        $vellarId = 'VELLAR '.$nextNumber;
-        $email = 'vellar'.$nextNumber.'@vellarleague.com';
-
-        // Ensure email/vellar_id is unique (edge case check)
-        while (User::where('email', $email)->exists()) {
-            $nextNumber++;
-            $vellarId = 'VELLAR '.$nextNumber;
-            $email = 'vellar'.$nextNumber.'@vellarleague.com';
-        }
-
-        $statusToken = Str::random(40);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $email,
-            'password' => Hash::make($request->password),
-            'role' => 'player',
-            'status' => 'pending',   // Awaiting admin approval
-            'vellar_id' => $vellarId,
-            'phone' => $request->phone ?? null,
-            'position' => $request->position ?? null,
-        ]);
-        $user->forceFill(['status_token' => hash('sha256', $statusToken)])->save();
+    public function confirmEmail(Request $request, PlayerRegistrationService $registration)
+    {
+        $token = (string) ($request->json('token') ?? $request->request->get('token') ?? '');
 
         return response()->json([
-            'message' => 'Registration successful! Awaiting admin approval.',
-            'vellar_id' => $vellarId,
-            'vellar_number' => $nextNumber,
-            'name' => $user->name,
-            'status' => 'pending',
-            'status_token' => $statusToken,
-        ], 201);
+            'status' => $registration->confirm($token),
+        ]);
     }
 
     // ── Login (Vellar ID Number or Email for Admin) ───────────────────────────
@@ -164,6 +134,12 @@ class CommunityAuthController extends Controller
         }
 
         $attempts->clearIdentifier('login', $identifier);
+
+        if ($user->mustConfirmRegistrationEmail()) {
+            return response()->json([
+                'message' => AuthMessages::SIGNUP_UNCONFIRMED,
+            ], 403);
+        }
 
         // Check account status
         if ($user->status === 'pending') {
@@ -279,11 +255,20 @@ class CommunityAuthController extends Controller
         $players = User::where('status', 'pending')
             ->where('role', 'player')
             ->orderBy('created_at', 'desc')
-            ->get(['id', 'name', 'vellar_id', 'position', 'phone', 'status', 'created_at']);
+            ->get(['id', 'name', 'position', 'phone', 'status', 'created_at', 'email_verified_at', 'contact_email_source', 'pending_contact_email', 'role']);
 
         return response()->json([
             'count' => $players->count(),
-            'players' => $players,
+            'players' => $players->map(fn (User $player) => [
+                'id' => $player->id,
+                'name' => $player->name,
+                'position' => $player->position,
+                'phone' => $player->phone,
+                'status' => $player->status,
+                'created_at' => $player->created_at,
+                'email_confirmed' => ! $player->mustConfirmRegistrationEmail(),
+                'expired' => $player->registrationIsExpired(),
+            ])->values(),
         ]);
     }
 
@@ -296,15 +281,35 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
+        $registration = app(PlayerRegistrationService::class);
+
+        if ($player->registrationIsExpired()) {
+            return response()->json([
+                'message' => 'This registration has expired. It cannot be approved.',
+            ], 422);
+        }
+
+        if ($player->mustConfirmRegistrationEmail()) {
+            return response()->json([
+                'message' => 'This registration is not confirmed yet.',
+            ], 422);
+        }
+
         $player->update(['status' => 'active']);
+        $registration->writeAudit($player, $request->user(), 'approve');
+        $emailSent = $registration->sendApproval($player->fresh());
+        $message = $emailSent
+            ? "Player {$player->name} has been approved. Their Vellar ID is emailed to them."
+            : "Player {$player->name} has been approved. The Vellar ID email was not sent.";
 
         return response()->json([
-            'message' => "Player {$player->name} ({$player->vellar_id}) has been approved.",
-            'player' => $player->only(['id', 'name', 'vellar_id', 'position', 'status']),
+            'message' => $message,
+            'email_sent' => $emailSent,
+            'player' => $player->only(['id', 'name', 'position', 'status']),
         ]);
     }
 
-    // Reject / delete player
+    // Reject a pending registration. Active players use deletePlayer.
     public function rejectPlayer(Request $request, $id)
     {
         $player = User::findOrFail($id);
@@ -313,19 +318,58 @@ class CommunityAuthController extends Controller
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
+        if ($player->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only a pending registration can be rejected.',
+            ], 422);
+        }
+
+        $registration = app(PlayerRegistrationService::class);
         $name = $player->name;
-        $vellarId = $player->vellar_id;
+        $registration->sendRejection($player);
+        $registration->writeAudit($player, $request->user(), 'reject');
         $player->delete();
 
         return response()->json([
-            'message' => "Player {$name} ({$vellarId}) has been rejected and removed.",
+            'message' => "Player {$name} has been rejected and removed.",
         ]);
     }
 
-    // Registration status. A Vellar number alone never reveals whether it exists.
-    public function checkStatus(Request $request)
+    // Remove an active player. No email is sent. The audit row has no foreign key.
+    public function deletePlayer(Request $request, $id)
     {
-        $identifier = PlayerLocator::identifier((string) $request->input('vellar_id', ''));
+        $player = User::findOrFail($id);
+
+        if (! $request->user()->can('deletePlayer', $player)) {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
+        if ($player->status !== 'active') {
+            return response()->json([
+                'message' => 'Only an active player can be removed this way.',
+            ], 422);
+        }
+
+        $registration = app(PlayerRegistrationService::class);
+        $name = $player->name;
+        DB::transaction(function () use ($player, $request, $registration) {
+            $registration->writeAudit($player, $request->user(), 'delete');
+            $player->delete();
+        });
+
+        return response()->json([
+            'message' => "Player {$name} has been removed.",
+        ]);
+    }
+
+    // Registration status. Only the opaque token from the confirmation email is accepted.
+    public function checkStatus(Request $request, PlayerRegistrationService $registration)
+    {
+        $presented = $request->isJson()
+            ? $request->json('status_token')
+            : $request->request->get('status_token');
+        $presented = is_string($presented) ? $presented : '';
+        $identifier = hash('sha256', $presented !== '' ? $presented : 'missing-registration');
         $attempts = app(AttemptLimiter::class);
 
         if ($denied = AttemptResponse::ifBlocked($attempts, 'check_status', $identifier, $request->ip())) {
@@ -334,26 +378,18 @@ class CommunityAuthController extends Controller
 
         $attempts->hit('check_status', $identifier, $request->ip());
 
-        $vellarNumber = preg_replace('/[^0-9]/', '', (string) $request->input('vellar_id', ''));
-        $user = $vellarNumber !== ''
-            ? User::where('email', 'vellar'.$vellarNumber.'@vellarleague.com')->first()
-            : null;
+        $digest = hash('sha256', $presented !== '' ? $presented : 'missing-registration');
+        $user = User::query()->where('status_token', $digest)->first();
+        hash_equals($digest, hash('sha256', 'missing-registration'));
 
-        $presented = (string) $request->input('status_token', '');
-        $stored = (string) ($user->status_token ?? '');
-        $known = $user && $presented !== '' && $stored !== '' && hash_equals($stored, hash('sha256', $presented));
-
-        if (! $known) {
-            hash_equals(hash('sha256', $presented), hash('sha256', 'missing-registration'));
-
-            return response()->json(['message' => AuthMessages::STATUS_PRIVATE]);
+        if (! $user || ! hash_equals((string) $user->status_token, $digest)) {
+            return response()->json([
+                'status' => 'rejected_or_expired',
+            ]);
         }
 
         return response()->json([
-            'status' => $user->status,
-            'name' => $user->name,
-            'vellar_id' => $user->vellar_id,
-            'position' => $user->position,
+            'status' => $registration->publicStatus($user),
         ]);
     }
 }

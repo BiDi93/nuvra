@@ -40,4 +40,10 @@ class AuthMessages
     public const STATUS_PRIVATE = 'If this registration is still pending, an admin has not approved it yet.';
 
     public const FORGOT_GENERIC = 'If an account with that email can receive mail, a reset link has been sent.';
+
+    public const REGISTER_GENERIC = 'If this address can be used, a confirmation message has been sent.';
+
+    public const RESEND_GENERIC = 'If a registration is waiting for confirmation, a new message has been sent.';
+
+    public const SIGNUP_UNCONFIRMED = 'Confirm your email before signing in.';
 }

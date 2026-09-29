@@ -15,7 +15,7 @@ class RepairUnsetSharedPassword extends Command
         {--force : Apply the reset. Without this flag the command only prints counts.}
         {--before= : Required UTC time, Y-m-d H:i:s. Recovery-email changes recorded after this time are kept. The command refuses to run if this is omitted.}';
 
-    protected $description = 'Reset stale shared-password flags and clear player-set recovery emails saved while NUVRA_SHARED_DEFAULT_PASSWORD was unset. --before is a required UTC time. Prints counts only unless --force is passed.';
+    protected $description = 'Reset stale shared-password flags and clear player-set recovery emails saved while NUVRA_SHARED_DEFAULT_PASSWORD was unset. Registration and admin sources are kept. --before is a required UTC time. Prints counts only unless --force is passed.';
 
     public function handle(): int
     {

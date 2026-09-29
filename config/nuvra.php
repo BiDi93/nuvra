@@ -67,6 +67,42 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Self-registration limits
+    |--------------------------------------------------------------------------
+    |
+    | confirm_hours is how long a confirmation link stays valid.
+    | expire_days is when an unconfirmed sign-up is treated as expired on
+    | read. The cleanup command is an extra; it is not required for that.
+    |
+    | ip: attempts from one address. Over this returns HTTP 429 and does
+    | not create an account or send mail. Register and resend are separate.
+    | confirm_mail.per_email: confirm messages to one inbox per day.
+    | confirm_mail.daily: confirm messages for the whole site per day.
+    | Over either mail cap, the reply stays the neutral success message
+    | and nothing is sent.
+    |
+    */
+
+    'registration' => [
+        'confirm_hours' => 24,
+        'expire_days' => 7,
+    ],
+
+    'registration_limits' => [
+        'register' => [
+            'ip' => ['max' => 10, 'decay' => 3600],
+        ],
+        'resend' => [
+            'ip' => ['max' => 10, 'decay' => 3600],
+        ],
+        'confirm_mail' => [
+            'per_email' => ['max' => 3, 'decay' => 86400],
+            'daily' => ['max' => 200, 'decay' => 86400],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | How long a verification secret stays valid, in minutes
     |--------------------------------------------------------------------------
     */

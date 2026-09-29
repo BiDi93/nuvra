@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthPage from "./Pages/Authentication/AuthPage.jsx";
 import ResetPassword from "./Pages/Authentication/ResetPassword.jsx";
 import WaitingRoom from "./Pages/WaitingRoom.jsx";
+import ConfirmEmail from "./Pages/Authentication/ConfirmEmail.jsx";
 
 // --- NUVRA PORTAL & COMMUNITY ---
 import NuvraPortal from "./Pages/NuvraPortal.jsx";
@@ -36,6 +37,7 @@ function App() {
                 <Route path="/" element={<NuvraPortal />} />
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/waiting-room" element={<WaitingRoom />} />
+                <Route path="/email/confirm" element={<ConfirmEmail />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
                 {/* =========================================
