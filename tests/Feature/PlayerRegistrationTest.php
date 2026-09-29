@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\DeliverRegistrationMail;
 use App\Mail\PlayerPasswordResetLink;
+use App\Mail\RegistrationAlreadyExists;
 use App\Mail\RegistrationApproved;
 use App\Mail\RegistrationConfirmation;
 use App\Mail\RegistrationRejected;
@@ -220,19 +221,101 @@ class PlayerRegistrationTest extends TestCase
             ->assertExactJson(['status' => 'rejected_or_expired']);
     }
 
-    public function test_a_duplicate_email_gets_the_same_reply_and_creates_nothing(): void
+    public function test_pending_resignup_refreshes_only_the_token(): void
     {
         Mail::fake();
 
-        $first = $this->postSignup('player@example.com', 'First Player');
-        $second = $this->postSignup('Player@Example.com', 'Second Player');
+        $first = $this->postSignup('player@example.com', 'Original Name', ['position' => 'Goalkeeper']);
+        $player = User::query()->where('pending_contact_email', 'player@example.com')->first();
+        $before = $player->only([
+            'id', 'name', 'phone', 'position', 'password', 'email', 'vellar_id',
+            'role', 'status', 'pending_contact_email', 'contact_email', 'contact_email_source',
+        ]);
+        $createdAt = $player->created_at->toJSON();
+        $oldHash = $player->email_confirm_token_hash;
+        $oldToken = $this->confirmToken();
+
+        $second = $this->postSignup('Player@Example.com', 'Other Name', [
+            'position' => 'Forward / Striker',
+            'password' => 'another-pass-1',
+            'password_confirmation' => 'another-pass-1',
+        ]);
 
         $this->assertSame($first->status(), $second->status());
         $this->assertSame($first->getContent(), $second->getContent());
-        $this->assertSame(1, User::query()->where('pending_contact_email', 'player@example.com')->count());
-        $this->assertSame(0, User::query()->where('contact_email', 'player@example.com')->count());
-        $this->assertNull(User::query()->where('name', 'Second Player')->first());
-        Mail::assertSent(RegistrationConfirmation::class, 1);
+        $this->assertSame(1, User::query()->where('role', 'player')->count());
+        $this->assertNull(User::query()->where('name', 'Other Name')->first());
+
+        $player->refresh();
+        $this->assertSame($before, $player->only(array_keys($before)));
+        $this->assertSame($createdAt, $player->created_at->toJSON());
+        $this->assertNotSame($oldHash, $player->email_confirm_token_hash);
+        $this->assertTrue(Hash::check($this->signupPassword(), $player->password));
+        $this->assertFalse(Hash::check('another-pass-1', $player->password));
+
+        Mail::assertSent(RegistrationConfirmation::class, 2);
+        Mail::assertNotSent(RegistrationAlreadyExists::class);
+        $this->assertMailWasNotQueued();
+
+        $sent = Mail::sent(RegistrationConfirmation::class);
+        $newToken = $this->tokenFrom($sent[1]->confirmUrl, '#/email/confirm/([0-9a-f]{64})#');
+        $this->assertNotSame($oldToken, $newToken);
+        $this->assertSame(hash('sha256', $newToken), $player->email_confirm_token_hash);
+
+        $this->postJson('/api/community/email/confirm', ['token' => $oldToken])
+            ->assertExactJson(['status' => 'rejected_or_expired']);
+        $this->postJson('/api/community/email/confirm', ['token' => $newToken])
+            ->assertExactJson(['status' => 'pending_approval']);
+
+        $player->refresh();
+        $this->assertSame('Original Name', $player->name);
+        $this->assertSame('Goalkeeper', $player->position);
+        $this->assertSame('player@example.com', $player->contact_email);
+        $this->assertSame('registration', $player->contact_email_source);
+    }
+
+    public function test_register_replies_match_for_new_pending_and_approved(): void
+    {
+        Mail::fake();
+
+        $created = $this->postSignup('player@example.com', 'Original Name');
+        $pending = $this->postSignup('player@example.com', 'Other Name');
+        $this->postJson('/api/community/email/confirm', [
+            'token' => $this->tokenFrom(Mail::sent(RegistrationConfirmation::class)[1]->confirmUrl, '#/email/confirm/([0-9a-f]{64})#'),
+        ])->assertOk();
+        $player = User::query()->where('contact_email', 'player@example.com')->first();
+        $this->actingAs($this->admin(), 'sanctum')
+            ->postJson('/api/community/admin/approve-player/'.$player->id)
+            ->assertOk();
+
+        $approved = $this->postSignup('player@example.com', 'Third Name');
+        $other = $this->postSignup('other.player@example.com', 'Someone Else');
+
+        $created->assertOk();
+        $this->assertSame($created->status(), $pending->status());
+        $this->assertSame($created->getContent(), $pending->getContent());
+        $this->assertSame($created->status(), $approved->status());
+        $this->assertSame($created->getContent(), $approved->getContent());
+        $this->assertSame($created->status(), $other->status());
+        $this->assertSame($created->getContent(), $other->getContent());
+        $this->assertResponseHidesVellarId($approved);
+
+        Mail::assertSent(RegistrationAlreadyExists::class, function (RegistrationAlreadyExists $mail) {
+            $html = $mail->render();
+
+            return $mail->hasTo('player@example.com')
+                && str_contains($html, 'You already have a NUVRA account')
+                && str_contains($html, 'Forgot password')
+                && str_starts_with($mail->resetUrl, 'https://uat.nuvrasports.com/login?reset=1')
+                && ! str_contains($html, 'Original Name')
+                && ! str_contains($html, 'Third Name')
+                && ! str_contains(strtolower($html), 'vellar');
+        });
+        Mail::assertSent(RegistrationAlreadyExists::class, 1);
+        Mail::assertSent(RegistrationConfirmation::class, 3);
+        $this->assertSame('Original Name', $player->fresh()->name);
+        $this->assertNull(User::query()->where('name', 'Third Name')->first());
+        $this->assertNotNull(User::query()->where('pending_contact_email', 'other.player@example.com')->first());
         $this->assertMailWasNotQueued();
     }
 
@@ -263,8 +346,13 @@ class PlayerRegistrationTest extends TestCase
             'nuvra.registration_limits.confirm_mail.daily.max' => 20,
         ]);
 
+        $hash = User::query()->where('pending_contact_email', 'one@example.com')->value('email_confirm_token_hash');
         $resend = $this->postJson('/api/community/register/resend', ['email' => 'one@example.com']);
+        $again = $this->postSignup('one@example.com', 'Different Name');
         $resend->assertOk()->assertExactJson(['message' => AuthMessages::RESEND_GENERIC]);
+        $again->assertOk()->assertExactJson(['message' => AuthMessages::REGISTER_GENERIC]);
+        $this->assertSame($hash, User::query()->where('pending_contact_email', 'one@example.com')->value('email_confirm_token_hash'));
+        $this->assertSame('New Player', User::query()->where('pending_contact_email', 'one@example.com')->value('name'));
         Mail::assertSent(RegistrationConfirmation::class, 1);
 
         config(['nuvra.registration_limits.confirm_mail.daily.max' => 1]);
@@ -693,6 +781,7 @@ class PlayerRegistrationTest extends TestCase
         $this->assertSame(0, DB::table('jobs')->count());
         foreach ([
             RegistrationConfirmation::class,
+            RegistrationAlreadyExists::class,
             RegistrationApproved::class,
             RegistrationRejected::class,
             DeliverRegistrationMail::class,
@@ -712,14 +801,14 @@ class PlayerRegistrationTest extends TestCase
         $change->forceFill(['created_at' => $at])->save();
     }
 
-    private function postSignup(string $email, string $name = 'New Player'): \Illuminate\Testing\TestResponse
+    private function postSignup(string $email, string $name = 'New Player', array $extra = []): \Illuminate\Testing\TestResponse
     {
-        return $this->postJson('/api/community/register', [
+        return $this->postJson('/api/community/register', array_merge([
             'name' => $name,
             'email' => $email,
             'password' => $this->signupPassword(),
             'password_confirmation' => $this->signupPassword(),
-        ]);
+        ], $extra));
     }
 
     private function signupPassword(): string

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\RegistrationAlreadyExists;
 use App\Mail\RegistrationApproved;
 use App\Mail\RegistrationConfirmation;
 use App\Mail\RegistrationRejected;
@@ -61,6 +62,8 @@ class PlayerRegistrationService
         $this->limits->hitIp('register', $request->ip());
 
         if ($existing) {
+            $this->noticeForExisting($existing, $email);
+
             return $this->generic();
         }
 
@@ -88,6 +91,12 @@ class PlayerRegistrationService
                 Log::error('Registration could not be stored.');
 
                 return $this->generic();
+            }
+
+            $again = $this->findByInbox($email);
+
+            if ($again) {
+                $this->noticeForExisting($again, $email);
             }
 
             return $this->generic();
@@ -281,6 +290,72 @@ class PlayerRegistrationService
         }
 
         return 'rejected_or_expired';
+    }
+
+    /**
+     * A repeat signup never creates a second account and never copies the
+     * new form onto the existing one. A still-pending signup gets a new
+     * link. An approved player gets only the account notice.
+     */
+    private function noticeForExisting(User $user, string $email): void
+    {
+        if ($user->role === 'player' && $user->status === 'active') {
+            $this->sendAlreadyRegistered($user, $email);
+
+            return;
+        }
+
+        if ($user->mustConfirmRegistrationEmail() && ! $user->registrationIsExpired()) {
+            $this->refreshPendingConfirmation($user, $email);
+        }
+    }
+
+    private function refreshPendingConfirmation(User $user, string $email): void
+    {
+        if ($this->limits->confirmMailBlocked($email)) {
+            return;
+        }
+
+        $confirmPlain = bin2hex(random_bytes(32));
+        $statusPlain = bin2hex(random_bytes(32));
+
+        $updated = DB::transaction(function () use ($user, $confirmPlain, $statusPlain) {
+            $locked = User::query()->lockForUpdate()->find($user->id);
+
+            if (! $locked || ! $locked->mustConfirmRegistrationEmail() || $locked->registrationIsExpired()) {
+                return false;
+            }
+
+            $locked->forceFill([
+                'email_confirm_token_hash' => hash('sha256', $confirmPlain),
+                'email_confirm_expires_at' => now()->addHours($this->confirmHours()),
+                'status_token' => hash('sha256', $statusPlain),
+            ])->save();
+
+            return true;
+        });
+
+        if (! $updated) {
+            return;
+        }
+
+        $this->limits->hitConfirmMail($email);
+        $this->queueConfirmation($user, $email, $confirmPlain, $statusPlain);
+    }
+
+    private function sendAlreadyRegistered(User $user, string $email): void
+    {
+        if ($this->limits->confirmMailBlocked($email)) {
+            return;
+        }
+
+        $this->limits->hitConfirmMail($email);
+        SafeMail::afterResponse(
+            $user->id,
+            $email,
+            new RegistrationAlreadyExists($this->baseUrl().'/login?reset=1'),
+            'Registration account notice',
+        );
     }
 
     private function sendConfirmation(User $user, string $email, string $confirmPlain, string $statusPlain): void
