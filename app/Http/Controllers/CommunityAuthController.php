@@ -14,6 +14,7 @@ use App\Support\PlayerLocator;
 use App\Support\SharedPassword;
 use App\Support\WeakPassword;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -351,8 +352,10 @@ class CommunityAuthController extends Controller
 
         $registration = app(PlayerRegistrationService::class);
         $name = $player->name;
-        $registration->writeAudit($player, $request->user(), 'delete');
-        $player->delete();
+        DB::transaction(function () use ($player, $request, $registration) {
+            $registration->writeAudit($player, $request->user(), 'delete');
+            $player->delete();
+        });
 
         return response()->json([
             'message' => "Player {$name} has been removed.",

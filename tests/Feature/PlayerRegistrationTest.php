@@ -857,6 +857,53 @@ class PlayerRegistrationTest extends TestCase
         $this->assertNotNull($audit->fresh());
     }
 
+    public function test_delete_action_refuses_non_admin_pending_and_admin_targets(): void
+    {
+        Mail::fake();
+        $admin = $this->admin();
+        $active = $this->activePlayer('72', 'kept.active@example.com');
+        $caller = User::factory()->create([
+            'name' => 'Ordinary Player',
+            'email' => 'caller@example.com',
+            'vellar_id' => 'VELLAR 73',
+            'role' => 'player',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($caller, 'sanctum')
+            ->deleteJson('/api/community/admin/players/'.$active->id)
+            ->assertForbidden();
+        $this->assertDeleteWasRefused($active);
+
+        $pending = $this->activePlayer('74', 'pending.target@example.com', 'pending');
+        $this->actingAs($admin, 'sanctum')
+            ->deleteJson('/api/community/admin/players/'.$pending->id)
+            ->assertStatus(422)
+            ->assertExactJson(['message' => 'Only an active player can be removed this way.']);
+        $this->assertDeleteWasRefused($pending);
+
+        $adminTarget = $this->admin();
+        $this->actingAs($admin, 'sanctum')
+            ->deleteJson('/api/community/admin/players/'.$adminTarget->id)
+            ->assertForbidden();
+        $this->assertDeleteWasRefused($adminTarget);
+    }
+
+    public function test_a_failed_player_delete_rolls_back_the_audit_row(): void
+    {
+        Mail::fake();
+        $player = $this->activePlayer('75', 'blocked.delete@example.com');
+        User::deleting(function () {
+            throw new \RuntimeException('delete blocked');
+        });
+
+        $this->actingAs($this->admin(), 'sanctum')
+            ->deleteJson('/api/community/admin/players/'.$player->id)
+            ->assertStatus(500);
+
+        $this->assertDeleteWasRefused($player);
+    }
+
     public function test_approval_says_when_the_vellar_id_email_was_not_sent(): void
     {
         Mail::fake();
@@ -1021,6 +1068,38 @@ class PlayerRegistrationTest extends TestCase
         $pending = file_get_contents(resource_path('js/Pages/Community/Admin/AdminPendingPlayers.jsx'));
         $this->assertStringNotContainsString('Their Vellar ID is emailed to them', $pending);
         $this->assertStringContainsString('res.data.message', $pending);
+
+        $members = file_get_contents(resource_path('js/Pages/Community/CommunityMembers.jsx'));
+        $this->assertStringContainsString(
+            "Permanently remove this player? This can't be undone and deletes their stats and profile. No email is sent.",
+            $members
+        );
+    }
+
+    private function assertDeleteWasRefused(User $target): void
+    {
+        Mail::assertNothingSent();
+        $this->assertNotNull($target->fresh());
+        $this->assertSame(0, PlayerRegistrationAudit::query()->count());
+    }
+
+    private function activePlayer(string $number, string $email, string $status = 'active'): User
+    {
+        $player = User::factory()->create([
+            'name' => 'Player '.$number,
+            'email' => 'vellar'.$number.'@vellarleague.com',
+            'vellar_id' => 'VELLAR '.$number,
+            'role' => 'player',
+            'status' => $status,
+            'contact_email' => $email,
+        ]);
+        $player->forceFill([
+            'contact_email_source' => 'registration',
+            'email_verified_at' => now(),
+            'pending_contact_email' => null,
+        ])->save();
+
+        return $player->fresh();
     }
 
     private function assertResponseHidesVellarId(\Illuminate\Testing\TestResponse $response): void

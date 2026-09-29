@@ -61,7 +61,7 @@ export default function CommunityMembers() {
 
     const removePlayer = async (member, e) => {
         if (e) e.stopPropagation();
-        if (!window.confirm(`Remove ${member.name} from the league? This sends no email.`)) return;
+        if (!window.confirm("Permanently remove this player? This can't be undone and deletes their stats and profile. No email is sent.")) return;
         const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
         try {
             const res = await fetch(`${API}/admin/players/${member.id}`, {
