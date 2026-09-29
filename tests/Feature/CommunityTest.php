@@ -44,14 +44,23 @@ class CommunityTest extends TestCase
     {
         $response = $this->postJson('/api/community/register', [
             'name' => 'New Community User',
+            'email' => 'new.player@example.com',
             'phone' => '0123456789',
             'position' => 'Forward',
             'password' => 'register-pass-1',
             'password_confirmation' => 'register-pass-1',
         ]);
 
-        $response->assertStatus(201)
-            ->assertJsonStructure(['message', 'vellar_id']);
+        $response->assertOk()
+            ->assertJson(['message' => \App\Support\AuthMessages::REGISTER_GENERIC])
+            ->assertJsonMissing(['vellar_id']);
+
+        $created = User::query()->where('contact_email', 'new.player@example.com')->first();
+        $this->assertNotNull($created);
+        $this->assertSame('player', $created->contact_email_source);
+        $this->assertNull($created->email_verified_at);
+        $this->assertStringEndsWith('@vellarleague.com', $created->email);
+        $this->assertNotSame('new.player@example.com', $created->email);
     }
 
     /**

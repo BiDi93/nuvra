@@ -33,7 +33,7 @@ class PlayerVerificationService
         $user = $this->playerFromLogin($input);
         $this->hash(bin2hex(random_bytes(16)));
 
-        if (! $user) {
+        if (! $user || $user->mustConfirmRegistrationEmail()) {
             return;
         }
 
@@ -124,7 +124,7 @@ class PlayerVerificationService
     {
         $user = $record->user;
 
-        if (! $user || $user->role !== 'player') {
+        if (! $user || $user->role !== 'player' || $user->mustConfirmRegistrationEmail()) {
             return false;
         }
 

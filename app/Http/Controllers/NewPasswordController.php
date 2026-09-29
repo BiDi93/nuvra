@@ -37,7 +37,7 @@ class NewPasswordController extends Controller
 
         // Placeholder @vellarleague.com addresses are login keys, not inboxes.
         // Send after the response so a live mailer does not reveal that the address exists.
-        if ($user && PlayerContact::usableEmail($user->email)) {
+        if ($user && ! $user->mustConfirmRegistrationEmail() && PlayerContact::usableEmail($user->email)) {
             $inbox = $user->email;
             $sent = false;
             app()->terminating(function () use (&$sent, $inbox) {
@@ -71,6 +71,14 @@ class NewPasswordController extends Controller
 
         if ($denied = AttemptResponse::ifBlocked($attempts, 'password_reset', $identifier, $request->ip())) {
             return $denied;
+        }
+
+        $account = User::query()->whereRaw('lower(email) = ?', [strtolower((string) $request->email)])->first();
+
+        if ($account && $account->mustConfirmRegistrationEmail()) {
+            $attempts->hit('password_reset', $identifier, $request->ip());
+
+            return response()->json(['message' => AuthMessages::RESET_FAILED, 'status' => 'error'], 400);
         }
 
         $status = Password::broker()->reset(

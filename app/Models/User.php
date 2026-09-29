@@ -51,6 +51,7 @@ class User extends Authenticatable
         'remember_token',
         'status_token',
         'contact_email_source',
+        'email_confirm_token_hash',
         'password_is_shared_verified',
     ];
 
@@ -63,6 +64,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_confirm_expires_at' => 'datetime',
             'password' => 'hashed',
             'password_reset_required' => 'boolean',
             'is_test_account' => 'boolean',
@@ -73,6 +75,18 @@ class User extends Authenticatable
      * Null means this account has not been checked yet. The column is not
      * cast: a boolean cast would turn that null into false.
      */
+    /**
+     * A self-registered player who has not confirmed the inbox they entered.
+     * Imported and already-active accounts are not in this gate.
+     */
+    public function mustConfirmRegistrationEmail(): bool
+    {
+        return $this->role === 'player'
+            && $this->status === 'pending'
+            && $this->contact_email_source === 'player'
+            && $this->email_verified_at === null;
+    }
+
     public function sharedPasswordState(): ?bool
     {
         if (! array_key_exists('password_is_shared', $this->getAttributes())) {

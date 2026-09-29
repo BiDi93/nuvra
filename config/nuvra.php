@@ -67,6 +67,40 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Self-registration limits
+    |--------------------------------------------------------------------------
+    |
+    | Register and resend are limited per IP, per email, and by a daily cap.
+    | A request over the limit gets the same generic reply as a normal one.
+    | confirm_hours is how long a confirmation link stays valid.
+    | expire_days is how long an unconfirmed sign-up is kept.
+    |
+    */
+
+    'registration' => [
+        'confirm_hours' => 24,
+        'expire_days' => 7,
+    ],
+
+    'registration_limits' => [
+        'register' => [
+            'ip' => ['max' => 8, 'decay' => 3600],
+            'email' => ['max' => 4, 'decay' => 3600],
+            'daily_ip' => ['max' => 20, 'decay' => 86400],
+            'daily_email' => ['max' => 6, 'decay' => 86400],
+            'daily' => ['max' => 500, 'decay' => 86400],
+        ],
+        'resend' => [
+            'ip' => ['max' => 6, 'decay' => 3600],
+            'email' => ['max' => 3, 'decay' => 3600],
+            'daily_ip' => ['max' => 12, 'decay' => 86400],
+            'daily_email' => ['max' => 5, 'decay' => 86400],
+            'daily' => ['max' => 500, 'decay' => 86400],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | How long a verification secret stays valid, in minutes
     |--------------------------------------------------------------------------
     */

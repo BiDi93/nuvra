@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::post('/login', [CommunityAuthController::class, 'login']);
-Route::post('/register', [CommunityAuthController::class, 'register']);
+Route::post('/register', function () {
+    return redirect('/api/community/register', 308);
+});
 Route::post('/forgot-password', [NewPasswordController::class, 'forgotPassword'])->middleware('guest');
 Route::post('/reset-password', [NewPasswordController::class, 'resetPassword'])->middleware('guest');
 
@@ -39,6 +41,8 @@ Route::prefix('community')->group(function () {
 
     // ── Auth ──────────────────────────────────────────────────────────────────
     Route::post('/register', [CommunityAuthController::class, 'register']);
+    Route::post('/register/resend', [CommunityAuthController::class, 'resendConfirmation']);
+    Route::post('/email/confirm', [CommunityAuthController::class, 'confirmEmail']);
     Route::post('/login', [CommunityAuthController::class, 'login']);
     Route::post('/password/request', [CommunityPasswordResetController::class, 'requestReset']);
     Route::post('/password/reset', [CommunityPasswordResetController::class, 'reset']);

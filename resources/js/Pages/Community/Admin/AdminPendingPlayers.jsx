@@ -44,7 +44,7 @@ const AdminPendingPlayers = () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setPlayers(prev => prev.filter(p => p.id !== player.id));
-            showToast('success', `${player.name} (${player.vellar_id}) has been approved.`);
+            showToast('success', `${player.name} has been approved. Their Vellar ID is emailed to them.`);
         } catch {
             showToast('error', 'Failed to approve player. Please try again.');
         } finally {
@@ -53,7 +53,7 @@ const AdminPendingPlayers = () => {
     };
 
     const handleReject = async (player) => {
-        if (!window.confirm(`Reject and delete registration for ${player.name} (${player.vellar_id})?`)) return;
+        if (!window.confirm(`Reject and delete registration for ${player.name}?`)) return;
         setActionId(player.id);
         try {
             await axios.delete(`/api/community/admin/reject-player/${player.id}`, {
@@ -140,7 +140,7 @@ const AdminPendingPlayers = () => {
                             {/* Info */}
                             <div style={S.cardInfo}>
                                 <div style={S.cardName}>{player.name}</div>
-                                <div style={S.cardVellar}>{player.vellar_id}</div>
+                                {!player.email_confirmed && <div style={S.cardVellar}>Email not confirmed yet</div>}
                                 <div style={S.cardMeta}>
                                     {player.position && <span style={S.metaTag}><IconTarget size={11} /> {player.position}</span>}
                                     {player.phone    && <span style={S.metaTag}><IconPhone size={11} /> {player.phone}</span>}

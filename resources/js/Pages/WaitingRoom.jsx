@@ -2,50 +2,52 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
+const STATUS_LABELS = {
+    pending_confirmation: 'Pending confirmation',
+    pending_approval: 'Pending approval',
+    approved: 'Approved',
+    rejected_or_expired: 'Rejected or expired',
+};
+
+function statusTokenFromLocation() {
+    const raw = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+    const token = new URLSearchParams(raw).get('t') || '';
+    return /^[0-9a-f]{64}$/i.test(token) ? token : '';
+}
+
 const WaitingRoom = () => {
     const navigate  = useNavigate();
     const location  = useLocation();
-    const [player, setPlayer]         = useState(null);
+    const [status, setStatus]         = useState('');
     const [checking, setChecking]     = useState(false);
     const [lastChecked, setLastChecked] = useState(null);
+    const [token, setToken]           = useState('');
     const pollRef = useRef(null);
 
-    // Get vellar_id passed from signup or stored
-    const vellarId = location.state?.vellar_id
-        ?? location.state?.vellar_number
-        ?? localStorage.getItem('pending_vellar_id')
-        ?? '';
+    useEffect(() => {
+        localStorage.removeItem('pending_vellar_id');
+        localStorage.removeItem('pending_status_token');
+        localStorage.removeItem('vellar_id');
+        const fromHash = statusTokenFromLocation();
+        if (fromHash) sessionStorage.setItem('pending_status_token', fromHash);
+        setToken(fromHash || sessionStorage.getItem('pending_status_token') || '');
+    }, [location.hash]);
 
     const checkStatus = useCallback(async () => {
-        if (!vellarId) return;
+        if (!token) return;
 
         try {
             const res = await axios.post('/api/community/check-status', {
-                vellar_id: vellarId,
-                status_token: localStorage.getItem('pending_status_token') || '',
+                status_token: token,
             });
-            const data = res.data;
-            if (!data.status) return;
-            setPlayer(data);
+            const next = res.data?.status;
+            if (!next) return;
+            setStatus(next);
             setLastChecked(new Date());
-
-            if (data.status === 'active') {
-                // Approved! Redirect to login
-                localStorage.removeItem('pending_vellar_id');
-                localStorage.removeItem('pending_status_token');
-                navigate('/login', {
-                    state: { message: `✅ Your account has been approved! Sign in using Vellar ID ${vellarId}.` }
-                });
-            }
         } catch {
-            // If no vellar_id, just show generic pending screen
+            // Keep the last status. A limit or network error is not a Vellar ID.
         }
-    }, [vellarId, navigate]);
-
-    // Save vellar_id to localStorage
-    useEffect(() => {
-        if (vellarId) localStorage.setItem('pending_vellar_id', String(vellarId));
-    }, [vellarId]);
+    }, [token]);
 
     // Initial check + auto poll every 30 seconds
     useEffect(() => {
@@ -61,6 +63,7 @@ const WaitingRoom = () => {
     };
 
     const handleLogout = () => {
+        sessionStorage.removeItem('pending_status_token');
         localStorage.removeItem('pending_vellar_id');
         localStorage.removeItem('pending_status_token');
         navigate('/login');
@@ -114,20 +117,17 @@ const WaitingRoom = () => {
                 </div>
 
                 {/* Heading */}
-                <h1 style={S.title}>Awaiting Admin Approval</h1>
+                <h1 style={S.title}>{STATUS_LABELS[status] || 'Registration status'}</h1>
                 <p style={S.subtitle}>
-                    {player?.name
-                        ? <>Hi <strong style={{ color: '#fff' }}>{player.name}</strong>, your application is currently under review by the NUVRA admin team.</>
-                        : 'Your application is currently under review by the NUVRA admin team.'}
+                    {token
+                        ? 'This page shows status only. The Vellar ID is emailed after approval and is not shown here.'
+                        : 'Open the status link from the confirmation email. This page does not ask for or show a Vellar ID.'}
                 </p>
 
-                {/* Info card */}
-                {(vellarId || player) && (
+                {token && (
                     <div style={S.infoCard}>
-                        <InfoRow label="Vellar ID" value={player?.vellar_id ?? `VELLAR ${vellarId}`} highlight />
-                        {player?.position && <InfoRow label="Position" value={player.position} />}
                         <InfoRow label="Status" value={
-                            <span style={S.statusBadge}>⏳ Pending Approval</span>
+                            <span style={S.statusBadge}>{STATUS_LABELS[status] || 'Checking…'}</span>
                         } />
                         {lastChecked && (
                             <InfoRow label="Last Checked" value={lastChecked.toLocaleTimeString()} />
@@ -135,15 +135,14 @@ const WaitingRoom = () => {
                     </div>
                 )}
 
-                {/* Progress steps */}
                 <div style={S.steps}>
                     <Step label="Account Created" done />
-                    <StepConnector done />
-                    <Step label="Vellar ID Assigned" done />
+                    <StepConnector done={status === 'pending_approval' || status === 'approved'} />
+                    <Step label="Email Confirmed" done={status === 'pending_approval' || status === 'approved'} active={status === 'pending_confirmation'} />
+                    <StepConnector done={status === 'approved'} />
+                    <Step label="Admin Approval" done={status === 'approved'} active={status === 'pending_approval'} />
                     <StepConnector />
-                    <Step label="Admin Approval" active />
-                    <StepConnector />
-                    <Step label="Access Granted" />
+                    <Step label="Check Email" active={status === 'approved'} />
                 </div>
 
                 {/* CTA */}

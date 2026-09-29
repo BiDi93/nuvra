@@ -26,7 +26,8 @@ export default function CommunityHome() {
     const [successData, setSuccessData] = useState(null);
 
     const [loginData, setLoginData] = useState({ vellar_id: "", password: "" });
-    const [regData, setRegData]     = useState({ name: "", phone: "", position: "", password: "", password_confirmation: "" });
+    const [regData, setRegData]     = useState({ name: "", email: "", phone: "", position: "", password: "", password_confirmation: "" });
+    const [resendNotice, setResendNotice] = useState("");
     const [resetData, setResetData] = useState({ vellar_id: "", code: "", password: "", password_confirmation: "" });
     const [resetNotice, setResetNotice] = useState("");
     const [showOldPasswordPrompt, setShowOldPasswordPrompt] = useState(false);
@@ -53,7 +54,6 @@ export default function CommunityHome() {
             }
 
             if (data.status === "pending") {
-                localStorage.setItem("pending_vellar_id", loginData.vellar_id);
                 navigate("/waiting-room");
                 return;
             }
@@ -128,11 +128,29 @@ export default function CommunityHome() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Registration failed.");
 
-            // Show success with Vellar ID
-            if (data.status_token) localStorage.setItem("pending_status_token", data.status_token);
-            if (data.vellar_number) localStorage.setItem("pending_vellar_id", String(data.vellar_number));
-            setSuccessData({ vellar_id: data.vellar_id, vellar_number: data.vellar_number, name: data.name });
+            localStorage.removeItem("pending_vellar_id");
+            localStorage.removeItem("pending_status_token");
+            setResendNotice("");
+            setSuccessData({ sent: true });
             setTab("success");
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResend = async () => {
+        setError(""); setResendNotice(""); setLoading(true);
+        try {
+            const res = await fetch(`${API}/register/resend`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({ email: regData.email }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Could not send another confirmation.");
+            setResendNotice(data.message);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -328,7 +346,7 @@ export default function CommunityHome() {
                             </div>
 
                             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 16, lineHeight: 1.6 }}>
-                                Your Vellar ID will be auto-generated. Admin approval is required before logging in.
+                                Use an email you can open. Confirm that email, then wait for an administrator. The Vellar ID arrives by email after approval and is not shown here.
                             </p>
 
                             {error && <div style={styles.errorBox}>⚠ {error}</div>}
@@ -341,8 +359,14 @@ export default function CommunityHome() {
                                         style={styles.input} required />
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <label style={styles.label}>Email</label>
+                                    <input type="email" placeholder="you@example.com" value={regData.email}
+                                        onChange={e => { setError(""); setRegData({ ...regData, email: e.target.value }); }}
+                                        style={styles.input} required />
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     <label style={styles.label}>Phone Number</label>
-                                    <input type="tel" placeholder="+6012-3456789" value={regData.phone}
+                                    <input type="tel" placeholder="Optional" value={regData.phone}
                                         onChange={e => setRegData({ ...regData, phone: e.target.value })}
                                         style={styles.input} />
                                 </div>
@@ -375,24 +399,20 @@ export default function CommunityHome() {
                     )}
 
                     {/* ── SUCCESS (Post Register) ── */}
-                    {tab === "success" && successData && (
+                    {tab === "success" && (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "8px 0" }}>
                             <div style={{ fontSize: 48 }}>✅</div>
                             <div style={{ textAlign: "center" }}>
-                                <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Registration Successful!</h2>
+                                <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Check your email</h2>
                                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
-                                    Your application has been received and is awaiting admin approval.
+                                    If this address can be used, a confirmation message has been sent. The Vellar ID is emailed only after an administrator approves the account. It is not shown here.
                                 </p>
                             </div>
-                            {/* Vellar ID card */}
-                            <div style={styles.vellarCard}>
-                                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Your Vellar ID</p>
-                                <p style={{ fontFamily: "monospace", fontSize: 36, fontWeight: 900, color: "#00D4EC", letterSpacing: 2 }}>{successData.vellar_id}</p>
-                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{successData.name}</p>
-                            </div>
-                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.7 }}>
-                                💡 Save your ID. Once approved by the admin, sign in using <strong style={{ color: "#00D4EC" }}>number {successData.vellar_number}</strong> as your ID and your password.
-                            </p>
+                            {error && <div style={styles.errorBox}>⚠ {error}</div>}
+                            {resendNotice && <div style={{ ...styles.errorBox, color: "#00D4EC", borderColor: "rgba(0,212,236,0.3)" }}>{resendNotice}</div>}
+                            <button style={{ ...styles.submitBtn, background: "rgba(255,255,255,0.08)", color: "#fff" }} type="button" onClick={handleResend} disabled={loading}>
+                                {loading ? "Sending…" : "RESEND CONFIRMATION"}
+                            </button>
                             <button style={styles.submitBtn} onClick={() => { setTab("login"); setError(""); }}>
                                 Back to Sign In
                             </button>

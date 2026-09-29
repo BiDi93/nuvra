@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Contracts\SmsSender;
-use App\Mail\PlayerPasswordResetLink;
 use App\Mail\ContactEmailChanged;
+use App\Mail\PlayerPasswordResetLink;
 use App\Models\ContactEmailChange;
 use App\Models\FootballMatch;
 use App\Models\PlayerVerificationCode;
@@ -18,10 +18,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Password;
-use RuntimeException;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 class PlayerSecurityTest extends TestCase
@@ -731,11 +731,9 @@ class PlayerSecurityTest extends TestCase
             'password' => 'brand-new-pass',
             'password_confirmation' => 'brand-new-pass',
             'contact_email' => 'attacker@example.com',
-        ])->assertCreated();
+        ])->assertStatus(422);
 
-        $created = User::query()->where('name', 'Brand New')->first();
-        $this->assertNotNull($created);
-        $this->assertNull($created->contact_email);
+        $this->assertNull(User::query()->where('name', 'Brand New')->first());
     }
 
     public function test_clear_untrusted_contact_emails_prints_counts_and_keeps_admin_imports(): void
@@ -1314,17 +1312,15 @@ class PlayerSecurityTest extends TestCase
 
         $known->assertOk();
         $missing->assertOk();
-        $this->assertSame(AuthMessages::STATUS_PRIVATE, $known->json('message'));
+        $this->assertSame(['status' => 'rejected_or_expired'], $known->json());
         $this->assertSame($known->json(), $missing->json());
-        $this->assertArrayNotHasKey('name', $known->json());
 
         $this->travel(2)->seconds();
         $this->postJson('/api/community/check-status', [
             'vellar_id' => '82',
             'status_token' => $token,
         ])->assertOk()
-            ->assertJsonPath('status', 'pending')
-            ->assertJsonPath('name', 'Hidden Name');
+            ->assertExactJson(['status' => 'pending_approval']);
     }
 
     public function test_email_reset_path_rejects_a_six_digit_code_and_limits_by_ip(): void
