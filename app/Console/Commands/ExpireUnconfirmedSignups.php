@@ -10,7 +10,7 @@ class ExpireUnconfirmedSignups extends Command
     protected $signature = 'players:expire-unconfirmed-signups
         {--delete : Delete unconfirmed sign-ups older than 7 days. Without this flag the command only prints the count.}';
 
-    protected $description = 'Count unconfirmed self-registrations older than 7 days, and delete them when --delete is passed.';
+    protected $description = 'Extra cleanup for unconfirmed self-registrations older than 7 days. Those rows are already treated as expired when read. Delete them when --delete is passed.';
 
     public function handle(): int
     {
@@ -18,8 +18,9 @@ class ExpireUnconfirmedSignups extends Command
         $query = User::query()
             ->where('role', 'player')
             ->where('status', 'pending')
-            ->where('contact_email_source', 'player')
             ->whereNull('email_verified_at')
+            ->whereNotNull('pending_contact_email')
+            ->where('pending_contact_email', '!=', '')
             ->where('created_at', '<=', now()->subDays($days));
 
         $count = (clone $query)->count();

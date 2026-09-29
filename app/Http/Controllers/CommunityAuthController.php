@@ -254,7 +254,7 @@ class CommunityAuthController extends Controller
         $players = User::where('status', 'pending')
             ->where('role', 'player')
             ->orderBy('created_at', 'desc')
-            ->get(['id', 'name', 'position', 'phone', 'status', 'created_at', 'email_verified_at', 'contact_email_source', 'role']);
+            ->get(['id', 'name', 'position', 'phone', 'status', 'created_at', 'email_verified_at', 'contact_email_source', 'pending_contact_email', 'role']);
 
         return response()->json([
             'count' => $players->count(),
@@ -266,6 +266,7 @@ class CommunityAuthController extends Controller
                 'status' => $player->status,
                 'created_at' => $player->created_at,
                 'email_confirmed' => ! $player->mustConfirmRegistrationEmail(),
+                'expired' => $player->registrationIsExpired(),
             ])->values(),
         ]);
     }
@@ -280,6 +281,12 @@ class CommunityAuthController extends Controller
         }
 
         $registration = app(PlayerRegistrationService::class);
+
+        if ($player->registrationIsExpired()) {
+            return response()->json([
+                'message' => 'This registration has expired. It cannot be approved.',
+            ], 422);
+        }
 
         if ($player->mustConfirmRegistrationEmail()) {
             return response()->json([

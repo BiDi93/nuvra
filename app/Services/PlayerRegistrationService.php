@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Mail\RegistrationApproved;
-use App\Mail\RegistrationAttemptNotice;
 use App\Mail\RegistrationConfirmation;
 use App\Mail\RegistrationRejected;
 use App\Models\PlayerRegistrationAudit;
@@ -55,15 +54,13 @@ class PlayerRegistrationService
         $existing = $this->findByInbox($email);
         $this->compareToken($existing?->email_confirm_token_hash, $confirmHash);
 
-        if ($this->limits->blocked('register', $email, $request->ip())) {
-            return $this->generic();
+        if ($this->limits->ipBlocked('register', $request->ip())) {
+            return $this->tooMany();
         }
 
-        $this->limits->hit('register', $email, $request->ip());
+        $this->limits->hitIp('register', $request->ip());
 
         if ($existing) {
-            $this->sendDuplicateNotice($existing);
-
             return $this->generic();
         }
 
@@ -75,10 +72,11 @@ class PlayerRegistrationService
                 'status' => 'pending',
                 'phone' => filled($request->phone) ? $request->phone : null,
                 'position' => filled($request->position) ? $request->position : null,
-                'contact_email' => $email,
-            ], function (User $user) use ($confirmHash, $statusHash) {
+            ], function (User $user) use ($email, $confirmHash, $statusHash) {
                 $user->forceFill([
-                    'contact_email_source' => 'player',
+                    'pending_contact_email' => $email,
+                    'contact_email' => null,
+                    'contact_email_source' => null,
                     'email_verified_at' => null,
                     'email_confirm_token_hash' => $confirmHash,
                     'email_confirm_expires_at' => now()->addHours($this->confirmHours()),
@@ -86,16 +84,10 @@ class PlayerRegistrationService
                 ])->save();
             });
         } catch (QueryException $e) {
-            if (! str_contains($e->getMessage(), 'contact_email')) {
+            if (! $this->isInboxConflict($e)) {
                 Log::error('Registration could not be stored.');
 
                 return $this->generic();
-            }
-
-            $again = $this->findByInbox($email);
-
-            if ($again) {
-                $this->sendDuplicateNotice($again);
             }
 
             return $this->generic();
@@ -123,17 +115,20 @@ class PlayerRegistrationService
 
         $confirmPlain = bin2hex(random_bytes(32));
         $statusPlain = bin2hex(random_bytes(32));
-        hash('sha256', $confirmPlain);
         $existing = $this->findByInbox($email);
         $this->compareToken($existing?->email_confirm_token_hash, hash('sha256', $confirmPlain));
 
-        if ($this->limits->blocked('resend', $email, $request->ip())) {
+        if ($this->limits->ipBlocked('resend', $request->ip())) {
+            return $this->tooMany();
+        }
+
+        $this->limits->hitIp('resend', $request->ip());
+
+        if (! $existing || ! $existing->mustConfirmRegistrationEmail() || $existing->registrationIsExpired()) {
             return $this->resendGeneric();
         }
 
-        $this->limits->hit('resend', $email, $request->ip());
-
-        if (! $existing || ! $existing->mustConfirmRegistrationEmail()) {
+        if ($this->limits->confirmMailBlocked($email)) {
             return $this->resendGeneric();
         }
 
@@ -143,7 +138,8 @@ class PlayerRegistrationService
             'status_token' => hash('sha256', $statusPlain),
         ])->save();
 
-        $this->sendConfirmation($existing, $email, $confirmPlain, $statusPlain);
+        $this->limits->hitConfirmMail($email);
+        $this->queueConfirmation($existing, $email, $confirmPlain, $statusPlain);
 
         return $this->resendGeneric();
     }
@@ -167,8 +163,11 @@ class PlayerRegistrationService
                 ->first();
 
             $expires = $user?->email_confirm_expires_at;
+            $pending = PlayerContact::usableEmail($user?->pending_contact_email);
             $usable = $user
+                && $pending !== null
                 && $user->mustConfirmRegistrationEmail()
+                && ! $user->registrationIsExpired()
                 && $expires !== null
                 && $expires->isFuture()
                 && hash_equals((string) $user->email_confirm_token_hash, $digest);
@@ -177,11 +176,29 @@ class PlayerRegistrationService
                 return false;
             }
 
-            $user->forceFill([
-                'email_verified_at' => now(),
-                'email_confirm_token_hash' => null,
-                'email_confirm_expires_at' => null,
-            ])->save();
+            $taken = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereRaw('lower(contact_email) = ?', [$pending])
+                ->exists();
+
+            if ($taken) {
+                return false;
+            }
+
+            try {
+                $user->forceFill([
+                    'contact_email' => $pending,
+                    'contact_email_source' => 'registration',
+                    'pending_contact_email' => null,
+                    'email_verified_at' => now(),
+                    'email_confirm_token_hash' => null,
+                    'email_confirm_expires_at' => null,
+                ])->save();
+            } catch (QueryException) {
+                Log::error('Registration confirmation could not be stored.');
+
+                return false;
+            }
 
             return true;
         });
@@ -191,6 +208,12 @@ class PlayerRegistrationService
 
     public function sendApproval(User $user): void
     {
+        if ($user->contact_email_source !== 'registration' || $user->email_verified_at === null) {
+            Log::error('Registration approval email skipped.', ['player_id' => $user->id]);
+
+            return;
+        }
+
         $email = PlayerContact::usableEmail($user->contact_email);
         $number = preg_replace('/[^0-9]/', '', (string) $user->vellar_id) ?? '';
 
@@ -210,7 +233,8 @@ class PlayerRegistrationService
 
     public function sendRejection(User $user): void
     {
-        $email = PlayerContact::usableEmail($user->contact_email);
+        $email = PlayerContact::usableEmail($user->contact_email)
+            ?? PlayerContact::usableEmail($user->pending_contact_email);
 
         if ($email === null) {
             Log::error('Registration rejection email skipped.', ['player_id' => $user->id]);
@@ -228,11 +252,13 @@ class PlayerRegistrationService
 
     public function writeAudit(User $player, User $admin, string $action): void
     {
+        $email = $player->contact_email ?: $player->pending_contact_email;
+
         PlayerRegistrationAudit::query()->create([
             'player_id' => $player->id,
             'admin_id' => $admin->id,
             'action' => $action,
-            'email_masked' => EmailMask::mask($player->contact_email),
+            'email_masked' => EmailMask::mask($email),
         ]);
     }
 
@@ -240,6 +266,10 @@ class PlayerRegistrationService
     {
         if ($user->status === 'active') {
             return 'approved';
+        }
+
+        if ($user->registrationIsExpired()) {
+            return 'rejected_or_expired';
         }
 
         if ($user->mustConfirmRegistrationEmail()) {
@@ -255,9 +285,19 @@ class PlayerRegistrationService
 
     private function sendConfirmation(User $user, string $email, string $confirmPlain, string $statusPlain): void
     {
+        if ($this->limits->confirmMailBlocked($email)) {
+            return;
+        }
+
+        $this->limits->hitConfirmMail($email);
+        $this->queueConfirmation($user, $email, $confirmPlain, $statusPlain);
+    }
+
+    private function queueConfirmation(User $user, string $email, string $confirmPlain, string $statusPlain): void
+    {
         $base = $this->baseUrl();
 
-        SafeMail::later(
+        SafeMail::afterResponse(
             $user->id,
             $email,
             new RegistrationConfirmation(
@@ -269,27 +309,12 @@ class PlayerRegistrationService
         );
     }
 
-    private function sendDuplicateNotice(User $user): void
-    {
-        $email = PlayerContact::usableEmail($user->contact_email) ?? PlayerContact::usableEmail($user->email);
-
-        if ($email === null) {
-            return;
-        }
-
-        SafeMail::later(
-            $user->id,
-            $email,
-            new RegistrationAttemptNotice($this->loginUrl()),
-            'Registration attempt notice',
-        );
-    }
-
     private function findByInbox(string $email): ?User
     {
         return User::query()
             ->where(function ($query) use ($email) {
                 $query->whereRaw('lower(contact_email) = ?', [$email])
+                    ->orWhereRaw('lower(pending_contact_email) = ?', [$email])
                     ->orWhereRaw('lower(email) = ?', [$email]);
             })
             ->first();
@@ -298,6 +323,14 @@ class PlayerRegistrationService
     private function compareToken(?string $stored, string $presentedHash): void
     {
         hash_equals($stored ?? hash('sha256', 'registration-absent'), $presentedHash);
+    }
+
+    private function isInboxConflict(QueryException $e): bool
+    {
+        $message = $e->getMessage();
+
+        return str_contains($message, 'pending_contact_email')
+            || str_contains($message, 'contact_email');
     }
 
     private function generic(): JsonResponse
@@ -312,6 +345,13 @@ class PlayerRegistrationService
         return response()->json([
             'message' => AuthMessages::RESEND_GENERIC,
         ]);
+    }
+
+    private function tooMany(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Too many attempts.',
+        ], 429);
     }
 
     private function confirmHours(): int

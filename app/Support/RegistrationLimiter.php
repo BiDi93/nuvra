@@ -6,9 +6,29 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class RegistrationLimiter
 {
-    public function blocked(string $action, string $email, ?string $ip): bool
+    public function ipBlocked(string $action, ?string $ip): bool
     {
-        foreach ($this->buckets($action, $email, $ip) as [$key, $max]) {
+        $bucket = $this->bucket('nuvra.registration_limits.'.$action.'.ip', $ip);
+
+        return $bucket !== null && RateLimiter::tooManyAttempts($bucket[0], $bucket[1]);
+    }
+
+    public function hitIp(string $action, ?string $ip): void
+    {
+        $bucket = $this->bucket('nuvra.registration_limits.'.$action.'.ip', $ip);
+
+        if ($bucket !== null) {
+            RateLimiter::hit($bucket[0], $bucket[2]);
+        }
+    }
+
+    /**
+     * True when this address, or the whole site, has already had its
+     * confirm mails for the day. Callers still return the neutral reply.
+     */
+    public function confirmMailBlocked(string $email): bool
+    {
+        foreach ($this->mailBuckets($email) as [$key, $max]) {
             if (RateLimiter::tooManyAttempts($key, $max)) {
                 return true;
             }
@@ -17,38 +37,47 @@ class RegistrationLimiter
         return false;
     }
 
-    public function hit(string $action, string $email, ?string $ip): void
+    public function hitConfirmMail(string $email): void
     {
-        foreach ($this->buckets($action, $email, $ip) as [$key, $max, $decay]) {
+        foreach ($this->mailBuckets($email) as [$key, $max, $decay]) {
             RateLimiter::hit($key, $decay);
         }
     }
 
     /**
+     * @return array{0: string, 1: int, 2: int}|null
+     */
+    private function bucket(string $configKey, ?string $value): ?array
+    {
+        $limit = config($configKey);
+
+        if (! is_string($value) || $value === '' || ! is_array($limit)) {
+            return null;
+        }
+
+        return [
+            $configKey.':'.hash('sha256', $value),
+            max(1, (int) ($limit['max'] ?? 1)),
+            max(1, (int) ($limit['decay'] ?? 3600)),
+        ];
+    }
+
+    /**
      * @return list<array{0: string, 1: int, 2: int}>
      */
-    private function buckets(string $action, string $email, ?string $ip): array
+    private function mailBuckets(string $email): array
     {
-        $limits = config('nuvra.registration_limits.'.$action, []);
-        $scopes = [
-            'ip' => $ip,
-            'email' => $email,
-            'daily_ip' => $ip,
-            'daily_email' => $email,
-            'daily' => 'all',
-        ];
         $buckets = [];
 
-        foreach ($scopes as $scope => $value) {
-            if (! is_string($value) || $value === '' || ! is_array($limits[$scope] ?? null)) {
-                continue;
-            }
+        foreach ([
+            'nuvra.registration_limits.confirm_mail.per_email' => $email,
+            'nuvra.registration_limits.confirm_mail.daily' => 'all',
+        ] as $configKey => $value) {
+            $bucket = $this->bucket($configKey, $value);
 
-            $buckets[] = [
-                $action.':'.$scope.':'.hash('sha256', $value),
-                max(1, (int) $limits[$scope]['max']),
-                max(1, (int) $limits[$scope]['decay']),
-            ];
+            if ($bucket !== null) {
+                $buckets[] = $bucket;
+            }
         }
 
         return $buckets;

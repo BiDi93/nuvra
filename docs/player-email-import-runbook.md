@@ -8,7 +8,7 @@ There is no web upload. Each address the import writes is marked `contact_email_
 
 ## Before the first import
 
-Clear recovery emails that have no source. Those were set before this deploy. The command prints counts only. `--force` clears only the unsourced rows. It keeps `source=admin` and `source=player`.
+Clear recovery emails that have no source. Those were set before this deploy. The command prints counts only. `--force` clears only the unsourced rows. It keeps `source=admin`, `source=player`, and `source=registration`.
 
 ```bash
 php artisan players:clear-untrusted-contact-emails

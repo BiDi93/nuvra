@@ -51,6 +51,7 @@ class User extends Authenticatable
         'remember_token',
         'status_token',
         'contact_email_source',
+        'pending_contact_email',
         'email_confirm_token_hash',
         'password_is_shared_verified',
     ];
@@ -77,14 +78,30 @@ class User extends Authenticatable
      */
     /**
      * A self-registered player who has not confirmed the inbox they entered.
-     * Imported and already-active accounts are not in this gate.
+     * The address stays in pending_contact_email until then. Imported and
+     * already-active accounts are not in this gate.
      */
     public function mustConfirmRegistrationEmail(): bool
     {
         return $this->role === 'player'
             && $this->status === 'pending'
-            && $this->contact_email_source === 'player'
-            && $this->email_verified_at === null;
+            && $this->email_verified_at === null
+            && filled($this->pending_contact_email);
+    }
+
+    /**
+     * Unconfirmed self-signups older than the configured window are expired
+     * as soon as they are read. No scheduler is required.
+     */
+    public function registrationIsExpired(): bool
+    {
+        if (! $this->mustConfirmRegistrationEmail() || $this->created_at === null) {
+            return false;
+        }
+
+        $days = max(1, (int) config('nuvra.registration.expire_days', 7));
+
+        return $this->created_at->lte(now()->subDays($days));
     }
 
     public function sharedPasswordState(): ?bool

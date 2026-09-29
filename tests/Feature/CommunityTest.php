@@ -55,9 +55,10 @@ class CommunityTest extends TestCase
             ->assertJson(['message' => \App\Support\AuthMessages::REGISTER_GENERIC])
             ->assertJsonMissing(['vellar_id']);
 
-        $created = User::query()->where('contact_email', 'new.player@example.com')->first();
+        $created = User::query()->where('pending_contact_email', 'new.player@example.com')->first();
         $this->assertNotNull($created);
-        $this->assertSame('player', $created->contact_email_source);
+        $this->assertNull($created->contact_email);
+        $this->assertNull($created->contact_email_source);
         $this->assertNull($created->email_verified_at);
         $this->assertStringEndsWith('@vellarleague.com', $created->email);
         $this->assertNotSame('new.player@example.com', $created->email);

@@ -10,8 +10,8 @@ class VellarIdAllocator
 {
     /**
      * Reserve the next Vellar login key inside a write lock, then retry if
-     * another signup took the same number. The contact address is a separate
-     * unique column and is not retried: that clash means the inbox is taken.
+     * another signup took the same number. The pending inbox is a separate
+     * unique column and is not retried: that clash means the address is taken.
      *
      * @param  array<string, mixed>  $attributes
      */

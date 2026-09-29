@@ -70,10 +70,16 @@ return [
     | Self-registration limits
     |--------------------------------------------------------------------------
     |
-    | Register and resend are limited per IP, per email, and by a daily cap.
-    | A request over the limit gets the same generic reply as a normal one.
     | confirm_hours is how long a confirmation link stays valid.
-    | expire_days is how long an unconfirmed sign-up is kept.
+    | expire_days is when an unconfirmed sign-up is treated as expired on
+    | read. The cleanup command is an extra; it is not required for that.
+    |
+    | ip: attempts from one address. Over this returns HTTP 429 and does
+    | not create an account or send mail. Register and resend are separate.
+    | confirm_mail.per_email: confirm messages to one inbox per day.
+    | confirm_mail.daily: confirm messages for the whole site per day.
+    | Over either mail cap, the reply stays the neutral success message
+    | and nothing is sent.
     |
     */
 
@@ -84,18 +90,14 @@ return [
 
     'registration_limits' => [
         'register' => [
-            'ip' => ['max' => 8, 'decay' => 3600],
-            'email' => ['max' => 4, 'decay' => 3600],
-            'daily_ip' => ['max' => 20, 'decay' => 86400],
-            'daily_email' => ['max' => 6, 'decay' => 86400],
-            'daily' => ['max' => 500, 'decay' => 86400],
+            'ip' => ['max' => 10, 'decay' => 3600],
         ],
         'resend' => [
-            'ip' => ['max' => 6, 'decay' => 3600],
-            'email' => ['max' => 3, 'decay' => 3600],
-            'daily_ip' => ['max' => 12, 'decay' => 86400],
-            'daily_email' => ['max' => 5, 'decay' => 86400],
-            'daily' => ['max' => 500, 'decay' => 86400],
+            'ip' => ['max' => 10, 'decay' => 3600],
+        ],
+        'confirm_mail' => [
+            'per_email' => ['max' => 3, 'decay' => 86400],
+            'daily' => ['max' => 200, 'decay' => 86400],
         ],
     ],
 

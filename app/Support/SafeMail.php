@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Jobs\DeliverRegistrationMail;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -9,21 +10,12 @@ use Illuminate\Support\Facades\Mail;
 class SafeMail
 {
     /**
-     * Send after the HTTP response so delivery time is not part of the
-     * response. The log line names the player id only.
+     * Send on the way out of the request. New and already-used addresses
+     * return before any delivery, and the job is not placed on the queue.
      */
-    public static function later(int $playerId, string $address, Mailable $mail, string $label): void
+    public static function afterResponse(int $playerId, string $address, Mailable $mail, string $label): void
     {
-        $sent = false;
-
-        app()->terminating(function () use (&$sent, $playerId, $address, $mail, $label) {
-            if ($sent) {
-                return;
-            }
-
-            $sent = true;
-            self::deliver($playerId, $address, $mail, $label);
-        });
+        dispatch(new DeliverRegistrationMail($playerId, $address, $mail, $label))->afterResponse();
     }
 
     public static function now(int $playerId, string $address, Mailable $mail, string $label): void

@@ -2,15 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\DeliverRegistrationMail;
 use App\Mail\PlayerPasswordResetLink;
 use App\Mail\RegistrationApproved;
-use App\Mail\RegistrationAttemptNotice;
 use App\Mail\RegistrationConfirmation;
 use App\Mail\RegistrationRejected;
+use App\Models\ContactEmailChange;
 use App\Models\PlayerRegistrationAudit;
 use App\Models\PlayerVerificationCode;
 use App\Models\User;
 use App\Support\AuthMessages;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -40,25 +42,31 @@ class PlayerRegistrationTest extends TestCase
         $response->assertOk()->assertExactJson([
             'message' => AuthMessages::REGISTER_GENERIC,
         ]);
-        $this->assertStringNotContainsString('vellar', strtolower($response->getContent()));
+        $this->assertResponseHidesVellarId($response);
 
-        $player = User::query()->where('contact_email', 'player@example.com')->first();
+        $player = User::query()->where('pending_contact_email', 'player@example.com')->first();
         $this->assertNotNull($player);
-        $this->assertSame('player', $player->contact_email_source);
+        $this->assertNull($player->contact_email);
+        $this->assertNull($player->contact_email_source);
         $this->assertSame('pending', $player->status);
         $this->assertNull($player->email_verified_at);
         $this->assertSame('player', $player->role);
         $this->assertMatchesRegularExpression('/\Avellar\d+@vellarleague\.com\z/', $player->email);
         $this->assertNotSame('player@example.com', $player->email);
-        $this->assertNotNull($player->email_confirm_token_hash);
-        $this->assertNotSame($this->confirmToken(), $player->email_confirm_token_hash);
+        $token = $this->confirmToken();
+        $this->assertSame(64, strlen((string) $player->email_confirm_token_hash));
+        $this->assertTrue(hash_equals(hash('sha256', $token), (string) $player->email_confirm_token_hash));
+        $this->assertStringNotContainsString($token, $response->getContent());
+        $this->assertStringNotContainsString($token, (string) $player->email_confirm_token_hash);
 
-        Mail::assertSent(RegistrationConfirmation::class, function (RegistrationConfirmation $mail) {
+        Mail::assertSent(RegistrationConfirmation::class, function (RegistrationConfirmation $mail) use ($token) {
             return $mail->hasTo('player@example.com')
+                && str_contains($mail->confirmUrl, $token)
                 && str_starts_with($mail->confirmUrl, 'https://uat.nuvrasports.com/email/confirm/')
                 && str_starts_with($mail->statusUrl, 'https://uat.nuvrasports.com/waiting-room#t=')
                 && ! str_contains($mail->render(), 'New Player');
         });
+        $this->assertMailWasNotQueued();
     }
 
     public function test_confirmation_link_works_once_and_expires_after_24_hours(): void
@@ -67,13 +75,15 @@ class PlayerRegistrationTest extends TestCase
         $this->postSignup('player@example.com');
         $token = $this->confirmToken();
 
-        $this->postJson('/api/community/email/confirm', ['token' => $token])
-            ->assertOk()
-            ->assertExactJson(['status' => 'pending_approval']);
+        $confirm = $this->postJson('/api/community/email/confirm', ['token' => $token]);
+        $confirm->assertOk()->assertExactJson(['status' => 'pending_approval']);
+        $this->assertResponseHidesVellarId($confirm);
 
         $player = User::query()->where('contact_email', 'player@example.com')->first();
         $this->assertNotNull($player->email_verified_at);
         $this->assertNull($player->email_confirm_token_hash);
+        $this->assertNull($player->pending_contact_email);
+        $this->assertSame('registration', $player->contact_email_source);
 
         $this->postJson('/api/community/email/confirm', ['token' => $token])
             ->assertOk()
@@ -88,20 +98,25 @@ class PlayerRegistrationTest extends TestCase
         $this->postJson('/api/community/email/confirm', ['token' => $expired])
             ->assertOk()
             ->assertExactJson(['status' => 'rejected_or_expired']);
-        $this->assertNull(User::query()->where('contact_email', 'later@example.com')->value('email_verified_at'));
+        $later = User::query()->where('pending_contact_email', 'later@example.com')->first();
+        $this->assertNotNull($later);
+        $this->assertNull($later->email_verified_at);
+        $this->assertNull($later->contact_email);
+        $this->travelBack();
     }
 
     public function test_unconfirmed_players_cannot_be_approved_sign_in_or_reset(): void
     {
         Mail::fake();
         $this->postSignup('player@example.com');
-        $player = User::query()->where('contact_email', 'player@example.com')->first();
+        $player = User::query()->where('pending_contact_email', 'player@example.com')->first();
         $admin = $this->admin();
         $number = preg_replace('/\D/', '', (string) $player->vellar_id);
 
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/community/admin/approve-player/'.$player->id)
             ->assertStatus(422)
+            ->assertExactJson(['message' => 'This registration is not confirmed yet.'])
             ->assertJsonMissing(['vellar_id']);
         $this->assertSame('pending', $player->fresh()->status);
         Mail::assertNotSent(RegistrationApproved::class);
@@ -176,7 +191,7 @@ class PlayerRegistrationTest extends TestCase
     {
         Mail::fake();
         $this->postSignup('player@example.com', 'New Player');
-        $player = User::query()->where('contact_email', 'player@example.com')->first();
+        $player = User::query()->where('pending_contact_email', 'player@example.com')->first();
         $admin = $this->admin();
         $statusToken = $this->statusToken();
 
@@ -214,48 +229,66 @@ class PlayerRegistrationTest extends TestCase
 
         $this->assertSame($first->status(), $second->status());
         $this->assertSame($first->getContent(), $second->getContent());
-        $this->assertSame(1, User::query()->where('contact_email', 'player@example.com')->count());
+        $this->assertSame(1, User::query()->where('pending_contact_email', 'player@example.com')->count());
+        $this->assertSame(0, User::query()->where('contact_email', 'player@example.com')->count());
         $this->assertNull(User::query()->where('name', 'Second Player')->first());
         Mail::assertSent(RegistrationConfirmation::class, 1);
-        Mail::assertSent(RegistrationAttemptNotice::class, function (RegistrationAttemptNotice $mail) {
-            return $mail->hasTo('player@example.com')
-                && ! str_contains($mail->render(), 'Second Player')
-                && str_starts_with($mail->loginUrl, 'https://uat.nuvrasports.com/');
-        });
+        $this->assertMailWasNotQueued();
     }
 
-    public function test_register_and_resend_are_rate_limited_with_the_same_reply(): void
+    public function test_ip_limit_returns_429_and_mail_caps_stay_neutral(): void
+    {
+        Mail::fake();
+        config(['nuvra.registration_limits.register.ip.max' => 1]);
+
+        $allowed = $this->postSignup('one@example.com');
+        $allowed->assertOk()->assertExactJson(['message' => AuthMessages::REGISTER_GENERIC]);
+
+        $blockedNew = $this->postSignup('two@example.com');
+        $blockedTaken = $this->postSignup('one@example.com');
+
+        $blockedNew->assertStatus(429);
+        $blockedTaken->assertStatus(429);
+        $this->assertSame($blockedNew->getContent(), $blockedTaken->getContent());
+        $this->assertStringNotContainsString('one@example.com', $blockedNew->getContent());
+        $this->assertStringNotContainsString('two@example.com', $blockedNew->getContent());
+        $this->assertNull(User::query()->where('pending_contact_email', 'two@example.com')->first());
+        Mail::assertSent(RegistrationConfirmation::class, 1);
+        $this->assertMailWasNotQueued();
+
+        config([
+            'nuvra.registration_limits.register.ip.max' => 20,
+            'nuvra.registration_limits.resend.ip.max' => 20,
+            'nuvra.registration_limits.confirm_mail.per_email.max' => 1,
+            'nuvra.registration_limits.confirm_mail.daily.max' => 20,
+        ]);
+
+        $resend = $this->postJson('/api/community/register/resend', ['email' => 'one@example.com']);
+        $resend->assertOk()->assertExactJson(['message' => AuthMessages::RESEND_GENERIC]);
+        Mail::assertSent(RegistrationConfirmation::class, 1);
+
+        config(['nuvra.registration_limits.confirm_mail.daily.max' => 1]);
+        $global = $this->postSignup('three@example.com');
+        $this->assertSame($allowed->status(), $global->status());
+        $this->assertSame($allowed->getContent(), $global->getContent());
+        Mail::assertSent(RegistrationConfirmation::class, 1);
+        $this->assertMailWasNotQueued();
+    }
+
+    public function test_resend_replaces_the_confirmation_link(): void
     {
         Mail::fake();
         config([
-            'nuvra.registration_limits.register.ip.max' => 1,
-            'nuvra.registration_limits.register.email.max' => 5,
-            'nuvra.registration_limits.register.daily_ip.max' => 5,
-            'nuvra.registration_limits.register.daily_email.max' => 5,
-            'nuvra.registration_limits.register.daily.max' => 5,
+            'nuvra.registration_limits.confirm_mail.per_email.max' => 5,
+            'nuvra.registration_limits.confirm_mail.daily.max' => 5,
         ]);
 
-        $allowed = $this->postSignup('one@example.com');
-        $limited = $this->postSignup('two@example.com');
-
-        $this->assertSame($allowed->getContent(), $limited->getContent());
-        $this->assertSame($allowed->status(), $limited->status());
-        $this->assertNull(User::query()->where('contact_email', 'two@example.com')->first());
-        Mail::assertSent(RegistrationConfirmation::class, 1);
-
-        config([
-            'nuvra.registration_limits.resend.ip.max' => 5,
-            'nuvra.registration_limits.resend.email.max' => 1,
-            'nuvra.registration_limits.resend.daily_ip.max' => 5,
-            'nuvra.registration_limits.resend.daily_email.max' => 1,
-            'nuvra.registration_limits.resend.daily.max' => 1,
-        ]);
-
-        $firstResend = $this->postJson('/api/community/register/resend', ['email' => 'one@example.com']);
-        $secondResend = $this->postJson('/api/community/register/resend', ['email' => 'one@example.com']);
-        $firstResend->assertOk()->assertExactJson(['message' => AuthMessages::RESEND_GENERIC]);
-        $this->assertSame($firstResend->getContent(), $secondResend->getContent());
+        $this->postSignup('one@example.com');
+        $this->postJson('/api/community/register/resend', ['email' => 'one@example.com'])
+            ->assertOk()
+            ->assertExactJson(['message' => AuthMessages::RESEND_GENERIC]);
         Mail::assertSent(RegistrationConfirmation::class, 2);
+        $this->assertMailWasNotQueued();
 
         $sent = Mail::sent(RegistrationConfirmation::class);
         $old = $this->tokenFrom($sent[0]->confirmUrl, '#/email/confirm/([0-9a-f]{64})#');
@@ -265,6 +298,125 @@ class PlayerRegistrationTest extends TestCase
             ->assertExactJson(['status' => 'rejected_or_expired']);
         $this->postJson('/api/community/email/confirm', ['token' => $new])
             ->assertExactJson(['status' => 'pending_approval']);
+    }
+
+    public function test_seven_day_expiry_is_applied_when_the_signup_is_read(): void
+    {
+        Mail::fake();
+        config(['nuvra.backoff.check_status.free' => 20]);
+        $this->postSignup('old@example.com', 'Old Player');
+        $token = $this->confirmToken();
+        $status = $this->statusToken();
+        $player = User::query()->where('pending_contact_email', 'old@example.com')->first();
+        $player->forceFill([
+            'created_at' => now()->subDays(8),
+            'email_confirm_expires_at' => now()->addHour(),
+        ])->save();
+
+        $this->postJson('/api/community/email/confirm', ['token' => $token])
+            ->assertOk()
+            ->assertExactJson(['status' => 'rejected_or_expired']);
+        $player->refresh();
+        $this->assertNull($player->contact_email);
+        $this->assertNull($player->email_verified_at);
+        $this->assertNull($player->contact_email_source);
+
+        $this->actingAs($this->admin(), 'sanctum')
+            ->postJson('/api/community/admin/approve-player/'.$player->id)
+            ->assertStatus(422)
+            ->assertExactJson(['message' => 'This registration has expired. It cannot be approved.']);
+        Mail::assertNotSent(RegistrationApproved::class);
+
+        $statusResponse = $this->postJson('/api/community/check-status', ['status_token' => $status]);
+        $statusResponse->assertExactJson(['status' => 'rejected_or_expired']);
+        $this->assertResponseHidesVellarId($statusResponse);
+
+        $list = $this->actingAs($this->admin(), 'sanctum')
+            ->getJson('/api/community/admin/pending-players')
+            ->assertOk();
+        $row = collect($list->json('players'))->firstWhere('id', $player->id);
+        $this->assertTrue($row['expired']);
+        $this->assertFalse($row['email_confirmed']);
+        $this->assertStringNotContainsString('old@example.com', $list->getContent());
+        $this->assertResponseHidesVellarId($list);
+
+        $this->postJson('/api/community/register/resend', ['email' => 'old@example.com'])
+            ->assertOk()
+            ->assertExactJson(['message' => AuthMessages::RESEND_GENERIC]);
+        Mail::assertSent(RegistrationConfirmation::class, 1);
+        $this->assertNotNull($player->fresh());
+    }
+
+    public function test_confirmed_registration_email_survives_cleanup_commands(): void
+    {
+        $confirmed = User::factory()->create([
+            'name' => 'Confirmed Player',
+            'email' => 'vellar90@vellarleague.com',
+            'vellar_id' => 'VELLAR 90',
+            'role' => 'player',
+            'status' => 'active',
+            'contact_email' => 'kept@example.com',
+        ]);
+        $confirmed->forceFill([
+            'contact_email_source' => 'registration',
+            'email_verified_at' => now(),
+            'pending_contact_email' => null,
+        ])->save();
+
+        $playerSet = User::factory()->create([
+            'name' => 'Player Set',
+            'email' => 'vellar91@vellarleague.com',
+            'vellar_id' => 'VELLAR 91',
+            'role' => 'player',
+            'status' => 'active',
+            'password' => 'unique-pass-1',
+            'contact_email' => 'player.set@example.com',
+        ]);
+        $playerSet->forceFill([
+            'contact_email_source' => 'player',
+            'password_is_shared' => false,
+            'password_is_shared_verified' => true,
+        ])->save();
+
+        $unsourced = User::factory()->create([
+            'name' => 'Unsourced',
+            'email' => 'vellar92@vellarleague.com',
+            'vellar_id' => 'VELLAR 92',
+            'role' => 'player',
+            'status' => 'active',
+            'contact_email' => 'unsourced@example.com',
+        ]);
+        $unsourced->forceFill([
+            'contact_email_source' => null,
+        ])->save();
+
+        $this->recoveryChange($confirmed, '2026-01-01 00:00:00');
+        $this->recoveryChange($playerSet, '2026-01-01 00:00:00');
+
+        $this->artisan('players:clear-untrusted-contact-emails', ['--force' => true])
+            ->expectsOutputToContain('Set by registration: 1')
+            ->expectsOutputToContain('Cleared 1')
+            ->doesntExpectOutputToContain('@')
+            ->assertSuccessful();
+
+        $this->assertSame('kept@example.com', $confirmed->fresh()->contact_email);
+        $this->assertSame('registration', $confirmed->fresh()->contact_email_source);
+        $this->assertSame('player.set@example.com', $playerSet->fresh()->contact_email);
+        $this->assertNull($unsourced->fresh()->contact_email);
+
+        $this->artisan('players:repair-unset-shared-password', [
+            '--force' => true,
+            '--before' => '2026-01-02 00:00:00',
+        ])
+            ->expectsOutputToContain('Cleared 1 recovery email(s).')
+            ->doesntExpectOutputToContain('@')
+            ->assertSuccessful();
+
+        $confirmed->refresh();
+        $this->assertSame('kept@example.com', $confirmed->contact_email);
+        $this->assertSame('registration', $confirmed->contact_email_source);
+        $this->assertNull($playerSet->fresh()->contact_email);
+        $this->assertNull($playerSet->fresh()->contact_email_source);
     }
 
     public function test_expiry_deletes_only_old_unconfirmed_signups(): void
@@ -281,6 +433,8 @@ class PlayerRegistrationTest extends TestCase
         $legacy = $this->makeSignup('legacy@example.com', '85', now()->subDays(30), [
             'contact_email_source' => null,
             'email_verified_at' => null,
+            'pending_contact_email' => null,
+            'contact_email' => 'legacy@example.com',
         ]);
 
         $this->artisan('players:expire-unconfirmed-signups')
@@ -322,7 +476,7 @@ class PlayerRegistrationTest extends TestCase
         config(['nuvra.backoff.check_status.free' => 20]);
         $this->postSignup('player@example.com', 'Hidden Name');
         $token = $this->statusToken();
-        $player = User::query()->where('contact_email', 'player@example.com')->first();
+        $player = User::query()->where('pending_contact_email', 'player@example.com')->first();
 
         $pending = $this->postJson('/api/community/check-status', [
             'status_token' => $token,
@@ -330,6 +484,7 @@ class PlayerRegistrationTest extends TestCase
             'email' => 'player@example.com',
         ])->assertOk();
         $this->assertSame(['status' => 'pending_confirmation'], $pending->json());
+        $this->assertResponseHidesVellarId($pending);
         $this->assertStringNotContainsString('Hidden Name', $pending->getContent());
         $this->assertStringNotContainsString('player@example.com', $pending->getContent());
         $this->assertStringNotContainsString((string) $player->vellar_id, $pending->getContent());
@@ -380,7 +535,9 @@ class PlayerRegistrationTest extends TestCase
         ])->assertOk();
 
         $player = User::query()->where('name', 'New Player')->first();
-        $this->assertSame('player@example.com', $player->contact_email);
+        $this->assertSame('player@example.com', $player->pending_contact_email);
+        $this->assertNull($player->contact_email);
+        $this->assertNull(User::query()->where('pending_contact_email', 'other@example.com')->first());
         $this->assertNull(User::query()->where('contact_email', 'other@example.com')->first());
     }
 
@@ -402,7 +559,7 @@ class PlayerRegistrationTest extends TestCase
             ->assertOk();
 
         $this->postSignup('other@example.com');
-        $other = User::query()->where('contact_email', 'other@example.com')->first();
+        $other = User::query()->where('pending_contact_email', 'other@example.com')->first();
         $this->actingAs($this->admin(), 'sanctum')
             ->deleteJson('/api/community/admin/reject-player/'.$other->id)
             ->assertOk();
@@ -486,7 +643,9 @@ class PlayerRegistrationTest extends TestCase
         $this->assertCount(4, $rows);
         $this->assertCount(4, $rows->pluck('vellar_id')->unique());
         $this->assertCount(4, $rows->pluck('email')->unique());
-        $this->assertCount(4, $rows->pluck('contact_email')->unique());
+        $this->assertCount(4, $rows->pluck('pending_contact_email')->unique());
+        $this->assertTrue($rows->every(fn ($row) => $row->contact_email === null));
+        $this->assertTrue($rows->every(fn ($row) => $row->contact_email_source === null));
 
         foreach (glob($path.'*') ?: [] as $file) {
             @unlink($file);
@@ -518,6 +677,39 @@ class PlayerRegistrationTest extends TestCase
             $this->assertStringNotContainsString('Your Vellar ID', $source, $file);
             $this->assertStringNotContainsString('vellar_number', $source, $file);
         }
+    }
+
+    private function assertResponseHidesVellarId(\Illuminate\Testing\TestResponse $response): void
+    {
+        $body = strtolower($response->getContent());
+        $this->assertDoesNotMatchRegularExpression('/vellar\s*\d+/', $body);
+        $this->assertStringNotContainsString('vellar_id', $body);
+        $this->assertStringNotContainsString('@vellarleague.com', $body);
+    }
+
+    private function assertMailWasNotQueued(): void
+    {
+        Mail::assertNothingQueued();
+        $this->assertSame(0, DB::table('jobs')->count());
+        foreach ([
+            RegistrationConfirmation::class,
+            RegistrationApproved::class,
+            RegistrationRejected::class,
+            DeliverRegistrationMail::class,
+        ] as $class) {
+            $this->assertNotContains(ShouldQueue::class, class_implements($class));
+        }
+    }
+
+    private function recoveryChange(User $player, string $at): void
+    {
+        $change = ContactEmailChange::query()->create([
+            'player_id' => $player->id,
+            'old_email_masked' => 'a***@example.com',
+            'new_email_masked' => 'b***@example.com',
+            'ip_address' => '127.0.0.1',
+        ]);
+        $change->forceFill(['created_at' => $at])->save();
     }
 
     private function postSignup(string $email, string $name = 'New Player'): \Illuminate\Testing\TestResponse
@@ -584,20 +776,30 @@ class PlayerRegistrationTest extends TestCase
      */
     private function makeSignup(string $email, string $number, \Illuminate\Support\Carbon $createdAt, array $overrides = []): User
     {
-        $user = User::factory()->create(array_merge([
+        $verified = array_key_exists('email_verified_at', $overrides) ? $overrides['email_verified_at'] : null;
+        $status = $overrides['status'] ?? 'pending';
+        $source = array_key_exists('contact_email_source', $overrides)
+            ? $overrides['contact_email_source']
+            : ($verified !== null ? 'registration' : null);
+        $pending = array_key_exists('pending_contact_email', $overrides)
+            ? $overrides['pending_contact_email']
+            : ($verified === null && $status === 'pending' && $source === null ? $email : null);
+        $contact = array_key_exists('contact_email', $overrides)
+            ? $overrides['contact_email']
+            : ($pending === null ? $email : null);
+
+        $user = User::factory()->create([
             'name' => 'Player '.$number,
             'email' => 'vellar'.$number.'@vellarleague.com',
             'vellar_id' => 'VELLAR '.$number,
             'role' => 'player',
-            'status' => 'pending',
-            'contact_email' => $email,
-            'email_verified_at' => null,
-        ], $overrides));
-        $source = array_key_exists('contact_email_source', $overrides)
-            ? $overrides['contact_email_source']
-            : 'player';
+            'status' => $status,
+            'contact_email' => $contact,
+            'email_verified_at' => $verified,
+        ]);
         $user->forceFill([
             'contact_email_source' => $source,
+            'pending_contact_email' => $pending,
             'created_at' => $createdAt,
         ])->save();
 
