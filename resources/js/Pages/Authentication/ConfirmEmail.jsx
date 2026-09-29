@@ -1,14 +1,30 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+function confirmTokenFromLocation() {
+    const raw = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+    const token = new URLSearchParams(raw).get('t') || '';
+    return /^[0-9a-f]{64}$/i.test(token) ? token : '';
+}
 
 const ConfirmEmail = () => {
-    const { token } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
-    const [state, setState] = useState('ready');
+    const initialToken = confirmTokenFromLocation();
+    const [token, setToken] = useState(initialToken);
+    const [state, setState] = useState(initialToken ? 'ready' : 'invalid');
     const [notice, setNotice] = useState('');
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fromHash = confirmTokenFromLocation();
+        setToken(fromHash);
+        if (!fromHash) {
+            setState('invalid');
+        }
+    }, [location.hash]);
 
     const confirm = async () => {
         setState('working');
@@ -51,7 +67,7 @@ const ConfirmEmail = () => {
             )}
             {state === 'invalid' && (
                 <>
-                    <p style={S.text}>This confirmation link is invalid or has expired.</p>
+                    <p style={S.text}>This confirmation link is invalid or has expired. If the registration is still open, ask for a new confirmation. If nothing arrives, sign up again.</p>
                     <form onSubmit={resend} style={S.form}>
                         <input
                             type="email"
@@ -65,6 +81,7 @@ const ConfirmEmail = () => {
                     </form>
                     {error && <p style={S.text}>{error}</p>}
                     {notice && <p style={S.text}>{notice}</p>}
+                    <button type="button" style={S.button} onClick={() => navigate('/login?signup=1')}>Sign up again</button>
                 </>
             )}
         </div>

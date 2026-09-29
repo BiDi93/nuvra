@@ -18,18 +18,22 @@ class SafeMail
         dispatch(new DeliverRegistrationMail($playerId, $address, $mail, $label))->afterResponse();
     }
 
-    public static function now(int $playerId, string $address, Mailable $mail, string $label): void
+    public static function now(int $playerId, string $address, Mailable $mail, string $label): bool
     {
-        self::deliver($playerId, $address, $mail, $label);
+        return self::deliver($playerId, $address, $mail, $label);
     }
 
-    private static function deliver(int $playerId, string $address, Mailable $mail, string $label): void
+    private static function deliver(int $playerId, string $address, Mailable $mail, string $label): bool
     {
         try {
             Mail::to($address)->send($mail);
             Log::info($label.' sent.', ['player_id' => $playerId]);
+
+            return true;
         } catch (\Throwable $e) {
             Log::error($label.' failed.', ['player_id' => $playerId]);
+
+            return false;
         }
     }
 }

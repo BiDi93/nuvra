@@ -37,7 +37,7 @@ function App() {
                 <Route path="/" element={<NuvraPortal />} />
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/waiting-room" element={<WaitingRoom />} />
-                <Route path="/email/confirm/:token" element={<ConfirmEmail />} />
+                <Route path="/email/confirm" element={<ConfirmEmail />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
                 {/* =========================================

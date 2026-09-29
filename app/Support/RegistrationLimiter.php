@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 
 class RegistrationLimiter
@@ -28,18 +29,26 @@ class RegistrationLimiter
      */
     public function confirmMailBlocked(string $email): bool
     {
-        foreach ($this->mailBuckets($email) as [$key, $max]) {
-            if (RateLimiter::tooManyAttempts($key, $max)) {
-                return true;
+        $blocked = false;
+
+        foreach ($this->mailBuckets($email) as [$configKey, $key, $max]) {
+            if (! RateLimiter::tooManyAttempts($key, $max)) {
+                continue;
+            }
+
+            $blocked = true;
+
+            if (str_ends_with($configKey, '.daily')) {
+                Log::warning('Registration confirm mail cap reached.');
             }
         }
 
-        return false;
+        return $blocked;
     }
 
     public function hitConfirmMail(string $email): void
     {
-        foreach ($this->mailBuckets($email) as [$key, $max, $decay]) {
+        foreach ($this->mailBuckets($email) as [, $key, , $decay]) {
             RateLimiter::hit($key, $decay);
         }
     }
@@ -63,20 +72,43 @@ class RegistrationLimiter
     }
 
     /**
-     * @return list<array{0: string, 1: int, 2: int}>
+     * The cap key ignores letter case and a +tag on the local part.
+     * The address stored on the player is left unchanged.
+     */
+    private function addressCapKey(string $email): string
+    {
+        $email = strtolower(trim($email));
+        $at = strrpos($email, '@');
+
+        if ($at === false) {
+            return $email;
+        }
+
+        $local = substr($email, 0, $at);
+        $plus = strpos($local, '+');
+
+        if ($plus !== false) {
+            $local = substr($local, 0, $plus);
+        }
+
+        return $local.'@'.substr($email, $at + 1);
+    }
+
+    /**
+     * @return list<array{0: string, 1: string, 2: int, 3: int}>
      */
     private function mailBuckets(string $email): array
     {
         $buckets = [];
 
         foreach ([
-            'nuvra.registration_limits.confirm_mail.per_email' => $email,
+            'nuvra.registration_limits.confirm_mail.per_email' => $this->addressCapKey($email),
             'nuvra.registration_limits.confirm_mail.daily' => 'all',
         ] as $configKey => $value) {
             $bucket = $this->bucket($configKey, $value);
 
             if ($bucket !== null) {
-                $buckets[] = $bucket;
+                $buckets[] = [$configKey, $bucket[0], $bucket[1], $bucket[2]];
             }
         }
 

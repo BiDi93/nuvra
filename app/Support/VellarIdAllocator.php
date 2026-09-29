@@ -104,7 +104,7 @@ class VellarIdAllocator
 
     private function isContactEmailConflict(QueryException $e): bool
     {
-        return str_contains($e->getMessage(), 'contact_email');
+        return UniqueConstraint::isInbox($e);
     }
 
     private function isRetryable(QueryException $e): bool

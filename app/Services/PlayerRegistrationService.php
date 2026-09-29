@@ -13,6 +13,7 @@ use App\Support\EmailMask;
 use App\Support\PlayerContact;
 use App\Support\RegistrationLimiter;
 use App\Support\SafeMail;
+use App\Support\UniqueConstraint;
 use App\Support\VellarIdAllocator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -62,41 +63,38 @@ class PlayerRegistrationService
         $this->limits->hitIp('register', $request->ip());
 
         if ($existing) {
-            $this->noticeForExisting($existing, $email);
-
-            return $this->generic();
+            return $this->answerForExisting(
+                $existing,
+                $request,
+                $email,
+                $passwordHash,
+                $confirmPlain,
+                $statusPlain,
+                $confirmHash,
+                $statusHash,
+            );
         }
 
         try {
-            $user = $this->ids->create([
-                'name' => $request->string('name')->trim()->toString(),
-                'password' => $passwordHash,
-                'role' => 'player',
-                'status' => 'pending',
-                'phone' => filled($request->phone) ? $request->phone : null,
-                'position' => filled($request->position) ? $request->position : null,
-            ], function (User $user) use ($email, $confirmHash, $statusHash) {
-                $user->forceFill([
-                    'pending_contact_email' => $email,
-                    'contact_email' => null,
-                    'contact_email_source' => null,
-                    'email_verified_at' => null,
-                    'email_confirm_token_hash' => $confirmHash,
-                    'email_confirm_expires_at' => now()->addHours($this->confirmHours()),
-                    'status_token' => $statusHash,
-                ])->save();
-            });
+            $user = $this->createSignup($request, $passwordHash, $email, $confirmHash, $statusHash);
         } catch (QueryException $e) {
             if (! $this->isInboxConflict($e)) {
-                Log::error('Registration could not be stored.');
-
-                return $this->generic();
+                throw $e;
             }
 
             $again = $this->findByInbox($email);
 
             if ($again) {
-                $this->noticeForExisting($again, $email);
+                return $this->answerForExisting(
+                    $again,
+                    $request,
+                    $email,
+                    $passwordHash,
+                    $confirmPlain,
+                    $statusPlain,
+                    $confirmHash,
+                    $statusHash,
+                );
             }
 
             return $this->generic();
@@ -133,7 +131,19 @@ class PlayerRegistrationService
 
         $this->limits->hitIp('resend', $request->ip());
 
-        if (! $existing || ! $existing->mustConfirmRegistrationEmail() || $existing->registrationIsExpired()) {
+        if ($existing?->registrationIsExpired()) {
+            DB::transaction(function () use ($existing) {
+                $locked = User::query()->lockForUpdate()->find($existing->id);
+
+                if ($locked && $locked->registrationIsExpired()) {
+                    $locked->delete();
+                }
+            });
+
+            return $this->resendGeneric();
+        }
+
+        if (! $existing || ! $existing->mustConfirmRegistrationEmail()) {
             return $this->resendGeneric();
         }
 
@@ -203,8 +213,12 @@ class PlayerRegistrationService
                     'email_confirm_token_hash' => null,
                     'email_confirm_expires_at' => null,
                 ])->save();
-            } catch (QueryException) {
-                Log::error('Registration confirmation could not be stored.');
+            } catch (QueryException $e) {
+                Log::error('Registration confirmation could not be stored.', ['player_id' => $user->id]);
+
+                if (! UniqueConstraint::isInbox($e)) {
+                    throw $e;
+                }
 
                 return false;
             }
@@ -215,12 +229,12 @@ class PlayerRegistrationService
         return $confirmed ? 'pending_approval' : 'rejected_or_expired';
     }
 
-    public function sendApproval(User $user): void
+    public function sendApproval(User $user): bool
     {
         if ($user->contact_email_source !== 'registration' || $user->email_verified_at === null) {
             Log::error('Registration approval email skipped.', ['player_id' => $user->id]);
 
-            return;
+            return false;
         }
 
         $email = PlayerContact::usableEmail($user->contact_email);
@@ -229,10 +243,10 @@ class PlayerRegistrationService
         if ($email === null || $number === '') {
             Log::error('Registration approval email skipped.', ['player_id' => $user->id]);
 
-            return;
+            return false;
         }
 
-        SafeMail::now(
+        return SafeMail::now(
             $user->id,
             $email,
             new RegistrationApproved($number, $this->loginUrl()),
@@ -242,8 +256,11 @@ class PlayerRegistrationService
 
     public function sendRejection(User $user): void
     {
-        $email = PlayerContact::usableEmail($user->contact_email)
-            ?? PlayerContact::usableEmail($user->pending_contact_email);
+        if ($user->contact_email_source !== 'registration' || $user->email_verified_at === null) {
+            return;
+        }
+
+        $email = PlayerContact::usableEmail($user->contact_email);
 
         if ($email === null) {
             Log::error('Registration rejection email skipped.', ['player_id' => $user->id]);
@@ -293,9 +310,9 @@ class PlayerRegistrationService
     }
 
     /**
-     * A repeat signup never creates a second account and never copies the
-     * new form onto the existing one. A still-pending signup gets a new
-     * link. An approved player gets only the account notice.
+     * A still-open pending signup gets a new link on the same row.
+     * An approved player gets only the account notice.
+     * An expired unconfirmed row is replaced by the caller, not here.
      */
     private function noticeForExisting(User $user, string $email): void
     {
@@ -376,7 +393,7 @@ class PlayerRegistrationService
             $user->id,
             $email,
             new RegistrationConfirmation(
-                $base.'/email/confirm/'.$confirmPlain,
+                $base.'/email/confirm#t='.$confirmPlain,
                 $base.'/waiting-room#t='.$statusPlain,
                 $this->confirmHours(),
             ),
@@ -400,12 +417,100 @@ class PlayerRegistrationService
         hash_equals($stored ?? hash('sha256', 'registration-absent'), $presentedHash);
     }
 
+    private function answerForExisting(
+        User $existing,
+        Request $request,
+        string $email,
+        string $passwordHash,
+        string $confirmPlain,
+        string $statusPlain,
+        string $confirmHash,
+        string $statusHash,
+    ): JsonResponse {
+        if (! $existing->registrationIsExpired()) {
+            $this->noticeForExisting($existing, $email);
+
+            return $this->generic();
+        }
+
+        try {
+            $user = $this->replaceExpiredSignup($existing, $email, $request, $passwordHash, $confirmHash, $statusHash);
+        } catch (QueryException $e) {
+            if (! $this->isInboxConflict($e)) {
+                throw $e;
+            }
+
+            $user = null;
+        }
+
+        if ($user) {
+            $this->sendConfirmation($user, $email, $confirmPlain, $statusPlain);
+
+            return $this->generic();
+        }
+
+        $again = $this->findByInbox($email);
+
+        if ($again && ! $again->registrationIsExpired()) {
+            $this->noticeForExisting($again, $email);
+        }
+
+        return $this->generic();
+    }
+
+    private function replaceExpiredSignup(
+        User $existing,
+        string $email,
+        Request $request,
+        string $passwordHash,
+        string $confirmHash,
+        string $statusHash,
+    ): ?User {
+        return DB::transaction(function () use ($existing, $email, $request, $passwordHash, $confirmHash, $statusHash) {
+            $locked = User::query()->lockForUpdate()->find($existing->id);
+
+            if ($locked && $locked->registrationIsExpired()) {
+                $locked->delete();
+            }
+
+            if ($this->findByInbox($email)) {
+                return null;
+            }
+
+            return $this->createSignup($request, $passwordHash, $email, $confirmHash, $statusHash);
+        });
+    }
+
+    private function createSignup(
+        Request $request,
+        string $passwordHash,
+        string $email,
+        string $confirmHash,
+        string $statusHash,
+    ): User {
+        return $this->ids->create([
+            'name' => $request->string('name')->trim()->toString(),
+            'password' => $passwordHash,
+            'role' => 'player',
+            'status' => 'pending',
+            'phone' => filled($request->phone) ? $request->phone : null,
+            'position' => filled($request->position) ? $request->position : null,
+        ], function (User $user) use ($email, $confirmHash, $statusHash) {
+            $user->forceFill([
+                'pending_contact_email' => $email,
+                'contact_email' => null,
+                'contact_email_source' => null,
+                'email_verified_at' => null,
+                'email_confirm_token_hash' => $confirmHash,
+                'email_confirm_expires_at' => now()->addHours($this->confirmHours()),
+                'status_token' => $statusHash,
+            ])->save();
+        });
+    }
+
     private function isInboxConflict(QueryException $e): bool
     {
-        $message = $e->getMessage();
-
-        return str_contains($message, 'pending_contact_email')
-            || str_contains($message, 'contact_email');
+        return UniqueConstraint::isInbox($e);
     }
 
     private function generic(): JsonResponse

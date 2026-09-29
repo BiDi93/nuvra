@@ -59,6 +59,29 @@ export default function CommunityMembers() {
         }
     };
 
+    const removePlayer = async (member, e) => {
+        if (e) e.stopPropagation();
+        if (!window.confirm(`Remove ${member.name} from the league? This sends no email.`)) return;
+        const token = localStorage.getItem("community_token") || localStorage.getItem("auth_token");
+        try {
+            const res = await fetch(`${API}/admin/players/${member.id}`, {
+                method: "DELETE",
+                headers: {
+                    Accept: "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                window.alert(data.message || "Could not remove that player.");
+                return;
+            }
+            setMembers((prev) => prev.filter((row) => row.id !== member.id));
+        } catch {
+            window.alert("Could not remove that player.");
+        }
+    };
+
     const openEditModal = async (member, e) => {
         if (e) e.stopPropagation();
         setSelectedMember(member);
@@ -255,6 +278,13 @@ export default function CommunityMembers() {
                                         onClick={(e) => openEditModal(m, e)}
                                     >
                                         <IconPencil size={12} /> Edit Stats
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={S.removePlayerBtn}
+                                        onClick={(e) => removePlayer(m, e)}
+                                    >
+                                        Remove player
                                     </button>
                                 </div>
                             )}
@@ -501,7 +531,22 @@ const S = {
         marginTop: 14,
         width: "100%",
         display: "flex",
-        justifyContent: "center",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+    },
+    removePlayerBtn: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 14px",
+        borderRadius: 8,
+        background: "transparent",
+        color: "#ffb4b4",
+        border: "1px solid rgba(255, 120, 120, 0.35)",
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: "pointer",
     },
     quickEditBtn: {
         display: "inline-flex",

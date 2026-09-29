@@ -40,11 +40,11 @@ const AdminPendingPlayers = () => {
     const handleApprove = async (player) => {
         setActionId(player.id);
         try {
-            await axios.post(`/api/community/admin/approve-player/${player.id}`, {}, {
+            const res = await axios.post(`/api/community/admin/approve-player/${player.id}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setPlayers(prev => prev.filter(p => p.id !== player.id));
-            showToast('success', `${player.name} has been approved. Their Vellar ID is emailed to them.`);
+            showToast('success', res.data.message);
         } catch (err) {
             showToast('error', err.response?.data?.message || 'Failed to approve player. Please try again.');
         } finally {

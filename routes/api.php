@@ -99,6 +99,7 @@ Route::prefix('community')->group(function () {
         Route::get('/admin/pending-players', [CommunityAuthController::class, 'pendingPlayers']);
         Route::post('/admin/approve-player/{id}', [CommunityAuthController::class, 'approvePlayer']);
         Route::delete('/admin/reject-player/{id}', [CommunityAuthController::class, 'rejectPlayer']);
+        Route::delete('/admin/players/{id}', [CommunityAuthController::class, 'deletePlayer']);
         Route::post('/admin/players/{id}/activation-code', [CommunityPasswordResetController::class, 'issueActivationCode']);
         Route::get('/admin/qa-tools', [QaTestPlayerController::class, 'show']);
         Route::post('/admin/qa-tools/test-players', [QaTestPlayerController::class, 'store']);

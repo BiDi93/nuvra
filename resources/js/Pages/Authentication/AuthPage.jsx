@@ -25,7 +25,7 @@ const AuthPage = () => {
     const [searchParams] = useSearchParams();
     const [imgIndex, setImgIndex]     = useState(0);
     const [fade, setFade]             = useState(true);
-    const [view, setView]             = useState(searchParams.get('reset') ? 'reset' : 'login'); // 'login' | 'signup' | 'success' | 'reset'
+    const [view, setView]             = useState(searchParams.get('reset') ? 'reset' : (searchParams.get('signup') ? 'signup' : 'login')); // 'login' | 'signup' | 'success' | 'reset'
     const [loading, setLoading]       = useState(false);
     const [error, setError]           = useState('');
     const [successData, setSuccessData] = useState(null); // For post-register success screen

@@ -296,21 +296,31 @@ class CommunityAuthController extends Controller
 
         $player->update(['status' => 'active']);
         $registration->writeAudit($player, $request->user(), 'approve');
-        $registration->sendApproval($player);
+        $emailSent = $registration->sendApproval($player->fresh());
+        $message = $emailSent
+            ? "Player {$player->name} has been approved. Their Vellar ID is emailed to them."
+            : "Player {$player->name} has been approved. The Vellar ID email was not sent.";
 
         return response()->json([
-            'message' => "Player {$player->name} has been approved.",
+            'message' => $message,
+            'email_sent' => $emailSent,
             'player' => $player->only(['id', 'name', 'position', 'status']),
         ]);
     }
 
-    // Reject / delete player
+    // Reject a pending registration. Active players use deletePlayer.
     public function rejectPlayer(Request $request, $id)
     {
         $player = User::findOrFail($id);
 
         if (! $request->user()->can('reviewRegistration', $player)) {
             return response()->json(['message' => 'Access denied.'], 403);
+        }
+
+        if ($player->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only a pending registration can be rejected.',
+            ], 422);
         }
 
         $registration = app(PlayerRegistrationService::class);
@@ -321,6 +331,31 @@ class CommunityAuthController extends Controller
 
         return response()->json([
             'message' => "Player {$name} has been rejected and removed.",
+        ]);
+    }
+
+    // Remove an active player. No email is sent. The audit row has no foreign key.
+    public function deletePlayer(Request $request, $id)
+    {
+        $player = User::findOrFail($id);
+
+        if (! $request->user()->can('deletePlayer', $player)) {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
+        if ($player->status !== 'active') {
+            return response()->json([
+                'message' => 'Only an active player can be removed this way.',
+            ], 422);
+        }
+
+        $registration = app(PlayerRegistrationService::class);
+        $name = $player->name;
+        $registration->writeAudit($player, $request->user(), 'delete');
+        $player->delete();
+
+        return response()->json([
+            'message' => "Player {$name} has been removed.",
         ]);
     }
 
