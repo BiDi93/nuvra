@@ -1071,7 +1071,7 @@ class PlayerRegistrationTest extends TestCase
 
         $members = file_get_contents(resource_path('js/Pages/Community/CommunityMembers.jsx'));
         $this->assertStringContainsString(
-            "Permanently remove this player? This can't be undone and deletes their stats and profile. No email is sent.",
+            'Permanently remove ${member.name}? This can\'t be undone and deletes their stats and profile. No email is sent.',
             $members
         );
     }
