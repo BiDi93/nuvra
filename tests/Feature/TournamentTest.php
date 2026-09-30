@@ -79,4 +79,38 @@ class TournamentTest extends TestCase
                      'status' => 'completed'
                  ]);
     }
+
+    public function test_player_cannot_update_or_delete_a_fixture(): void
+    {
+        $player = User::create([
+            'name' => 'Player',
+            'email' => 'player@test.com',
+            'password' => bcrypt('password'),
+            'role' => 'player',
+            'status' => 'active',
+        ]);
+
+        $match = FootballMatch::create([
+            'gameweek'       => 'Matchweek 1',
+            'home_team_name' => 'Team A',
+            'away_team_name' => 'Team B',
+            'match_date'     => now()->toDateString(),
+            'match_time'     => '20:00:00',
+            'venue'          => 'Test Arena',
+            'status'         => 'scheduled',
+        ]);
+
+        $this->actingAs($player, 'sanctum')
+             ->patchJson("/api/community/matches/{$match->id}/score", [
+                 'home_score' => 9,
+                 'away_score' => 0,
+             ])
+             ->assertStatus(403);
+
+        $this->actingAs($player, 'sanctum')
+             ->deleteJson("/api/community/matches/{$match->id}")
+             ->assertStatus(403);
+
+        $this->assertDatabaseHas('matches', ['id' => $match->id, 'home_score' => null]);
+    }
 }

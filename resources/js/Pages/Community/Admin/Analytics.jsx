@@ -38,11 +38,16 @@ function NotificationItem({ icon, message, time }) {
 }
 
 export default function Analytics() {
+    const user = JSON.parse(localStorage.getItem("community_user") || "null");
     const [stats, setStats] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!user || user.role !== "admin") {
+            setLoading(false);
+            return;
+        }
         const token = localStorage.getItem("community_token");
         fetch(`${API}/analytics`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -54,6 +59,14 @@ export default function Analytics() {
             })
             .finally(() => setLoading(false));
     }, []);
+
+    if (!user || user.role !== "admin") {
+        return (
+            <div style={{ color: "var(--text-primary)", fontFamily: "Inter, sans-serif", padding: 24 }}>
+                Access denied. Admin only.
+            </div>
+        );
+    }
 
     return (
         <div style={S.container}>

@@ -22,10 +22,19 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# macOS metadata, including AppleDouble files from external drives
+._*
+.!*
+# Expect deploy scripts. Do not commit these; they have contained live credentials.
+*.exp
+# Live SQLite database (UAT). The deploy workflow keeps the server copy in place.
+/nuvra_db
+*.sqlite
+*.sqlite-journal
+*.sqlite3
 # Technical documentation
 TECHNICAL_DOCUMENT.md
 TECHNICAL_DOCUMENT.docx
-/.force_deploy_vm.exp
 
 # AI assistant files
 .claude/

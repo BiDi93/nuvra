@@ -3,34 +3,78 @@ import { useNavigate } from "react-router-dom";
 import PageLoader from "../Components/PageLoader";
 
 // ── Count-up hook ──────────────────────────────────────────────────────────────
-function useCountUp(target, duration = 2000) {
+// The previous observer used a 0.4 threshold and never wrote the target if it
+// missed, so the landing counters stayed on the initial "0+". The real total
+// is applied immediately; the animation only runs once the card is on screen.
+function useCountUp(target, enabled) {
     const [count, setCount] = useState(0);
     const ref = useRef(null);
     useEffect(() => {
-        const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) {
-                let start = 0;
-                const step = target / (duration / 16);
-                const timer = setInterval(() => {
-                    start += step;
-                    if (start >= target) { setCount(target); clearInterval(timer); }
-                    else setCount(Math.floor(start));
-                }, 16);
-                observer.disconnect();
-            }
-        }, { threshold: 0.4 });
-        if (ref.current) observer.observe(ref.current);
-        return () => observer.disconnect();
-    }, [target, duration]);
+        if (!enabled) {
+            setCount(0);
+            return;
+        }
+
+        setCount(target);
+
+        let raf = 0;
+        let started = false;
+        let stopped = false;
+
+        const animate = () => {
+            if (started || stopped) return;
+            started = true;
+            const duration = 1100;
+            let startTime = 0;
+            const step = (now) => {
+                if (stopped) return;
+                if (!startTime) startTime = now;
+                const t = Math.min((now - startTime) / duration, 1);
+                const eased = 1 - Math.pow(1 - t, 3);
+                setCount(Math.round(target * eased));
+                if (t < 1) raf = requestAnimationFrame(step);
+            };
+            raf = requestAnimationFrame(step);
+        };
+
+        const el = ref.current;
+        const visible = () => {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            return rect.height > 0 && rect.top < window.innerHeight * 0.95 && rect.bottom > 0;
+        };
+
+        let observer;
+        if (el && typeof IntersectionObserver !== "undefined") {
+            observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) animate();
+            }, { threshold: 0.05 });
+            observer.observe(el);
+        }
+
+        const onScroll = () => { if (visible()) animate(); };
+        document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+        const timer = setTimeout(onScroll, 800);
+        if (visible()) animate();
+
+        return () => {
+            stopped = true;
+            cancelAnimationFrame(raf);
+            observer?.disconnect();
+            document.removeEventListener("scroll", onScroll, { capture: true });
+            clearTimeout(timer);
+        };
+    }, [target, enabled]);
     return { count, ref };
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
 function StatCard({ value, suffix = "", label }) {
-    const { count, ref } = useCountUp(value);
+    const ready = typeof value === "number";
+    const { count, ref } = useCountUp(ready ? value : 0, ready);
     return (
         <div ref={ref} style={S.statCard}>
-            <span style={S.statNumber}>{count.toLocaleString()}{suffix}</span>
+            <span style={S.statNumber}>{ready ? `${count.toLocaleString()}${suffix}` : "—"}</span>
             <span style={S.statLabel}>{label}</span>
         </div>
     );
@@ -122,11 +166,23 @@ function GalleryStrip() {
 export default function NuvraPortal() {
     const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
+    const [stats, setStats] = useState(null);
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 60);
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch("/api/community/public-stats", { headers: { Accept: "application/json" } })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (!cancelled && data) setStats(data);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
     }, []);
 
     return (
@@ -177,9 +233,9 @@ export default function NuvraPortal() {
 
             <section style={S.statsSection}>
                 <div className="portal-stats-inner" style={S.statsInner}>
-                    <StatCard value={1000} suffix="+" label="Registered Players" />
-                    <StatCard value={50} suffix="+" label="Active Tournaments" />
-                    <StatCard value={120} suffix="+" label="Football Teams" />
+                    <StatCard value={stats?.players} suffix="+" label="Registered Players" />
+                    <StatCard value={stats?.leagues} suffix="+" label="Active Tournaments" />
+                    <StatCard value={stats?.teams} suffix="+" label="Football Teams" />
                 </div>
             </section>
 
@@ -228,9 +284,9 @@ const S = {
     btnSecondaryHero: { padding: "16px 40px", background: "transparent", color: "#F5F5F7", border: "1px solid #2a2a30", borderRadius: 4, fontSize: 14, fontWeight: 800, cursor: "pointer" },
     statsSection: { background: "#0f0f13", borderY: "1px solid #222228", padding: "60px 24px" },
     statsInner: { display: "flex", justifyContent: "center", gap: 40, maxWidth: 1000, margin: "0 auto" },
-    statCard: { textAlign: "center" },
-    statNumber: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 48, fontWeight: 700, color: "#00D4EC" },
-    statLabel: { fontSize: 12, color: "#72727e", textTransform: "uppercase", letterSpacing: 1 },
+    statCard: { textAlign: "center", minWidth: 180 },
+    statNumber: { display: "block", fontFamily: "'Barlow Condensed', sans-serif", fontSize: 48, fontWeight: 700, color: "#00D4EC" },
+    statLabel: { display: "block", marginTop: 6, fontSize: 12, color: "#72727e", textTransform: "uppercase", letterSpacing: 1 },
     section: { padding: "100px 24px", maxWidth: 1100, margin: "0 auto" },
     sectionTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 40, fontWeight: 700, textTransform: "uppercase" },
     stepsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, marginTop: 40 },

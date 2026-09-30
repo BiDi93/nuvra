@@ -100,10 +100,13 @@ class CommunityGameController extends Controller
     }
 
     // Get Public Profile of another player
-    public function memberProfile($id)
+    public function memberProfile(Request $request, $id)
     {
         $user = User::find($id);
         if (!$user) return response()->json(['message' => 'User not found'], 404);
+
+        $viewer = $request->user('sanctum');
+        $canSeeContact = $viewer && ((int) $viewer->id === (int) $user->id || $viewer->role === 'admin');
 
         $stats = DB::table('performances')
             ->where('user_id', $user->id)
@@ -158,24 +161,30 @@ class CommunityGameController extends Controller
             ]);
         }
 
+        $publicUser = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'avatar' => $user->avatar,
+            'role' => $user->role,
+            'vellar_id' => $user->vellar_id,
+            'position' => $user->position,
+            'club_name' => $user->club_name,
+            'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
+            'club_logo' => $user->club_logo,
+            'stat_matches' => $user->stat_matches,
+            'stat_goals' => $user->stat_goals,
+            'stat_assists' => $user->stat_assists,
+            'stat_rating' => $user->stat_rating,
+            'stat_clean_sheets' => $user->stat_clean_sheets,
+        ];
+
+        if ($canSeeContact) {
+            $publicUser['phone'] = $user->phone;
+            $publicUser['address'] = $user->address;
+        }
+
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'avatar' => $user->avatar,
-                'role' => $user->role,
-                'vellar_id' => $user->vellar_id,
-                'position' => $user->position,
-                'club_name' => $user->club_name,
-                'phone' => $user->phone,
-                'joined' => $user->created_at ? $user->created_at->format('M Y') : 'N/A',
-                'club_logo' => $user->club_logo,
-                'stat_matches' => $user->stat_matches,
-                'stat_goals' => $user->stat_goals,
-                'stat_assists' => $user->stat_assists,
-                'stat_rating' => $user->stat_rating,
-                'stat_clean_sheets' => $user->stat_clean_sheets,
-            ],
+            'user' => $publicUser,
             'stats' => [
                 'total_matches' => $totalMatches,
                 'total_goals' => $totalGoals,

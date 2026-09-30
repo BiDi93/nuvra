@@ -252,4 +252,77 @@ class CommunityTest extends TestCase
         $this->assertEquals('VELLAR 100', $this->user->vellar_id);
         $this->assertEquals('player', $this->user->role);
     }
+
+    public function test_public_stats_count_players_leagues_and_teams(): void
+    {
+        \App\Models\Tournament::create([
+            'name' => 'Active Cup',
+            'format' => 'league',
+            'venue' => 'Arena',
+            'status' => 'active',
+        ]);
+        \App\Models\Tournament::create([
+            'name' => 'Finished Cup',
+            'format' => 'league',
+            'venue' => 'Arena',
+            'status' => 'completed',
+        ]);
+        \App\Models\TournamentTeam::create([
+            'tournament_id' => 1,
+            'name' => 'HFRENZ FC',
+        ]);
+
+        $response = $this->getJson('/api/community/public-stats');
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'players' => 1,
+                     'leagues' => 1,
+                     'teams' => 1,
+                 ]);
+    }
+
+    public function test_player_cannot_view_admin_analytics(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+             ->getJson('/api/community/analytics')
+             ->assertStatus(403);
+    }
+
+    public function test_admin_notification_bell_includes_recent_registrations(): void
+    {
+        $response = $this->actingAs($this->owner, 'sanctum')
+                         ->getJson('/api/community/notifications');
+
+        $response->assertStatus(200);
+        $messages = collect($response->json('notifications'))->pluck('data.message');
+        $this->assertTrue($messages->contains("New player registered: {$this->user->name}"));
+    }
+
+    public function test_player_notification_bell_does_not_list_other_registrations(): void
+    {
+        $response = $this->actingAs($this->user, 'sanctum')
+                         ->getJson('/api/community/notifications');
+
+        $response->assertStatus(200)->assertJson(['notifications' => []]);
+    }
+
+    public function test_public_profile_hides_phone_from_other_viewers(): void
+    {
+        $this->user->update(['phone' => '0123000111']);
+
+        $this->getJson("/api/community/members/{$this->user->id}")
+             ->assertStatus(200)
+             ->assertJsonMissingPath('user.phone');
+
+        $this->actingAs($this->user, 'sanctum')
+             ->getJson("/api/community/members/{$this->user->id}")
+             ->assertOk()
+             ->assertJsonPath('user.phone', '0123000111');
+
+        $this->actingAs($this->owner, 'sanctum')
+             ->getJson("/api/community/members/{$this->user->id}")
+             ->assertOk()
+             ->assertJsonPath('user.phone', '0123000111');
+    }
 }

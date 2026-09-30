@@ -48,6 +48,9 @@ Route::prefix('community')->group(function () {
     Route::get('/tournaments',      [TournamentController::class, 'index']);
     Route::get('/tournaments/{id}', [TournamentController::class, 'show']);
 
+    // ── Landing page counters (public, no personal data) ─────────────────────
+    Route::get('/public-stats', [CommunityAnalyticsController::class, 'publicStats']);
+
     // ── Members & Profiles (Public) ───────────────────────────────────────────
     Route::get('/members',          [CommunityGameController::class, 'members']);
     Route::get('/members/{id}',     [CommunityGameController::class, 'memberProfile']);
