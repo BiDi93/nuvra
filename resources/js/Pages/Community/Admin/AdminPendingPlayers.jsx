@@ -142,6 +142,7 @@ const AdminPendingPlayers = () => {
                                 <div style={S.cardName}>{player.name}</div>
                                 <div style={S.cardVellar}>{player.vellar_id}</div>
                                 <div style={S.cardMeta}>
+                                    {player.email    && <span style={S.metaTag}>✉️ {player.email}</span>}
                                     {player.position && <span style={S.metaTag}><IconTarget size={11} /> {player.position}</span>}
                                     {player.phone    && <span style={S.metaTag}><IconPhone size={11} /> {player.phone}</span>}
                                     <span style={S.metaTag}>
