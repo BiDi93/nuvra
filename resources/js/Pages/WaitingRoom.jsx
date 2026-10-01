@@ -119,6 +119,7 @@ const WaitingRoom = () => {
                 {(vellarId || player) && (
                     <div style={S.infoCard}>
                         <InfoRow label="Vellar ID" value={player?.vellar_id ?? `VELLAR ${vellarId}`} highlight />
+                        {player?.email && <InfoRow label="Email" value={player.email} />}
                         {player?.position && <InfoRow label="Position" value={player.position} />}
                         <InfoRow label="Status" value={
                             <span style={S.statusBadge}>⏳ Pending Approval</span>

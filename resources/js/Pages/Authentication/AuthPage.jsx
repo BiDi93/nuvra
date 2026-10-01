@@ -24,15 +24,20 @@ const AuthPage = () => {
     const navigate = useNavigate();
     const [imgIndex, setImgIndex]     = useState(0);
     const [fade, setFade]             = useState(true);
-    const [view, setView]             = useState('login'); // 'login' | 'signup' | 'success'
+    const [view, setView]             = useState('login'); // 'login' | 'signup' | 'success' | 'forgot'
     const [loading, setLoading]       = useState(false);
     const [error, setError]           = useState('');
     const [successData, setSuccessData] = useState(null); // For post-register success screen
 
     const [loginForm, setLoginForm] = useState({ vellar_id: '', password: '' });
     const [signupForm, setSignupForm] = useState({
-        name: '', phone: '', position: '', password: '', password_confirmation: '',
+        name: '', email: '', phone: '', position: '', password: '', password_confirmation: '',
     });
+
+    // Forgot password state
+    const [forgotEmail, setForgotEmail]     = useState('');
+    const [forgotSuccess, setForgotSuccess] = useState('');
+    const [forgotLoading, setForgotLoading] = useState(false);
 
     // Hero image slideshow
     useEffect(() => {
@@ -93,31 +98,57 @@ const AuthPage = () => {
         try {
             const res = await axios.post('/api/community/register', {
                 name:                  signupForm.name,
+                email:                 signupForm.email.trim(),
                 phone:                 signupForm.phone,
                 position:              signupForm.position,
                 password:              signupForm.password,
                 password_confirmation: signupForm.password_confirmation,
             });
 
-            // Show success screen with vellar_id
+            // Show success screen with vellar_id and registered email
             setSuccessData({
                 vellar_id:     res.data.vellar_id,
                 vellar_number: res.data.vellar_number,
                 name:          res.data.name,
+                email:         res.data.email,
             });
             setView('success');
         } catch (err) {
-            const msg = err.response?.data?.message
-                ?? err.response?.data?.errors
-                ?? 'Registration failed. Please try again.';
-            setError(typeof msg === 'object' ? JSON.stringify(msg) : msg);
+            const data = err.response?.data;
+            let msg = 'Registration failed. Please try again.';
+            if (data?.errors) {
+                msg = Object.values(data.errors).flat().join(' ');
+            } else if (data?.message) {
+                msg = data.message;
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }
     };
 
+    // ── FORGOT PASSWORD ────────────────────────────────────────
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setForgotLoading(true);
+        setError('');
+        setForgotSuccess('');
+        try {
+            const res = await axios.post('/api/forgot-password', {
+                email: forgotEmail.trim(),
+            });
+            setForgotSuccess(res.data.message || 'Password reset link sent to your email.');
+        } catch (err) {
+            const msg = err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Failed to send reset link.';
+            setError(msg);
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
     const switchToSignup = () => { setError(''); setView('signup'); };
-    const switchToLogin  = () => { setError(''); setView('login'); };
+    const switchToLogin  = () => { setError(''); setForgotSuccess(''); setView('login'); };
+    const switchToForgot = () => { setError(''); setForgotSuccess(''); setView('forgot'); };
 
     return (
         <div style={S.root}>
@@ -178,12 +209,22 @@ const AuthPage = () => {
                                             required
                                         />
                                     </div>
-                                    <span style={S.fieldHint}>Example: enter <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> for VELLAR 82. Admins can enter their email.</span>
+                                    <span style={S.fieldHint}>Enter your Vellar ID number (e.g. <strong style={{ color: 'rgba(255,255,255,0.5)' }}>82</strong> for VELLAR 82). Admins can enter their email.</span>
                                 </div>
 
                                 {/* Password Field */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Password</label>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <label style={S.fieldLabel}>Password</label>
+                                        <button
+                                            type="button"
+                                            className="auth-link"
+                                            style={{ ...S.inlineLink, fontSize: 11, color: '#00D4EC' }}
+                                            onClick={switchToForgot}
+                                        >
+                                            Forgot password?
+                                        </button>
+                                    </div>
                                     <input
                                         className="auth-input"
                                         type="password"
@@ -229,7 +270,7 @@ const AuthPage = () => {
 
                             <form onSubmit={handleRegister} style={S.form}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Full Name</label>
+                                    <label style={S.fieldLabel}>Full Name *</label>
                                     <input
                                         className="auth-input"
                                         type="text"
@@ -239,6 +280,20 @@ const AuthPage = () => {
                                         style={S.input}
                                         required
                                     />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Email Address *</label>
+                                    <input
+                                        className="auth-input"
+                                        type="email"
+                                        placeholder="your.email@example.com"
+                                        value={signupForm.email}
+                                        onChange={e => { setError(''); setSignupForm(f => ({ ...f, email: e.target.value })); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                    <span style={S.fieldHint}>Used for password reset, promotional updates & match alerts.</span>
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -267,7 +322,7 @@ const AuthPage = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Password</label>
+                                    <label style={S.fieldLabel}>Password *</label>
                                     <input
                                         className="auth-input"
                                         type="password"
@@ -280,7 +335,7 @@ const AuthPage = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <label style={S.fieldLabel}>Confirm Password</label>
+                                    <label style={S.fieldLabel}>Confirm Password *</label>
                                     <input
                                         className="auth-input"
                                         type="password"
@@ -313,6 +368,53 @@ const AuthPage = () => {
                     )}
 
                     {/* ══════════════════════════════════════
+                        FORGOT PASSWORD VIEW
+                    ══════════════════════════════════════ */}
+                    {view === 'forgot' && (
+                        <div style={S.viewWrap}>
+                            <button className="back-btn" style={S.backBtn} onClick={switchToLogin}>← Back to Sign In</button>
+
+                            <div style={S.viewHeader}>
+                                <h1 style={S.viewTitle}>Forgot Password</h1>
+                                <p style={S.viewSubtitle}>Enter your registered email address and we'll send you a password reset link.</p>
+                            </div>
+
+                            <form onSubmit={handleForgotPassword} style={S.form}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={S.fieldLabel}>Registered Email</label>
+                                    <input
+                                        className="auth-input"
+                                        type="email"
+                                        placeholder="your.email@example.com"
+                                        value={forgotEmail}
+                                        onChange={e => { setError(''); setForgotSuccess(''); setForgotEmail(e.target.value); }}
+                                        style={S.input}
+                                        required
+                                    />
+                                </div>
+
+                                {error && <p style={S.errorMsg}>{error}</p>}
+                                {forgotSuccess && <p style={S.successMsg}>{forgotSuccess}</p>}
+
+                                <button
+                                    type="submit"
+                                    disabled={forgotLoading}
+                                    style={{ ...S.primaryBtn, background: 'linear-gradient(135deg, #00D4EC, #D040EF)', marginTop: 4, opacity: forgotLoading ? 0.7 : 1 }}
+                                >
+                                    {forgotLoading ? 'Sending…' : 'Send Reset Link'}
+                                </button>
+                            </form>
+
+                            <p style={{ ...S.switchText, marginTop: 24 }}>
+                                Remember your password?{' '}
+                                <button className="auth-link" style={{ ...S.inlineLink, color: '#00D4EC' }} onClick={switchToLogin}>
+                                    Sign in
+                                </button>
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ══════════════════════════════════════
                         SUCCESS VIEW (Post Sign Up)
                     ══════════════════════════════════════ */}
                     {view === 'success' && successData && (
@@ -328,11 +430,16 @@ const AuthPage = () => {
                                 <p style={S.vellarCardLabel}>Your Vellar ID</p>
                                 <p style={S.vellarCardId}>{successData.vellar_id}</p>
                                 <p style={S.vellarCardName}>{successData.name}</p>
+                                {successData.email && (
+                                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>
+                                        ✉️ {successData.email}
+                                    </p>
+                                )}
                             </div>
 
                             <div style={S.infoBox}>
                                 <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, textAlign: 'center' }}>
-                                    💡 Keep your Vellar ID safe. Once approved by the administrator, sign in using <strong style={{ color: '#00D4EC' }}>number {successData.vellar_number}</strong> as your ID and your chosen password.
+                                    💡 Keep your Vellar ID safe. Once approved by the administrator, sign in using your <strong style={{ color: '#00D4EC' }}>Vellar ID {successData.vellar_id}</strong> (enter number <strong style={{ color: '#00D4EC' }}>{successData.vellar_number}</strong>) and your chosen password.
                                 </p>
                             </div>
 
@@ -440,6 +547,11 @@ const S = {
     errorMsg: {
         fontSize: 12, color: '#ff6b6b', fontWeight: 500,
         background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)',
+        borderRadius: 8, padding: '8px 12px',
+    },
+    successMsg: {
+        fontSize: 12, color: '#00D4EC', fontWeight: 500,
+        background: 'rgba(0,212,236,0.08)', border: '1px solid rgba(0,212,236,0.2)',
         borderRadius: 8, padding: '8px 12px',
     },
 

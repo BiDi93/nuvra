@@ -15,6 +15,7 @@ class CommunityAuthController extends Controller
     {
         $request->validate([
             'name'                  => 'required|string|max:255',
+            'email'                 => 'required|email|max:255|unique:users,email',
             'phone'                 => 'nullable|string|max:20',
             'position'              => 'nullable|string|max:100',
             'password'              => 'required|string|min:6|confirmed',
@@ -28,18 +29,16 @@ class CommunityAuthController extends Controller
 
         $nextNumber = $maxNumber + 1;
         $vellarId   = 'VELLAR ' . $nextNumber;
-        $email      = 'vellar' . $nextNumber . '@vellarleague.com';
 
-        // Ensure email/vellar_id is unique (edge case check)
-        while (User::where('email', $email)->exists()) {
+        // Ensure vellar_id is unique (edge case check)
+        while (User::where('vellar_id', $vellarId)->exists()) {
             $nextNumber++;
             $vellarId = 'VELLAR ' . $nextNumber;
-            $email    = 'vellar' . $nextNumber . '@vellarleague.com';
         }
 
         $user = User::create([
             'name'      => $request->name,
-            'email'     => $email,
+            'email'     => strtolower(trim($request->email)),
             'password'  => Hash::make($request->password),
             'role'      => 'player',
             'status'    => 'pending',   // Awaiting admin approval
@@ -53,6 +52,7 @@ class CommunityAuthController extends Controller
             'vellar_id'     => $vellarId,
             'vellar_number' => $nextNumber,
             'name'          => $user->name,
+            'email'         => $user->email,
             'status'        => 'pending',
         ], 201);
     }
@@ -67,22 +67,31 @@ class CommunityAuthController extends Controller
 
         $input = trim($request->vellar_id);
 
-        // If input contains '@', treat as email (for admin/organizer)
+        // If input contains '@', treat as email (only allowed for admin/organizers)
         if (str_contains($input, '@')) {
-            $email = $input;
+            $user = User::where('email', strtolower($input))->first();
+            if ($user && $user->role === 'player') {
+                return response()->json([
+                    'message' => "Players must sign in using their Vellar ID ({$user->vellar_id}).",
+                ], 422);
+            }
         } else {
-            // Build email from vellar_id number
+            // Find by Vellar ID: either full string "VELLAR 82" or numeric "82"
             $vellarNumber = preg_replace('/[^0-9]/', '', $input);
 
             if (empty($vellarNumber)) {
-                return response()->json(['message' => 'Invalid Vellar ID. Please enter numbers only (e.g. 82).'], 422);
+                return response()->json(['message' => 'Invalid Vellar ID. Please enter your Vellar ID number (e.g. 82).'], 422);
             }
 
-            $email = 'vellar' . $vellarNumber . '@vellarleague.com';
-        }
+            $user = User::where('vellar_id', 'VELLAR ' . $vellarNumber)
+                ->orWhere('vellar_id', $input)
+                ->first();
 
-        // Find user
-        $user = User::where('email', $email)->first();
+            // Fallback for any legacy accounts that may have used fake emails
+            if (!$user) {
+                $user = User::where('email', 'vellar' . $vellarNumber . '@vellarleague.com')->first();
+            }
+        }
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Incorrect Vellar ID or password.'], 401);
@@ -150,7 +159,7 @@ class CommunityAuthController extends Controller
         $players = User::where('status', 'pending')
             ->where('role', 'player')
             ->orderBy('created_at', 'desc')
-            ->get(['id', 'name', 'vellar_id', 'position', 'phone', 'status', 'created_at']);
+            ->get(['id', 'name', 'email', 'vellar_id', 'position', 'phone', 'status', 'created_at']);
 
         return response()->json([
             'count'   => $players->count(),
@@ -175,7 +184,7 @@ class CommunityAuthController extends Controller
 
         return response()->json([
             'message'   => "Player {$player->name} ({$player->vellar_id}) has been approved.",
-            'player'    => $player->only(['id', 'name', 'vellar_id', 'position', 'status']),
+            'player'    => $player->only(['id', 'name', 'email', 'vellar_id', 'position', 'status']),
         ]);
     }
 
@@ -204,14 +213,31 @@ class CommunityAuthController extends Controller
     // Check status endpoint (for WaitingRoom polling)
     public function checkStatus(Request $request)
     {
-        $vellarNumber = preg_replace('/[^0-9]/', '', $request->input('vellar_id', ''));
+        $input = trim($request->input('vellar_id', ''));
 
-        if (empty($vellarNumber)) {
-            return response()->json(['message' => 'Invalid Vellar ID.'], 422);
+        if (empty($input)) {
+            return response()->json(['message' => 'Identifier required.'], 422);
         }
 
-        $email = 'vellar' . $vellarNumber . '@vellarleague.com';
-        $user  = User::where('email', $email)->first(['id', 'name', 'vellar_id', 'position', 'status']);
+        $user = null;
+        if (str_contains($input, '@')) {
+            $user = User::where('email', strtolower($input))
+                ->first(['id', 'name', 'email', 'vellar_id', 'position', 'status']);
+        } else {
+            $vellarNumber = preg_replace('/[^0-9]/', '', $input);
+            if (empty($vellarNumber)) {
+                return response()->json(['message' => 'Invalid Vellar ID.'], 422);
+            }
+
+            $user = User::where('vellar_id', 'VELLAR ' . $vellarNumber)
+                ->orWhere('vellar_id', $input)
+                ->first(['id', 'name', 'email', 'vellar_id', 'position', 'status']);
+
+            if (!$user) {
+                $user = User::where('email', 'vellar' . $vellarNumber . '@vellarleague.com')
+                    ->first(['id', 'name', 'email', 'vellar_id', 'position', 'status']);
+            }
+        }
 
         if (!$user) {
             return response()->json(['message' => 'Player not found.'], 404);
@@ -220,6 +246,7 @@ class CommunityAuthController extends Controller
         return response()->json([
             'status'    => $user->status,
             'name'      => $user->name,
+            'email'     => $user->email,
             'vellar_id' => $user->vellar_id,
             'position'  => $user->position,
         ]);
