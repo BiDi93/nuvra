@@ -16,19 +16,19 @@ function TournamentCard({ tournament, onClick }) {
             <h3 style={S.title}>{tournament.name}</h3>
             
             <div style={S.meta}>
-                <div>📍 {tournament.venue || "Lokasi Rasmi"}</div>
+                <div>📍 {tournament.venue || "Official Venue"}</div>
                 {tournament.organizer && <div>👑 {tournament.organizer.name}</div>}
             </div>
 
             <div style={S.statsBox}>
                 <div style={S.statCol}>
                     <span style={S.statVal}>{tournament.teams_count || 0}</span>
-                    <span style={S.statLbl}>PASUKAN</span>
+                    <span style={S.statLbl}>TEAMS</span>
                 </div>
                 <div style={S.statDivider} />
                 <div style={S.statCol}>
                     <span style={S.statVal}>{tournament.matches_count || 0}</span>
-                    <span style={S.statLbl}>PERLAWANAN</span>
+                    <span style={S.statLbl}>MATCHES</span>
                 </div>
                 <div style={S.statDivider} />
                 <div style={S.statCol}>
@@ -38,7 +38,7 @@ function TournamentCard({ tournament, onClick }) {
             </div>
 
             <button style={S.viewBtn}>
-                LIHAT KEDUDUKAN & JADUAL →
+                VIEW STANDINGS & FIXTURES →
             </button>
         </div>
     );
@@ -81,7 +81,7 @@ export default function PublicGames() {
                 </div>
                 <div style={S.navActions}>
                     <button style={S.signInBtn} onClick={() => navigate("/community")}>
-                        Log Masuk Penganjur
+                        Organizer Login
                     </button>
                 </div>
             </nav>
@@ -89,16 +89,16 @@ export default function PublicGames() {
             <div style={S.content}>
                 <div style={S.heroArea}>
                     <span style={S.heroTag}>🏆 TOURNAMENT HUB</span>
-                    <h1 style={S.heroTitle}>Kejohanan & Liga Rasmi</h1>
+                    <h1 style={S.heroTitle}>Official Tournaments & Leagues</h1>
                     <p style={S.heroSub}>
-                        Pantau kedudukan mata, jadual gameweek, dan statistik kejohanan tempatan secara langsung.
+                        Track points standings, gameweek fixtures, and local tournament statistics in real-time.
                     </p>
                 </div>
 
                 <div style={S.grid}>
                     {tournaments.length === 0 ? (
                         <div style={{ textAlign: "center", color: "#666", padding: 60, gridColumn: "1 / -1" }}>
-                            Tiada kejohanan aktif pada masa ini.
+                            No active tournaments at this time.
                         </div>
                     ) : (
                         tournaments.map((t) => (

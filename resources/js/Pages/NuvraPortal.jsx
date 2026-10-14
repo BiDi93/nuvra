@@ -204,7 +204,9 @@ export default function NuvraPortal() {
                 .gallery-img-wrap { position: relative; overflow: hidden; border-radius: 6px; flex-shrink: 0; }
                 .gallery-overlay  { position: absolute; inset: 0; background: rgba(0,0,0,0.35); transition: opacity 0.3s; }
                 .gallery-img-wrap:hover .gallery-overlay { opacity: 0; }
-                @media (max-width: 768px) {
+                @media (max-width: 900px) {
+                    .portal-hero-grid { grid-template-columns: 1fr !important; gap: 36px !important; text-align: center !important; }
+                    .portal-hero-grid div { align-items: center !important; }
                     .portal-two-col { grid-template-columns: 1fr !important; }
                     .portal-nav-links { display: none !important; }
                     .portal-stats-inner { flex-wrap: wrap !important; }
@@ -223,11 +225,24 @@ export default function NuvraPortal() {
             </nav>
 
             <section style={S.hero}>
-                <h1 style={S.heroTitle}>TOURNAMENT & LEAGUE<br /><span style={{ color: "#00D4EC" }}>MANAGEMENT</span></h1>
-                <p style={S.heroTagline}>The all-in-one tournament platform for football and futsal leagues. Automated standings, gameweek fixtures, and team leaderboards.</p>
-                <div style={{ display: 'flex', gap: 16 }}>
-                    <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/tournaments")}>EXPLORE LEAGUES</button>
-                    <button style={S.btnSecondaryHero} onClick={() => navigate("/community")}>ORGANIZER LOGIN</button>
+                <div className="portal-hero-grid" style={S.heroGrid}>
+                    <div style={S.heroContent}>
+                        <div style={S.heroTagBadge}>
+                            <span style={S.heroTagDot} />
+                            OFFICIAL FOOTBALL & LEAGUE PLATFORM
+                        </div>
+                        <h1 style={S.heroTitle}>TOURNAMENT & LEAGUE<br /><span style={{ color: "#00D4EC" }}>MANAGEMENT</span></h1>
+                        <p style={S.heroTagline}>The all-in-one tournament platform for football and futsal leagues. Automated standings, gameweek fixtures, and team leaderboards.</p>
+                        <div style={S.heroButtons}>
+                            <button className="btn-primary" style={S.btnPrimaryHero} onClick={() => navigate("/tournaments")}>EXPLORE LEAGUES</button>
+                            <button style={S.btnSecondaryHero} onClick={() => navigate("/community")}>ORGANIZER LOGIN</button>
+                        </div>
+                    </div>
+                    <div style={S.heroVisual}>
+                        <div style={S.heroImageCard}>
+                            <img src="/images/landingPage/pitch-night.jpg" alt="Football Action" style={S.heroImage} />
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -277,17 +292,25 @@ const S = {
     navLinks: { display: "flex", gap: 28, alignItems: "center" },
     navLink: { color: "#72727e", fontSize: 14, fontWeight: 500, background: "none", border: "none", cursor: "pointer" },
     navCta: { padding: "8px 20px", background: "#00D4EC", color: "#0d0d10", border: "none", borderRadius: 4, fontSize: 13, fontWeight: 700, cursor: "pointer" },
-    hero: { minHeight: "90vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 24px" },
-    heroTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(50px, 8vw, 100px)", fontWeight: 800, lineHeight: 0.92, letterSpacing: 2, textTransform: "uppercase", marginBottom: 24 },
-    heroTagline: { fontSize: "clamp(16px, 2vw, 20px)", color: "#72727e", maxWidth: 600, margin: "0 auto 40px" },
-    btnPrimaryHero: { padding: "16px 40px", background: "#00D4EC", color: "#0d0d10", border: "none", borderRadius: 4, fontSize: 14, fontWeight: 800, cursor: "pointer" },
-    btnSecondaryHero: { padding: "16px 40px", background: "transparent", color: "#F5F5F7", border: "1px solid #2a2a30", borderRadius: 4, fontSize: 14, fontWeight: 800, cursor: "pointer" },
-    statsSection: { background: "#0f0f13", borderY: "1px solid #222228", padding: "60px 24px" },
+    hero: { minHeight: "88vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "110px 24px 60px" },
+    heroGrid: { display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 48, alignItems: "center", maxWidth: 1200, width: "100%", margin: "0 auto" },
+    heroContent: { display: "flex", flexDirection: "column", gap: 20 },
+    heroTagBadge: { display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: "rgba(0, 212, 236, 0.08)", border: "1px solid rgba(0, 212, 236, 0.25)", color: "#00D4EC", fontSize: 11, fontWeight: 800, letterSpacing: 1.5, width: "fit-content" },
+    heroTagDot: { width: 6, height: 6, borderRadius: "50%", background: "#00D4EC" },
+    heroTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(46px, 6vw, 84px)", fontWeight: 800, lineHeight: 0.95, letterSpacing: 1.5, textTransform: "uppercase" },
+    heroTagline: { fontSize: "clamp(15px, 1.8vw, 18px)", color: "#8a8a98", maxWidth: 520, lineHeight: 1.6 },
+    heroButtons: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 8 },
+    btnPrimaryHero: { padding: "14px 32px", background: "#00D4EC", color: "#0d0d10", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 800, letterSpacing: 0.5, cursor: "pointer" },
+    btnSecondaryHero: { padding: "14px 32px", background: "transparent", color: "#F5F5F7", border: "1px solid #2a2a30", borderRadius: 6, fontSize: 13, fontWeight: 800, letterSpacing: 0.5, cursor: "pointer" },
+    heroVisual: { display: "flex", justifyContent: "center", alignItems: "center", width: "100%" },
+    heroImageCard: { width: "100%", maxWidth: 520, height: 380, borderRadius: 24, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 60px rgba(0,0,0,0.6)", background: "#16161f" },
+    heroImage: { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" },
+    statsSection: { background: "#0f0f13", borderY: "1px solid #222228", padding: "50px 24px" },
     statsInner: { display: "flex", justifyContent: "center", gap: 40, maxWidth: 1000, margin: "0 auto" },
     statCard: { textAlign: "center", minWidth: 180 },
     statNumber: { display: "block", fontFamily: "'Barlow Condensed', sans-serif", fontSize: 48, fontWeight: 700, color: "#00D4EC" },
     statLabel: { display: "block", marginTop: 6, fontSize: 12, color: "#72727e", textTransform: "uppercase", letterSpacing: 1 },
-    section: { padding: "100px 24px", maxWidth: 1100, margin: "0 auto" },
+    section: { padding: "90px 24px", maxWidth: 1100, margin: "0 auto" },
     sectionTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 40, fontWeight: 700, textTransform: "uppercase" },
     stepsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, marginTop: 40 },
     step: { background: "#161619", border: "1px solid #222228", padding: "32px", borderRadius: 8 },
