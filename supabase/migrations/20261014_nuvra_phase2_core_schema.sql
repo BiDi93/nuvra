@@ -255,7 +255,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 -- Pasang Trigger pada auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -305,6 +305,12 @@ ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public profiles are viewable by everyone"
     ON public.profiles FOR SELECT
     USING (true);
+
+-- Pengguna boleh mencipta profil sendiri
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile"
+    ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
 
 -- Pengguna hanya boleh kemas kini profil sendiri
 CREATE POLICY "Users can update own profile"

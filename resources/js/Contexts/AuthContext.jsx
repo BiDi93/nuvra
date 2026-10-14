@@ -17,9 +17,41 @@ export function AuthProvider({ children }) {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const loadProfile = async (userId) => {
+    const loadProfile = async (targetUser) => {
+        const userId = typeof targetUser === 'string' ? targetUser : targetUser?.id;
+        if (!userId) return null;
         try {
-            const data = await fetchProfile(userId);
+            let data = null;
+            try {
+                data = await fetchProfile(userId);
+            } catch (fetchErr) {
+                // Profile might not exist yet
+            }
+
+            // Fallback: Jika trigger database belum sempat menjana profil, bina terus dari metadata auth pengguna
+            if (!data && typeof targetUser === 'object' && targetUser?.email) {
+                const detectedName = targetUser.user_metadata?.full_name || targetUser.user_metadata?.name || targetUser.email.split('@')[0];
+                const detectedAvatar = targetUser.user_metadata?.avatar_url || targetUser.user_metadata?.picture || null;
+                const cleanUsername = targetUser.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') + '_' + targetUser.id.substring(0, 4);
+
+                const { data: newProfile, error: upsertErr } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: targetUser.id,
+                        email: targetUser.email,
+                        full_name: detectedName,
+                        username: cleanUsername,
+                        avatar_url: detectedAvatar,
+                        role: targetUser.user_metadata?.role || 'player',
+                    })
+                    .select()
+                    .single();
+
+                if (!upsertErr && newProfile) {
+                    data = newProfile;
+                }
+            }
+
             setProfile(data);
             if (data?.role) {
                 localStorage.setItem('nuvra_role', data.role);
@@ -59,7 +91,7 @@ export function AuthProvider({ children }) {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                loadProfile(session.user.id);
+                loadProfile(session.user);
             }
             setLoading(false);
         });
@@ -70,7 +102,7 @@ export function AuthProvider({ children }) {
                 setSession(newSession);
                 setUser(newSession?.user ?? null);
                 if (newSession?.user) {
-                    await loadProfile(newSession.user.id);
+                    await loadProfile(newSession.user);
                 } else {
                     setProfile(null);
                 }
