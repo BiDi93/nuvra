@@ -1,26 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-const rawUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const rawUrl = (import.meta.env.VITE_SUPABASE_URL || 'https://kyarnmrmcnvekvjgfatv.supabase.co').trim();
 const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
-
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn(
-        '[NUVRA Supabase] Amaran: VITE_SUPABASE_URL atau VITE_SUPABASE_ANON_KEY belum dikonfigurasi dalam fail .env. ' +
-        'Sila masukkan kunci Supabase anda untuk mengaktifkan fungsi penuh pangkalan data & pengesahan.'
-    );
-}
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5YXJubXJtY252ZWt2amdmYXR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5Mzg4MjksImV4cCI6MjEwNzUxNDgyOX0.MUIZOwCz9p8v7SwUjO9VpmeFORT6ki_G44x9YYZT5Jc').trim();
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 export const supabase = createClient(
-    supabaseUrl || 'https://placeholder-nuvra.supabase.co',
-    supabaseAnonKey || 'placeholder-key',
+    supabaseUrl,
+    supabaseAnonKey,
     {
         auth: {
             persistSession: true,
             autoRefreshToken: true,
             detectSessionInUrl: true,
+            flowType: 'pkce',
         },
     }
 );
@@ -38,6 +32,8 @@ export async function signInWithGoogle(redirectTo) {
         throw new Error('Supabase belum dikonfigurasi dalam .env');
     }
     const targetUrl = redirectTo || `${window.location.origin}/dashboard/player`;
+    console.log('[NUVRA Supabase] Melancarkan Google OAuth ke:', targetUrl);
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -48,7 +44,17 @@ export async function signInWithGoogle(redirectTo) {
             },
         },
     });
-    if (error) throw error;
+
+    if (error) {
+        console.error('[NUVRA Supabase] Ralat Google OAuth:', error);
+        throw error;
+    }
+
+    if (data?.url) {
+        console.log('[NUVRA Supabase] Redirecting browser ke:', data.url);
+        window.location.href = data.url;
+    }
+
     return data;
 }
 
