@@ -24,10 +24,18 @@ import TournamentManage from "./Pages/Community/Admin/TournamentManage.jsx";
 import PostAnnouncement from "./Pages/Community/Admin/PostAnnouncement.jsx";
 import Analytics from "./Pages/Community/Admin/Analytics.jsx";
 import AdminPendingPlayers from "./Pages/Community/Admin/AdminPendingPlayers.jsx";
+import { AuthProvider } from "./Contexts/AuthContext.jsx";
+
+// --- CORE NUVRA 2.0 DASHBOARDS ---
+import DashboardLayout from "./Layouts/DashboardLayout.jsx";
+import PlayerDashboard from "./Pages/Dashboard/PlayerDashboard.jsx";
+import ClubDashboard from "./Pages/Dashboard/ClubDashboard.jsx";
+import VenueDashboard from "./Pages/Dashboard/VenueDashboard.jsx";
 
 function App() {
     return (
-        <BrowserRouter>
+        <AuthProvider>
+            <BrowserRouter>
             <Routes>
                 {/* =========================================
                     1. NUVRA PORTAL (Public Entry Point)
@@ -63,10 +71,18 @@ function App() {
                     <Route path="admin/pending-players" element={<AdminPendingPlayers />} />
                 </Route>
 
-                {/* Default redirect for legacy routes */}
-                <Route path="/dashboard/*" element={<Navigate to="/community/feed" replace />} />
+                {/* =========================================
+                    3. NUVRA 2.0 CORE APPLICATION DASHBOARDS
+                   ========================================= */}
+                <Route path="/dashboard" element={<DashboardLayout />}>
+                    <Route index element={<Navigate to="/dashboard/player" replace />} />
+                    <Route path="player" element={<PlayerDashboard />} />
+                    <Route path="club" element={<ClubDashboard />} />
+                    <Route path="venue" element={<VenueDashboard />} />
+                </Route>
             </Routes>
         </BrowserRouter>
+        </AuthProvider>
     );
 }
 
